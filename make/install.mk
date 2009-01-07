@@ -39,22 +39,6 @@ ifdef UDEVT
 		install -m644 $(S)/$$i ${DESTDIR}/etc/udev/rules.d; \
 	done
 endif
-ifdef KMODT
-	install -d ${module_dir}/${KDIRT}
-	install -m644 ${KMODT} ${module_dir}/${KDIRT}
-endif
-ifdef KHEADT
-	install -d ${incdir}/linux
-	install -m644 ${KHEADT} ${incdir}/linux
-endif
-ifdef MIBRESOURCE
-	install -d ${mibdir}
-	install -m644 $(S)/${MIBRESOURCE} ${mibdir}
-endif
-ifdef FENCEAGENTSLIB
-	install -d ${DESTDIR}/${fenceagentslibdir}
-	install -m644 ${FENCEAGENTSLIB} ${DESTDIR}/${fenceagentslibdir}
-endif
 ifdef DOCS
 	install -d ${docdir}
 	for i in ${DOCS}; do \
