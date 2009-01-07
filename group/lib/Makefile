@@ -2,6 +2,9 @@ TARGET=libgroup
 
 MAKESTATICLIB = 1
 
+LIBDIRT=$(TARGET).a
+INCDIRT=$(TARGET).h
+
 include ../../make/defines.mk
 include $(OBJDIR)/make/libs.mk
 include $(OBJDIR)/make/cobj.mk
