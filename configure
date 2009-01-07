@@ -154,7 +154,7 @@ if ($help || !$err) {
   print "--ccsincdir=\tthe base directory for ccs include files.  (Default: ./config/libs/libccsconfdb)\n";
   print "--ccslibdir=\tthe base directory for ccs libraries.  (Default: ./config/libs/libccsconfdb)\n";
   print "--cmanincdir=\tthe base directory for cman include files.  (Default: ./cman/lib)\n";
-  print "--cmanlibdir=\tthe base directory for cman libraries.  (Default: ./cman/lib)\n";
+  print "--cmanlibdir=\tthe base directory for cman libraries.  (Default: ./cman/services/cman/lib)\n";
   print "--logtincdir=\tthe base directory for logthread include files.  (Default: ./common/liblogthread)\n";
   print "--logtlibdir=\tthe base directory for logthread libraries.  (Default: ./common/liblogthread)\n";
   print "--corosyncincdir=\tthe base directory for corosync include files.  (Default: {incdir})\n";
@@ -261,7 +261,7 @@ if (!$ccslibdir) {
   $ccslibdir="${objdir}/config/libs/libccsconfdb";
 }
 if (!$cmanincdir) {
-  $cmanincdir="${cdir}/cman/services/cman/lib";
+  $cmanincdir="${cdir}/cman/lib";
 }
 if (!$cmanlibdir) {
   $cmanlibdir="${objdir}/cman/services/cman/lib";

@@ -18,6 +18,7 @@ CFLAGS += -I${cmanincdir}
 CFLAGS += -I${incdir}
 
 LDFLAGS += -L${cmanlibdir} -lcman
+LDFLAGS += -L${ccslibdir} -lccs
 LDFLAGS += -L${libdir}
 
 ${TARGET}: ${OBJS}
