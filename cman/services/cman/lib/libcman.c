@@ -146,11 +146,18 @@ static int cmanquorum_check_and_start(struct cman_inst *cman_inst)
 static int refresh_node_list(struct cman_inst *cman_inst)
 {
 	int error;
+	cman_callback_t notify_callback;
+
 	if (cmanquorum_check_and_start(cman_inst))
 		return -1;
 
 	cmanquorum_trackstart(cman_inst->cmq_handle, CS_TRACK_CURRENT);
+
+	// TODO FIXME this is horrible & racy
+	notify_callback = cman_inst->notify_callback;
+	cman_inst->notify_callback = NULL;
 	error = cmanquorum_dispatch(cman_inst->cmq_handle, CS_DISPATCH_ONE);
+	cman_inst->notify_callback = notify_callback;
 	return error;
 }
 

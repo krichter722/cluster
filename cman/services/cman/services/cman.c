@@ -559,8 +559,10 @@ static void message_handler_req_lib_cman_is_listening (void *conn, void *msg)
 		cman_send_message(0,0, req_lib_cman_is_listening->nodeid, &reqmsg, 1);
 	}
 	else {
-		res_lib_cman_is_listening.status = get_port_bit(node, req_lib_cman_is_listening->port);
-		error = 0;
+		if (node) {
+			res_lib_cman_is_listening.status = get_port_bit(node, req_lib_cman_is_listening->port);
+			error = 0;
+		}
 	}
 
 	res_lib_cman_is_listening.header.size = sizeof(res_lib_cman_is_listening);
