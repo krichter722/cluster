@@ -1,5 +1,7 @@
 TARGET= libcmanquorum
 
+COROSYNCINCDIRT=../include/corosync/cmanquorum.h
+
 include ../../../../make/defines.mk
 include $(OBJDIR)/make/libs.mk
 include $(OBJDIR)/make/cobj.mk
