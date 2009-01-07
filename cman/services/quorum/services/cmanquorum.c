@@ -1137,6 +1137,7 @@ static void message_handler_req_lib_cmanquorum_getinfo (void *conn, void *messag
 		res_lib_cmanquorum_getinfo.quorum = quorum;
 		res_lib_cmanquorum_getinfo.total_votes = total_votes;
 		res_lib_cmanquorum_getinfo.flags = 0;
+		res_lib_cmanquorum_getinfo.nodeid = node->node_id;
 
 		if (us->flags & NODE_FLAGS_DIRTY)
 			res_lib_cmanquorum_getinfo.flags |= CMANQUORUM_INFO_FLAG_DIRTY;

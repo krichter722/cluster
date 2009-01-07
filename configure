@@ -261,10 +261,10 @@ if (!$ccslibdir) {
   $ccslibdir="${objdir}/config/libs/libccsconfdb";
 }
 if (!$cmanincdir) {
-  $cmanincdir="${cdir}/cman/lib";
+  $cmanincdir="${cdir}/cman/services/cman/lib";
 }
 if (!$cmanlibdir) {
-  $cmanlibdir="${objdir}/cman/lib";
+  $cmanlibdir="${objdir}/cman/services/cman/lib";
 }
 if (!$logtincdir) {
   $logtincdir="${cdir}/common/liblogthread";

@@ -3,12 +3,14 @@
  */
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <errno.h>
+#include <limits.h>
 
 #include <corosync/corotypes.h>
 #include <corosync/mar_gen.h>
@@ -19,6 +21,7 @@
 #include <corosync/cmanquorum.h>
 #include <corosync/ipc_cman.h>
 
+#include "ccs.h"
 #include "libcman.h"
 
 #define CMAN_MAGIC 0x434d414e
@@ -36,6 +39,10 @@ struct cman_inst {
 	cman_callback_t notify_callback;
 	pthread_mutex_t response_mutex;
 	pthread_mutex_t dispatch_mutex;
+
+	int node_count;
+	cmanquorum_node_t * node_list;
+	int node_list_size;
 
 	corosync_cfg_handle_t cfg_handle;
 	cmanquorum_handle_t cmq_handle;
@@ -63,12 +70,22 @@ static CorosyncCfgCallbacksT cfg_callbacks =
 	.corosyncCfgShutdownCallback = cfg_shutdown_callback,
 };
 
-static void cman_instance_destructor (void *instance);
-
 
 #define VALIDATE_HANDLE(h) do {if (!(h) || (h)->magic != CMAN_MAGIC) {errno = EINVAL; return -1;}} while (0)
 
 static struct cman_inst *admin_inst;
+
+static uint16_t generate_cluster_id(char *name)
+{
+	int i;
+	int value = 0;
+
+	for (i=0; i<strlen(name); i++) {
+		value <<= 1;
+		value += name[i];
+	}
+	return value & 0xFFFF;
+}
 
 static void cfg_shutdown_callback(
 	corosync_cfg_handle_t handle,
@@ -97,19 +114,21 @@ static void cmanquorum_notification_callback(
 
 	cmanquorum_context_get(handle, (void **)&cman_inst);
 
+	/* Save information for synchronous queries */
+	cman_inst->node_count = node_list_entries;
+	if (cman_inst->node_list_size < node_list_entries) {
+		if (cman_inst->node_list)
+			free(cman_inst->node_list);
+
+		cman_inst->node_list = malloc(sizeof(cmanquorum_node_t) * node_list_entries * 2);
+		if (cman_inst->node_list) {
+			memcpy(cman_inst->node_list, node_list, sizeof(cmanquorum_node_t) * node_list_entries);
+			cman_inst->node_list_size = node_list_entries;
+		}
+	}
+
 	if (cman_inst->notify_callback)
 		cman_inst->notify_callback((void*)cman_inst, cman_inst->privdata, CMAN_REASON_STATECHANGE, quorate);
-}
-
-
-/*
- * Clean up function for a cman instance (cman_init) handle
- */
-static void cman_instance_destructor (void *instance)
-{
-	struct cman_inst *cman_inst = instance;
-
-	pthread_mutex_destroy (&cman_inst->response_mutex);
 }
 
 static int cmanquorum_check_and_start(struct cman_inst *cman_inst)
@@ -124,6 +143,17 @@ static int cmanquorum_check_and_start(struct cman_inst *cman_inst)
 	return 0;
 }
 
+static int refresh_node_list(struct cman_inst *cman_inst)
+{
+	int error;
+	if (cmanquorum_check_and_start(cman_inst))
+		return -1;
+
+	cmanquorum_trackstart(cman_inst->cmq_handle, CS_TRACK_CURRENT);
+	error = cmanquorum_dispatch(cman_inst->cmq_handle, CS_DISPATCH_ONE);
+	return error;
+}
+
 cman_handle_t cman_init (
 	void *privdata)
 {
@@ -134,6 +164,7 @@ cman_handle_t cman_init (
 	if (!cman_inst)
 		return NULL;
 
+	memset(cman_inst, 0, sizeof(struct cman_inst));
 	error = saServiceConnect (&cman_inst->dispatch_fd,
 				  &cman_inst->response_fd,
 				  CMAN_SERVICE);
@@ -142,6 +173,7 @@ cman_handle_t cman_init (
 	}
 
 	cman_inst->privdata = privdata;
+	cman_inst->magic = CMAN_MAGIC;
 	pthread_mutex_init (&cman_inst->response_mutex, NULL);
 	pthread_mutex_init (&cman_inst->dispatch_mutex, NULL);
 
@@ -158,10 +190,11 @@ cman_handle_t cman_admin_init (
 {
 	if (admin_inst) {
 		errno = EBUSY;
-		return -1;
+		return NULL;
 	}
 
-	admin_inst = cman_init(NULL);
+	admin_inst = cman_init(privdata);
+	return admin_inst;
 }
 
 
@@ -169,13 +202,12 @@ int cman_finish (
 	cman_handle_t handle)
 {
 	struct cman_inst *cman_inst;
-	cs_error_t error;
 
 	cman_inst = (struct cman_inst *)handle;
 	VALIDATE_HANDLE(cman_inst);
 
 	if (cman_inst->cmq_handle) {
-		quorum_finalize(cman_inst->cmq_handle);
+		cmanquorum_finalize(cman_inst->cmq_handle);
 		cman_inst->cmq_handle = 0;
 	}
 	if (cman_inst->cfg_handle) {
@@ -372,13 +404,12 @@ int cman_is_quorate(cman_handle_t handle)
 {
 	struct cman_inst *cman_inst;
 	int quorate = -1;
-	int error;
 	struct cmanquorum_info info;
 
 	cman_inst = (struct cman_inst *)handle;
 	VALIDATE_HANDLE(cman_inst);
 
-	if (!cmanquorum_check_and_start(cman_inst))
+	if (cmanquorum_check_and_start(cman_inst))
 		return -1;
 
 	if (cmanquorum_getinfo(cman_inst->cmq_handle, 0, &info) != CS_OK)
@@ -411,6 +442,10 @@ int cman_shutdown(cman_handle_t handle, int flags)
 
 	error = corosync_cfg_try_shutdown(cman_inst->cfg_handle, cfg_flags);
 
+	/* ERR_LIBRARY happens because corosync shuts down while we are connected */
+	if (error == CS_ERR_LIBRARY || error == CS_OK)
+		error = 0;
+
 	return error;
 }
 
@@ -433,6 +468,9 @@ int cman_leave_cluster(cman_handle_t handle, int flags)
 	cfg_flags = COROSYNC_CFG_SHUTDOWN_FLAG_IMMEDIATE;
 
 	error = corosync_cfg_try_shutdown(cman_inst->cfg_handle, cfg_flags);
+	/* ERR_LIBRARY happens because corosync shuts down while we are connected */
+	if (error == CS_ERR_LIBRARY || error == CS_OK)
+		error = 0;
 
 	return error;
 }
@@ -457,7 +495,7 @@ int cman_replyto_shutdown(cman_handle_t handle, int flags)
 	return error;
 }
 
-int cman_killnode(cman_handle_t handle, unsigned int nodeid)
+int cman_kill_node(cman_handle_t handle, int nodeid)
 {
 	struct cman_inst *cman_inst;
 	int error;
@@ -485,7 +523,7 @@ int cman_set_votes(cman_handle_t handle, int votes, int nodeid)
 	cman_inst = (struct cman_inst *)handle;
 	VALIDATE_HANDLE(cman_inst);
 
-	if (!cmanquorum_check_and_start(cman_inst))
+	if (cmanquorum_check_and_start(cman_inst))
 		return -1;
 
 	error = cmanquorum_setvotes(cman_inst->cmq_handle, nodeid, votes);
@@ -501,7 +539,7 @@ int cman_set_expected_votes(cman_handle_t handle, int expected)
 	cman_inst = (struct cman_inst *)handle;
 	VALIDATE_HANDLE(cman_inst);
 
-	if (!cmanquorum_check_and_start(cman_inst))
+	if (cmanquorum_check_and_start(cman_inst))
 		return -1;
 
 	error = cmanquorum_setexpected(cman_inst->cmq_handle, expected);
@@ -514,7 +552,6 @@ int cman_get_fd (
 {
 	struct cman_inst *cman_inst;
 	int fd;
-	int error;
 
 	cman_inst = (struct cman_inst *)handle;
 	VALIDATE_HANDLE(cman_inst);
@@ -528,7 +565,6 @@ int cman_getprivdata(
 	cman_handle_t handle,
 	void **context)
 {
-	cs_error_t error;
 	struct cman_inst *cman_inst;
 
 	cman_inst = (struct cman_inst *)handle;
@@ -543,7 +579,6 @@ int cman_setprivdata(
 	cman_handle_t handle,
 	void *context)
 {
-	cs_error_t error;
 	struct cman_inst *cman_inst;
 
 	cman_inst = (struct cman_inst *)handle;
@@ -563,7 +598,7 @@ int cman_register_quorum_device(cman_handle_t handle, char *name, int votes)
 	cman_inst = (struct cman_inst *)handle;
 	VALIDATE_HANDLE(cman_inst);
 
-	if (!cmanquorum_check_and_start(cman_inst))
+	if (cmanquorum_check_and_start(cman_inst))
 		return -1;
 
 	error = cmanquorum_qdisk_register(cman_inst->cmq_handle, name, votes);
@@ -579,7 +614,7 @@ int cman_unregister_quorum_device(cman_handle_t handle)
 	cman_inst = (struct cman_inst *)handle;
 	VALIDATE_HANDLE(cman_inst);
 
-	if (!cmanquorum_check_and_start(cman_inst))
+	if (cmanquorum_check_and_start(cman_inst))
 		return -1;
 
 	error = cmanquorum_qdisk_unregister(cman_inst->cmq_handle);
@@ -594,7 +629,7 @@ int cman_poll_quorum_device(cman_handle_t handle, int isavailable)
 	cman_inst = (struct cman_inst *)handle;
 	VALIDATE_HANDLE(cman_inst);
 
-	if (!cmanquorum_check_and_start(cman_inst))
+	if (cmanquorum_check_and_start(cman_inst))
 		return -1;
 
 	error = cmanquorum_qdisk_poll(cman_inst->cmq_handle, 1);
@@ -611,7 +646,7 @@ int cman_get_quorum_device(cman_handle_t handle, struct cman_qdev_info *info)
 	cman_inst = (struct cman_inst *)handle;
 	VALIDATE_HANDLE(cman_inst);
 
-	if (!cmanquorum_check_and_start(cman_inst))
+	if (cmanquorum_check_and_start(cman_inst))
 		return -1;
 
 	error = cmanquorum_qdisk_getinfo(cman_inst->cmq_handle, &qinfo);
@@ -633,7 +668,7 @@ int cman_set_dirty(cman_handle_t handle)
 	cman_inst = (struct cman_inst *)handle;
 	VALIDATE_HANDLE(cman_inst);
 
-	if (!cmanquorum_check_and_start(cman_inst))
+	if (cmanquorum_check_and_start(cman_inst))
 		return -1;
 
 	error = cmanquorum_setdirty(cman_inst->cmq_handle);
@@ -791,22 +826,274 @@ error_put:
 int cman_get_node_count(cman_handle_t handle)
 {
 	struct cman_inst *cman_inst;
-	int error;
+	int ccs_handle;
+	int num_nodes = 0;
+	char path[PATH_MAX];
+	char *value;
 
 	cman_inst = (struct cman_inst *)handle;
 	VALIDATE_HANDLE(cman_inst);
 
-	if (!cmanquorum_check_and_start(cman_inst))
-		return -1;
+	/* Returns the number of nodes known to ccs, not cman! */
+	ccs_handle = ccs_connect();
 
-	cmanquorum_trackstart(cman_inst->cmq_handle, CS_TRACK_CURRENT);
+	sprintf(path, "/cluster/clusternodes/clusternode[%d]/@name", num_nodes+1);
 
-	return error;
+	while (!ccs_get(ccs_handle, path, &value))
+	{
+		num_nodes++;
+		sprintf(path, "/cluster/clusternodes/clusternode[%d]/@name", num_nodes+1);
+	};
+
+	ccs_disconnect(ccs_handle);
+	return num_nodes;
+}
+
+int cman_is_active(cman_handle_t handle)
+{
+	struct cman_inst *cman_inst;
+
+	cman_inst = (struct cman_inst *)handle;
+	VALIDATE_HANDLE(cman_inst);
+
+	/* If we have connected, then 'cman' is active */
+	return 1;
+}
+
+int cman_get_cluster(cman_handle_t handle, cman_cluster_t *clinfo)
+{
+	struct cman_inst *cman_inst;
+	int ccs_handle;
+	char *value;
+
+	cman_inst = (struct cman_inst *)handle;
+	VALIDATE_HANDLE(cman_inst);
+
+	ccs_handle = ccs_connect();
+	if (!ccs_get(ccs_handle, "/cluster/@name", &value)) {
+		strcpy(clinfo->ci_name, value);
+		free(value);
+	}
+	if (!ccs_get(ccs_handle, "/cluster/cman/@cluster_id", &value)) {
+		clinfo->ci_number = atoi(value);
+		free(value);
+	}
+	else {
+		clinfo->ci_number = generate_cluster_id(clinfo->ci_name);
+	}
+	clinfo->ci_generation = 0; // CC: TODO ???
+
+	ccs_disconnect(ccs_handle);
+
+	return 0;
+}
+
+int cman_get_version(cman_handle_t handle, cman_version_t *version)
+{
+	struct cman_inst *cman_inst;
+	int ccs_handle;
+	char *value;
+
+	cman_inst = (struct cman_inst *)handle;
+	VALIDATE_HANDLE(cman_inst);
+
+	ccs_handle = ccs_connect();
+	if (!ccs_get(ccs_handle, "/cluster/@config_version", &value)) {
+		version->cv_config = atoi(value);
+		free(value);
+	}
+	//  CC: TODO ??? */
+	version->cv_major = 7;
+	version->cv_minor = 0;
+	version->cv_patch = 1;
+	ccs_disconnect(ccs_handle);
+
+	return 0;
 }
 
 int cman_get_nodes(cman_handle_t handle, int maxnodes, int *retnodes, cman_node_t *nodes)
-{}
+{
+	struct cman_inst *cman_inst;
+	int ccs_handle;
+	char *value;
+	int ret;
+	int i;
+	int num_nodes = 0;
+	char path[PATH_MAX];
+
+	cman_inst = (struct cman_inst *)handle;
+	VALIDATE_HANDLE(cman_inst);
+
+	refresh_node_list(cman_inst);
+	ccs_handle = ccs_connect();
+
+	do {
+		sprintf(path, "/cluster/clusternodes/clusternode[%d]/@name", num_nodes+1);
+		ccs_get(ccs_handle, path, &value);
+		if (value) {
+			strcpy(nodes[num_nodes].cn_name, value);
+			free(value);
+		}
+
+		sprintf(path, "/cluster/clusternodes/clusternode[%d]/@nodeid", num_nodes+1);
+		ret = ccs_get(ccs_handle, path, &value);
+		if (value) {
+			nodes[num_nodes].cn_nodeid = atoi(value);
+			free(value);
+		}
+
+		/* Reconcile with active nodes list. */
+		for (i=0; i < cman_inst->node_count; i++) {
+			if (cman_inst->node_list[i].nodeid == nodes[num_nodes].cn_nodeid) {
+				nodes[num_nodes].cn_member = (cman_inst->node_list[i].state == NODESTATE_MEMBER);
+			}
+		}
+
+		num_nodes++;
+	} while (ret == 0 && num_nodes < maxnodes);
+
+	*retnodes = num_nodes-1;
+	ccs_disconnect(ccs_handle);
+	return 0;
+}
+
 int cman_get_disallowed_nodes(cman_handle_t handle, int maxnodes, int *retnodes, cman_node_t *nodes)
-{}
+{
+	struct cman_inst *cman_inst;
+	int i;
+	int num_nodes = 0;
+	int ccs_handle;
+	char *value;
+	int ret;
+	char path[PATH_MAX];
+
+	cman_inst = (struct cman_inst *)handle;
+	VALIDATE_HANDLE(cman_inst);
+
+	refresh_node_list(cman_inst);
+	ccs_handle = ccs_connect();
+
+	for (i=0; i < cman_inst->node_count; i++) {
+		if (cman_inst->node_list[i].state == NODESTATE_DISALLOWED) {
+			nodes[num_nodes].cn_nodeid = cman_inst->node_list[i].nodeid;
+
+			/* Find the name: */
+			sprintf(path, "/cluster/clusternodes/clusternode[@nodeid=\"%d\"]/@name", cman_inst->node_list[i].nodeid);
+			ret = ccs_get(ccs_handle, path, &value);
+			if (!ret) {
+				strcpy(nodes[num_nodes].cn_name, value);
+				free(value);
+			}
+		}
+	}
+	*retnodes = num_nodes;
+	ccs_disconnect(ccs_handle);
+	return 0;
+
+}
+
 int cman_get_node(cman_handle_t handle, int nodeid, cman_node_t *node)
-{}
+{
+	struct cman_inst *cman_inst;
+	struct cmanquorum_info qinfo;
+	int i;
+	int ccs_handle;
+	int ret = 0;
+	char *value;
+	char path[PATH_MAX];
+
+	cman_inst = (struct cman_inst *)handle;
+	VALIDATE_HANDLE(cman_inst);
+
+	refresh_node_list(cman_inst);
+	ccs_handle = ccs_connect();
+
+	if (node->cn_name[0] == '\0') {
+		/* Query by node ID */
+		if (nodeid == CMAN_NODEID_US) {
+			if (cmanquorum_getinfo(cman_inst->cmq_handle, 0, &qinfo) != CS_OK) {
+				return -1;
+			}
+			nodeid = node->cn_nodeid = qinfo.node_id;
+		}
+
+		sprintf(path, "/cluster/clusternodes/clusternode[@nodeid=\"%d\"]/@name", nodeid);
+		ret = ccs_get(ccs_handle, path, &value);
+		if (!ret) {
+			strcpy(node->cn_name, value);
+			free(value);
+		}
+	}
+	else {
+		/* Query by node name */
+		sprintf(path, "/cluster/clusternodes/clusternode[@name=\"%s\"]/@nodeid", node->cn_name);
+		ret = ccs_get(ccs_handle, path, &value);
+		if (!ret) {
+			node->cn_nodeid = atoi(value);
+			free(value);
+		}
+	}
+
+	/* Fill in state */
+	node->cn_member = 3; /* Not in cluster */
+	for (i=0; i < cman_inst->node_count; i++) {
+		if (cman_inst->node_list[i].nodeid == node->cn_nodeid) {
+			if (cman_inst->node_list[i].state == NODESTATE_MEMBER)
+				node->cn_member = 2;
+		}
+	}
+
+	return 0;
+}
+
+int cman_start_notification(cman_handle_t handle, cman_callback_t callback)
+{
+	struct cman_inst *cman_inst;
+
+	cman_inst = (struct cman_inst *)handle;
+	VALIDATE_HANDLE(cman_inst);
+
+	cman_inst->notify_callback = callback;
+
+	return 0;
+}
+
+int cman_stop_notification(cman_handle_t handle)
+{
+	struct cman_inst *cman_inst;
+
+	cman_inst = (struct cman_inst *)handle;
+	VALIDATE_HANDLE(cman_inst);
+
+	cman_inst->notify_callback = NULL;
+
+	return 0;
+}
+
+
+/* This is not complete ... but that's my problem, not yours */
+int cman_get_extra_info(cman_handle_t handle, cman_extra_info_t *info, int maxlen)
+{
+	struct cman_inst *cman_inst;
+	struct cmanquorum_info qinfo;
+
+	cman_inst = (struct cman_inst *)handle;
+	VALIDATE_HANDLE(cman_inst);
+
+	refresh_node_list(cman_inst);
+
+	if (cmanquorum_getinfo(cman_inst->cmq_handle, 0, &qinfo) != CS_OK) {
+		return -1;
+	}
+
+	memset(info, 0, sizeof(cman_extra_info_t));
+	info->ei_flags = qinfo.flags;
+	info->ei_node_votes = qinfo.node_votes;
+	info->ei_total_votes = qinfo.total_votes;
+	info->ei_expected_votes = qinfo.node_expected_votes;
+	info->ei_quorum = qinfo.quorum;
+	info->ei_members = cman_inst->node_count;
+	info->ei_node_state = 2;
+	return 0;
+}
+
