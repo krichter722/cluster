@@ -30,7 +30,7 @@ ${TARGET2}: $(S)/${TARGET2}.in
 	> ${TARGET2}
 
 depends:
-	$(MAKE) -C ../lib all
+	$(MAKE) -C ../services/cman/lib all
 
 clean: generalclean
 

@@ -43,7 +43,7 @@ ${TARGET2}: ${SHAREDOBJS} ${OBJS2}
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 depends:
-	$(MAKE) -C ../lib all
+	$(MAKE) -C ../services/cman/lib all
 
 clean: generalclean
 
