@@ -227,10 +227,6 @@ start_qdiskd()
 
 start_daemons()
 {
-    status groupd > /dev/null 2>&1
-    if [ $? -ne 0 ]; then
-	errmsg=$( @SBINDIR@/groupd 2>&1 ) || return 1
-    fi
     status fenced > /dev/null 2>&1
     if [ $? -ne 0 ]; then
 	errmsg=$( @SBINDIR@/fenced 2>&1 ) || return 1
@@ -522,9 +518,6 @@ stop_daemons()
     if pid=$(pidof fenced 2>&1); then
 	errmsg=$(kill $pid 2>&1) || return 1
     fi
-    if pid=$(pidof groupd 2>&1); then
-	errmsg=$(kill $pid 2>&1) || return 1
-    fi
     return 0 # all ok
 }
 
@@ -630,7 +623,6 @@ stop()
 
 cmanstatus()
 {
-	errmsg=$( status groupd 2>&1) || return 1
 	errmsg=$( status fenced 2>&1) || return 1
 	errmsg=$( status dlm_controld 2>&1) || return 1
 	errmsg=$( status gfs_controld 2>&1) || return 1
