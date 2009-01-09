@@ -75,18 +75,6 @@ static CorosyncCfgCallbacksT cfg_callbacks =
 
 static struct cman_inst *admin_inst;
 
-static uint16_t generate_cluster_id(char *name)
-{
-	int i;
-	int value = 0;
-
-	for (i=0; i<strlen(name); i++) {
-		value <<= 1;
-		value += name[i];
-	}
-	return value & 0xFFFF;
-}
-
 static void cfg_shutdown_callback(
 	corosync_cfg_handle_t handle,
 	CorosyncCfgShutdownFlagsT flags)
@@ -886,7 +874,7 @@ int cman_get_cluster(cman_handle_t handle, cman_cluster_t *clinfo)
 		free(value);
 	}
 	else {
-		clinfo->ci_number = generate_cluster_id(clinfo->ci_name);
+		clinfo->ci_number = 0;
 	}
 	clinfo->ci_generation = 0; // CC: TODO ???
 
@@ -1082,6 +1070,8 @@ int cman_stop_notification(cman_handle_t handle)
 int cman_get_extra_info(cman_handle_t handle, cman_extra_info_t *info, int maxlen)
 {
 	struct cman_inst *cman_inst;
+	unsigned int ccs_handle;
+	char *value;
 	struct cmanquorum_info qinfo;
 
 	cman_inst = (struct cman_inst *)handle;
@@ -1101,6 +1091,17 @@ int cman_get_extra_info(cman_handle_t handle, cman_extra_info_t *info, int maxle
 	info->ei_quorum = qinfo.quorum;
 	info->ei_members = cman_inst->node_count;
 	info->ei_node_state = 2;
+	info->ei_num_addresses = 1;
+
+	ccs_handle = ccs_connect();
+	if (!ccs_get(ccs_handle, "/totem/interface/@mcastaddr", &value)) {
+	  fprintf(stderr, "CC: got mcast %s\n", value);
+		strcpy(info->ei_addresses, value);
+		free(value);
+	}
+
+	ccs_disconnect(ccs_handle);
+
 	return 0;
 }
 

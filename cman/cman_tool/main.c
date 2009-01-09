@@ -242,6 +242,9 @@ static void show_status(void)
 		printf("Node name: %s\n", node.cn_name);
 		printf("Node ID: %d\n", node.cn_nodeid);
 	}
+	if (einfo->ei_num_addresses > 0) {
+		printf("Multicast addresses: %s\n", einfo->ei_addresses);
+	}
 
 	if (einfo->ei_flags & CMAN_EXTRA_FLAG_DISALLOWED) {
 		int count;
@@ -341,25 +344,6 @@ static void print_node(commandline_t *comline, cman_handle_t h, int *format, str
 		       node->cn_nodeid, member_type,
 		       node->cn_incarnation, jstring, node->cn_name);
 	}
-#if 0
-	if (comline->fence_opt && !comline->format_opts) {
-		char agent[255];
-		uint64_t fence_time;
-		int fenced;
-
-		if (!cman_get_fenceinfo(h, node->cn_nodeid, &fence_time, &fenced, agent)) {
-			if (fence_time) {
-				time_t fence_time_t = (time_t)fence_time;
-				ftime = localtime(&fence_time_t);
-				strftime(jstring, sizeof(jstring), "%F %H:%M:%S", ftime);
-				printf("       Last fenced:   %-15s by %s\n", jstring, agent);
-			}
-			if (!node->cn_member && node->cn_incarnation && !fenced) {
-				printf("       Node has not been fenced since it went down\n");
-			}
-		}
-	}
-#endif
 #if 0
 	int numaddrs;
 	struct cman_node_address addrs[MAX_INTERFACES];
