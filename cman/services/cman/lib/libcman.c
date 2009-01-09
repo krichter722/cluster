@@ -55,6 +55,7 @@ static void cfg_shutdown_callback(
 
 static void cmanquorum_notification_callback(
         cmanquorum_handle_t handle,
+	uint64_t context,
         uint32_t quorate,
         uint32_t node_list_entries,
         cmanquorum_node_t node_list[]);
@@ -94,6 +95,7 @@ static void cfg_shutdown_callback(
 
 static void cmanquorum_notification_callback(
         cmanquorum_handle_t handle,
+	uint64_t context,
         uint32_t quorate,
         uint32_t node_list_entries,
         cmanquorum_node_t node_list[])
@@ -115,7 +117,7 @@ static void cmanquorum_notification_callback(
 		}
 	}
 
-	if (cman_inst->notify_callback)
+	if (context && cman_inst->notify_callback)
 		cman_inst->notify_callback((void*)cman_inst, cman_inst->privdata, CMAN_REASON_STATECHANGE, quorate);
 }
 
@@ -134,18 +136,13 @@ static int cmanquorum_check_and_start(struct cman_inst *cman_inst)
 static int refresh_node_list(struct cman_inst *cman_inst)
 {
 	int error;
-	cman_callback_t notify_callback;
 
 	if (cmanquorum_check_and_start(cman_inst))
 		return -1;
 
-	cmanquorum_trackstart(cman_inst->cmq_handle, CS_TRACK_CURRENT);
+	cmanquorum_trackstart(cman_inst->cmq_handle, 0, CS_TRACK_CURRENT);
 
-	// TODO FIXME this is horrible & racy
-	notify_callback = cman_inst->notify_callback;
-	cman_inst->notify_callback = NULL;
 	error = cmanquorum_dispatch(cman_inst->cmq_handle, CS_DISPATCH_ONE);
-	cman_inst->notify_callback = notify_callback;
 	return error;
 }
 
@@ -1048,7 +1045,13 @@ int cman_start_notification(cman_handle_t handle, cman_callback_t callback)
 	cman_inst = (struct cman_inst *)handle;
 	VALIDATE_HANDLE(cman_inst);
 
+	if (cmanquorum_check_and_start(cman_inst))
+		return -1;
+
 	cman_inst->notify_callback = callback;
+
+	if (cmanquorum_trackstart(cman_inst->cmq_handle, (uint64_t)handle, CS_TRACK_CURRENT) != CS_OK)
+		return -1;
 
 	return 0;
 }
@@ -1060,6 +1063,7 @@ int cman_stop_notification(cman_handle_t handle)
 	cman_inst = (struct cman_inst *)handle;
 	VALIDATE_HANDLE(cman_inst);
 
+	cmanquorum_trackstop(cman_inst->cmq_handle);
 	cman_inst->notify_callback = NULL;
 
 	return 0;
@@ -1095,7 +1099,6 @@ int cman_get_extra_info(cman_handle_t handle, cman_extra_info_t *info, int maxle
 
 	ccs_handle = ccs_connect();
 	if (!ccs_get(ccs_handle, "/totem/interface/@mcastaddr", &value)) {
-	  fprintf(stderr, "CC: got mcast %s\n", value);
 		strcpy(info->ei_addresses, value);
 		free(value);
 	}
