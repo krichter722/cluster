@@ -195,6 +195,8 @@ static void show_status(void)
 	char tmpbuf[1024];
 	cman_extra_info_t *einfo = (cman_extra_info_t *)info_buf;
 	cman_qdev_info_t qinfo;
+	int numaddrs;
+	struct cman_node_address addrs[MAX_INTERFACES];
 	int quorate;
 	int i;
 	int j;
@@ -246,6 +248,15 @@ static void show_status(void)
 		printf("Multicast addresses: %s\n", einfo->ei_addresses);
 	}
 
+	if (cman_get_node_addrs(h, CMAN_NODEID_US, MAX_INTERFACES, &numaddrs, addrs) == 0) {
+		printf("Node addresses: ");
+		for (i = 0; i < numaddrs; i++)
+		{
+			print_address(addrs[i].cna_address);
+			printf(" ");
+		}
+		printf("\n");
+	}
 	if (einfo->ei_flags & CMAN_EXTRA_FLAG_DISALLOWED) {
 		int count;
 		int numnodes;
