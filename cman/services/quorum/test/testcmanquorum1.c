@@ -35,6 +35,7 @@ static char *node_state(int state)
 
 static void cmanquorum_notification_fn(
 	cmanquorum_handle_t handle,
+	uint64_t context,
 	uint32_t quorate,
 	uint32_t node_list_entries,
 	cmanquorum_node_t node_list[]
@@ -68,7 +69,7 @@ int main(int argc, char *argv[])
 	if ( (err=cmanquorum_initialize(&handle, &callbacks)) != CS_OK)
 		fprintf(stderr, "cmanquorum_initialize FAILED: %d\n", err);
 
-	if ( (err = cmanquorum_trackstart(handle, CS_TRACK_CHANGES)) != CS_OK)
+	if ( (err = cmanquorum_trackstart(handle, handle, CS_TRACK_CHANGES)) != CS_OK)
 		fprintf(stderr, "cmanquorum_trackstart FAILED: %d\n", err);
 
 	if ( (err=cmanquorum_getinfo(handle, 0, &info)) != CS_OK)

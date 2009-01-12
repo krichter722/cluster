@@ -21,7 +21,6 @@
 #define OP_NODES		9
 #define OP_SERVICES		10
 #define OP_DEBUG		11
-#define OP_DUMP_OBJDB		12
 
 
 static void print_usage(int subcmd)
@@ -219,6 +218,7 @@ static void show_status(void)
 	printf("Cluster Id: %d\n", info.ci_number);
 	printf("Cluster Member: Yes\n");
 	printf("Cluster Generation: %d\n", info.ci_generation);
+
 	printf("Membership state: %s\n", membership_state(tmpbuf, sizeof(tmpbuf),
 							  einfo->ei_node_state));
 	printf("Nodes: %d\n", einfo->ei_members);
@@ -229,53 +229,22 @@ static void show_status(void)
 	printf("Node votes: %d\n", einfo->ei_node_votes);
 
 	printf("Quorum: %d %s\n", einfo->ei_quorum, quorate?" ":"Activity blocked");
-	printf("Active subsystems: %d\n", cman_get_subsys_count(h));
 	printf("Flags:");
 	if (einfo->ei_flags & CMAN_EXTRA_FLAG_2NODE)
 		printf(" 2node");
-	if (einfo->ei_flags & CMAN_EXTRA_FLAG_SHUTDOWN)
-		printf(" Shutdown");
-	if (einfo->ei_flags & CMAN_EXTRA_FLAG_ERROR)
-		printf(" Error");
 	if (einfo->ei_flags & CMAN_EXTRA_FLAG_DISALLOWED)
 		printf(" DisallowedNodes");
 	if (einfo->ei_flags & CMAN_EXTRA_FLAG_DIRTY)
 		printf(" Dirty");
 	printf(" \n");
 
-	printf("Ports Bound: ");
-	portnum = 0;
-	for (i=0; i<32; i++) {
-		for (j=0; j<8; j++) {
-			if ((einfo->ei_ports[i] >> j) & 1)
-				printf("%d ", portnum);
-			portnum++;
-		}
-	}
-	printf(" \n");
-
-	node.cn_name[0] = 0;
 	if (cman_get_node(h, CMAN_NODEID_US, &node) == 0) {
 		printf("Node name: %s\n", node.cn_name);
 		printf("Node ID: %d\n", node.cn_nodeid);
 	}
-
-	printf("Multicast addresses: ");
-	addrptr = einfo->ei_addresses;
-	for (i=0; i < einfo->ei_num_addresses; i++) {
-		print_address(addrptr);
-		printf(" ");
-		addrptr += sizeof(struct sockaddr_storage);
+	if (einfo->ei_num_addresses > 0) {
+		printf("Multicast addresses: %s\n", einfo->ei_addresses);
 	}
-	printf("\n");
-
-	printf("Node addresses: ");
-	for (i=0; i < einfo->ei_num_addresses; i++) {
-		print_address(addrptr);
-		printf(" ");
-		addrptr += sizeof(struct sockaddr_storage);
-	}
-	printf("\n");
 
 	if (einfo->ei_flags & CMAN_EXTRA_FLAG_DISALLOWED) {
 		int count;
@@ -293,6 +262,7 @@ static void show_status(void)
 			printf("\n");
 		}
 	}
+
 	cman_finish(h);
 }
 
@@ -374,25 +344,6 @@ static void print_node(commandline_t *comline, cman_handle_t h, int *format, str
 		       node->cn_nodeid, member_type,
 		       node->cn_incarnation, jstring, node->cn_name);
 	}
-
-	if (comline->fence_opt && !comline->format_opts) {
-		char agent[255];
-		uint64_t fence_time;
-		int fenced;
-
-		if (!cman_get_fenceinfo(h, node->cn_nodeid, &fence_time, &fenced, agent)) {
-			if (fence_time) {
-				time_t fence_time_t = (time_t)fence_time;
-				ftime = localtime(&fence_time_t);
-				strftime(jstring, sizeof(jstring), "%F %H:%M:%S", ftime);
-				printf("       Last fenced:   %-15s by %s\n", jstring, agent);
-			}
-			if (!node->cn_member && node->cn_incarnation && !fenced) {
-				printf("       Node has not been fenced since it went down\n");
-			}
-		}
-	}
-
 	int numaddrs;
 	struct cman_node_address addrs[MAX_INTERFACES];
 
@@ -411,7 +362,6 @@ static void print_node(commandline_t *comline, cman_handle_t h, int *format, str
 			}
 		}
 	}
-
 	if (comline->format_opts) {
 		for (j = 0; j < MAX_FORMAT_OPTS; j++) {
 			switch (format[j]) {
@@ -616,12 +566,14 @@ static void set_votes(commandline_t *comline)
 	cman_finish(h);
 }
 
+
+// TODO this is obsolete really
 static void version(commandline_t *comline)
 {
 	struct cman_version ver;
 	cman_handle_t h;
 	int result;
-
+#if 0
 	h = open_cman_handle(1);
 
 	if ((result = cman_get_version(h, &ver)))
@@ -639,6 +591,7 @@ static void version(commandline_t *comline)
 		die("can't set version: %s", cman_error(errno));
  out:
 	cman_finish(h);
+#endif
 }
 
 static int cluster_wait(commandline_t *comline)
@@ -700,25 +653,16 @@ static void set_debuglog(commandline_t *comline)
 
 	h = open_cman_handle(1);
 
+#if 0
+// TODO this should be done via cluster.conf ?
+// or can we do something directly in objdb ??
+//
 	if (cman_set_debuglog(h, comline->verbose))
 		perror("setting debuglog failed");
-
-	cman_finish(h);
-}
-
-#ifdef DEBUG
-static void dump_objdb(commandline_t *comline)
-{
-	cman_handle_t h;
-
-	h = open_cman_handle(1);
-
-	if (cman_dump_objdb(h, comline->filename))
-		perror("dump objdb failed");
-
-	cman_finish(h);
-}
 #endif
+	cman_finish(h);
+}
+
 
 static int get_int_arg(char argopt, char *arg)
 {
@@ -928,18 +872,6 @@ static void decode_arguments(int argc, char *argv[], commandline_t *comline)
 			if (comline->operation)
 				die("can't specify two operations");
 			comline->operation = OP_DEBUG;
-#ifdef DEBUG
-		} else if (strcmp(argv[optind], "dump-db") == 0) {
-			if (comline->operation)
-				die("can't specify two operations");
-			comline->operation = OP_DUMP_OBJDB;
-			if (!argv[optind+1])
-				die("no filename given");
-			comline->filename = strdup(argv[optind+1]);
-			if (comline->filename[0] != '/')
-				die("dump filename must be an absolute path");
-			optind++;
-#endif
 		} else if (strcmp(argv[optind], "remove") == 0) {
 			comline->remove = TRUE;
 		} else if (strcmp(argv[optind], "force") == 0) {
@@ -1061,11 +993,6 @@ int main(int argc, char *argv[], char *envp[])
 	case OP_DEBUG:
 		set_debuglog(&comline);
 		break;
-#ifdef DEBUG
-	case OP_DUMP_OBJDB:
-		dump_objdb(&comline);
-		break;
-#endif
 	}
 
 	exit(EXIT_SUCCESS);

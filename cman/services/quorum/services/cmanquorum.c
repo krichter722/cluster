@@ -56,7 +56,7 @@ enum quorum_message_req_types {
 
 
 typedef enum { NODESTATE_JOINING=1, NODESTATE_MEMBER,
-	       NODESTATE_DEAD, NODESTATE_LEAVING, NODESTATE_AISONLY } nodestate_t;
+	       NODESTATE_DEAD, NODESTATE_LEAVING, NODESTATE_DISALLOWED } nodestate_t;
 
 
 /* This structure is tacked onto the start of a cluster message packet for our
@@ -85,8 +85,8 @@ struct cluster_node {
 };
 
 #define CMANQUORUM_FLAG_FEATURE_DISALLOWED 1
-
 static int quorum_flags;
+
 static int quorum;
 static int cluster_is_quorate;
 static int first_trans = 1;
@@ -121,7 +121,7 @@ static uint32_t cluster_id;
 static uint32_t config_version;
 #else
 static struct corosync_tpg_group quorum_group[1] = {
-        { .group          = "CMANQUORUM", .group_len      = 6},
+        { .group          = "CMANQ", .group_len      = 5},
 };
 #endif
 
@@ -131,6 +131,7 @@ static struct corosync_tpg_group quorum_group[1] = {
 struct quorum_pd {
 	unsigned char track_flags;
 	int tracking_enabled;
+	uint64_t tracking_context;
 	struct list_head list;
 	void *conn;
 };
@@ -415,20 +416,6 @@ struct req_exec_quorum_killnode {
 	int nodeid;
 };
 
-#ifdef CMAN_COMPATIBILITY
-static uint16_t generate_cluster_id(char *name)
-{
-	int i;
-	int value = 0;
-
-	for (i=0; i<strlen(name); i++) {
-		value <<= 1;
-		value += name[i];
-	}
-	return value & 0xFFFF;
-}
-#endif
-
 /* These just make the access a little neater */
 static inline int objdb_get_string(struct corosync_api_v1 *corosync, unsigned int object_service_handle,
 				   char *key, char **value)
@@ -529,8 +516,6 @@ static int cmanquorum_exec_init_fn (struct corosync_api_v1 *api)
 			strcpy(clustername, name);
 
 		objdb_get_int(corosync_api, object_handle, "cluster_id", &cluster_id, 0);
-		if (cluster_id == 0)
-			cluster_id = generate_cluster_id(clustername);
 		objdb_get_int(corosync_api, object_handle, "config_version", &config_version, 0);
 	}
 	corosync_api->object_find_destroy(find_handle);
@@ -558,7 +543,7 @@ static int quorum_lib_exit_fn (void *conn)
 }
 
 
-static int send_quorum_notification(void *conn)
+static int send_quorum_notification(void *conn, uint64_t context)
 {
 	struct res_lib_cmanquorum_notification *res_lib_cmanquorum_notification;
 	struct list_head *tmp;
@@ -586,6 +571,7 @@ static int send_quorum_notification(void *conn)
 	res_lib_cmanquorum_notification = (struct res_lib_cmanquorum_notification *)buf;
 	res_lib_cmanquorum_notification->quorate = cluster_is_quorate;
 	res_lib_cmanquorum_notification->node_list_entries = cluster_members;
+	res_lib_cmanquorum_notification->context = context;
 	list_iterate(tmp, &cluster_members_list) {
 		node = list_entry(tmp, struct cluster_node, list);
 		res_lib_cmanquorum_notification->node_list[i].nodeid = node->node_id;
@@ -610,7 +596,7 @@ static int send_quorum_notification(void *conn)
 
 		list_iterate(tmp, &trackers_list) {
 			qpd = list_entry(tmp, struct quorum_pd, list);
-
+			res_lib_cmanquorum_notification->context = qpd->tracking_context;
 			corosync_api->ipc_conn_send_response(corosync_api->ipc_conn_partner_get(qpd->conn), buf, size);
 		}
 	}
@@ -635,14 +621,14 @@ static void set_quorate(int total_votes)
 	if (!cluster_is_quorate && quorate)
 		log_printf(LOG_INFO, "quorum regained, resuming activity\n");
 
-	/* If we are newly quorate, then kill any AISONLY nodes */
+	/* If we are newly quorate, then kill any DISALLOWED nodes */
 	if (!cluster_is_quorate && quorate) {
 		struct cluster_node *node = NULL;
 		struct list_head *tmp;
 
 		list_iterate(tmp, &cluster_members_list) {
 			node = list_entry(tmp, struct cluster_node, list);
-			if (node->state == NODESTATE_AISONLY)
+			if (node->state == NODESTATE_DISALLOWED)
 				quorum_exec_send_killnode(node->node_id, CMANQUORUM_REASON_KILL_REJOIN);
 		}
 	}
@@ -722,7 +708,7 @@ static void recalculate_quorum(int allow_decrease)
 	ENTER();
 	quorum = calculate_quorum(allow_decrease, &total_votes);
 	set_quorate(total_votes);
-	send_quorum_notification(NULL);
+	send_quorum_notification(NULL, 0L);
 	LEAVE();
 }
 
@@ -733,7 +719,7 @@ static int have_disallowed(void)
 
 	list_iterate(tmp, &cluster_members_list) {
 		node = list_entry(tmp, struct cluster_node, list);
-		if (node->state == NODESTATE_AISONLY)
+		if (node->state == NODESTATE_DISALLOWED)
 			return 1;
 	}
 
@@ -908,9 +894,6 @@ static void exec_quorum_nodeinfo_endian_convert (void *msg)
 	nodeinfo->patch_version = swab32(nodeinfo->patch_version);
 	nodeinfo->config_version = swab32(nodeinfo->config_version);
 	nodeinfo->flags = swab32(nodeinfo->flags);
-#ifdef CMAN_COMPATIBILITY
-	nodeinfo->fence_time = swab64(nodeinfo->fence_time);
-#endif
 }
 
 static void exec_quorum_reconfigure_endian_convert (void *msg)
@@ -991,7 +974,7 @@ static void message_handler_req_exec_quorum_nodeinfo (
 
 	if (req_exec_quorum_nodeinfo->flags & NODE_FLAGS_SEESDISALLOWED && !have_disallowed()) {
 		/* Must use syslog directly here or the message will never arrive */
-		syslog(LOG_CRIT, "[CMANQUORUM]: Joined a cluster with disallowed nodes. must die");
+		syslog(LOG_CRIT, "[CMANQ]: Joined a cluster with disallowed nodes. must die");
 		corosync_api->fatal_error(2, __FILE__, __LINE__); // CC:
 		exit(2);
 	}
@@ -1006,15 +989,15 @@ static void message_handler_req_exec_quorum_nodeinfo (
 	if (quorum_flags & CMANQUORUM_FLAG_FEATURE_DISALLOWED) {
 		if ((req_exec_quorum_nodeinfo->flags & NODE_FLAGS_DIRTY && node->flags & NODE_FLAGS_BEENDOWN) ||
 		    (req_exec_quorum_nodeinfo->flags & NODE_FLAGS_DIRTY && req_exec_quorum_nodeinfo->first_trans && !(node->flags & NODE_FLAGS_US))) {
-			if (node->state != NODESTATE_AISONLY) {
+			if (node->state != NODESTATE_DISALLOWED) {
 				if (cluster_is_quorate) {
 					log_printf(LOG_CRIT, "Killing node %d because it has rejoined the cluster with existing state", node->node_id);
-					node->state = NODESTATE_AISONLY;
+					node->state = NODESTATE_DISALLOWED;
 					quorum_exec_send_killnode(nodeid, CMANQUORUM_REASON_KILL_REJOIN);
 				}
 				else {
 					log_printf(LOG_CRIT, "Node %d not joined to quorum because it has existing state", node->node_id);
-					node->state = NODESTATE_AISONLY;
+					node->state = NODESTATE_DISALLOWED;
 				}
 			}
 		}
@@ -1137,6 +1120,7 @@ static void message_handler_req_lib_cmanquorum_getinfo (void *conn, void *messag
 		res_lib_cmanquorum_getinfo.quorum = quorum;
 		res_lib_cmanquorum_getinfo.total_votes = total_votes;
 		res_lib_cmanquorum_getinfo.flags = 0;
+		res_lib_cmanquorum_getinfo.nodeid = node->node_id;
 
 		if (us->flags & NODE_FLAGS_DIRTY)
 			res_lib_cmanquorum_getinfo.flags |= CMANQUORUM_INFO_FLAG_DIRTY;
@@ -1415,7 +1399,7 @@ static void message_handler_req_lib_cmanquorum_trackstart (void *conn, void *msg
 	if (req_lib_cmanquorum_trackstart->track_flags & CS_TRACK_CURRENT ||
 	    req_lib_cmanquorum_trackstart->track_flags & CS_TRACK_CHANGES) {
 		log_printf(LOG_LEVEL_DEBUG, "sending initial status to %p\n", conn);
-		send_quorum_notification(corosync_api->ipc_conn_partner_get (conn));
+		send_quorum_notification(corosync_api->ipc_conn_partner_get (conn), req_lib_cmanquorum_trackstart->context);
 	}
 
 	/*
@@ -1426,11 +1410,12 @@ static void message_handler_req_lib_cmanquorum_trackstart (void *conn, void *msg
 
 		quorum_pd->track_flags = req_lib_cmanquorum_trackstart->track_flags;
 		quorum_pd->tracking_enabled = 1;
+		quorum_pd->tracking_context = req_lib_cmanquorum_trackstart->context;
 
 		list_add (&quorum_pd->list, &trackers_list);
 	}
 
-	/* send status */
+	/* Send status */
 	res_lib_cmanquorum_status.header.size = sizeof(res_lib_cmanquorum_status);
 	res_lib_cmanquorum_status.header.id = MESSAGE_RES_CMANQUORUM_STATUS;
 	res_lib_cmanquorum_status.header.error = CS_OK;

@@ -1,7 +1,6 @@
 #ifndef IPC_CMANQUORUM_H_DEFINED
 #define IPC_CMANQUORUM_H_DEFINED
 
-//#include <netinet/in.h>
 #include "corosync/corotypes.h"
 #include "corosync/ipc_gen.h"
 
@@ -58,6 +57,7 @@ struct req_lib_cmanquorum_setexpected {
 
 struct req_lib_cmanquorum_trackstart {
         mar_req_header_t header __attribute__((aligned(8)));
+	uint64_t context;
 	unsigned int track_flags;
 };
 
@@ -115,6 +115,7 @@ struct cmanquorum_node {
 struct res_lib_cmanquorum_notification {
 	mar_res_header_t header __attribute__((aligned(8)));
 	mar_uint32_t quorate __attribute__((aligned(8)));
+	mar_uint64_t context __attribute__((aligned(8)));
 	mar_uint32_t node_list_entries __attribute__((aligned(8)));
 	struct cmanquorum_node node_list[] __attribute__((aligned(8)));
 };

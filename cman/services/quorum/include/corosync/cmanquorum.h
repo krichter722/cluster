@@ -44,6 +44,7 @@ typedef struct {
 
 typedef void (*cmanquorum_notification_fn_t) (
 	cmanquorum_handle_t handle,
+	uint64_t context,
 	uint32_t quorate,
 	uint32_t node_list_entries,
 	cmanquorum_node_t node_list[]
@@ -145,6 +146,7 @@ cs_error_t cmanquorum_killnode (
 /* Track node and quorum changes */
 cs_error_t cmanquorum_trackstart (
 	cmanquorum_handle_t handle,
+	uint64_t context,
 	unsigned int flags );
 
 cs_error_t cmanquorum_trackstop (

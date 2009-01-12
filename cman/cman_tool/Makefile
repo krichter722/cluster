@@ -18,13 +18,15 @@ CFLAGS += -I${cmanincdir}
 CFLAGS += -I${incdir}
 
 LDFLAGS += -L${cmanlibdir} -lcman
+LDFLAGS += -L${ccslibdir} -lccs
 LDFLAGS += -L${libdir}
 
 ${TARGET}: ${OBJS}
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 depends:
-	$(MAKE) -C ../lib all
+	$(MAKE) -C ../services/quorum/lib all
+	$(MAKE) -C ../services/cman/lib all
 
 clean: generalclean
 

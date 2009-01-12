@@ -140,12 +140,12 @@ typedef struct cman_cluster
  * only for use by cman_tool, don't depend on this not changing
  */
 
-/* Flags in ei_flags */
-#define CMAN_EXTRA_FLAG_2NODE      1
-#define CMAN_EXTRA_FLAG_ERROR      2
-#define CMAN_EXTRA_FLAG_SHUTDOWN   4
-#define CMAN_EXTRA_FLAG_DISALLOWED 8
-#define CMAN_EXTRA_FLAG_DIRTY     16
+/* Flags in ei_flags
+   NOTE: These have changed from Cluster2/3! */
+#define CMAN_EXTRA_FLAG_DIRTY      1
+#define CMAN_EXTRA_FLAG_DISALLOWED 2
+#define CMAN_EXTRA_FLAG_2NODE      4
+#define CMAN_EXTRA_FLAG_QUORATE    8
 
 typedef struct cman_extra_info {
 	int           ei_node_state;

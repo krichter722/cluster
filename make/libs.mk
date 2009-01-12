@@ -18,8 +18,10 @@ ifndef MAKESTATICLIB
 		LIBSYMT=$(TARGET).so \
 			$(TARGET).so.$(SOMAJOR)
 	endif
-	ifndef INCDIRT
-		INCDIRT=$(TARGET).h
+	ifndef COROSYNCINCDIRT
+		ifndef INCDIRT
+			INCDIRT=$(TARGET).h
+		endif
 	endif
 	ifndef SHAREDLIB
 		SHAREDLIB=$(TARGET).so.${SOMAJOR}.${SOMINOR}

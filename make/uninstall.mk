@@ -5,6 +5,9 @@ endif
 ifdef LIBSYMT
 	${UNINSTALL} ${LIBSYMT} ${libdir}
 endif
+ifdef COROSYNCINCDIRT
+	@echo WARNING: need to fix uninstall for corosync headers
+endif
 ifdef INCDIRT
 	${UNINSTALL} ${INCDIRT} ${incdir}
 endif

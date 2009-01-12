@@ -559,6 +559,7 @@ error_exit:
 
 cs_error_t cmanquorum_trackstart (
 	cmanquorum_handle_t handle,
+	uint64_t context,
 	unsigned int flags )
 {
 	cs_error_t error;
@@ -577,6 +578,7 @@ cs_error_t cmanquorum_trackstart (
 	req_lib_cmanquorum_trackstart.header.size = sizeof (struct req_lib_cmanquorum_trackstart);
 	req_lib_cmanquorum_trackstart.header.id = MESSAGE_REQ_CMANQUORUM_TRACKSTART;
 	req_lib_cmanquorum_trackstart.track_flags = flags;
+	req_lib_cmanquorum_trackstart.context = context;
 
 	iov[0].iov_base = (char *)&req_lib_cmanquorum_trackstart;
 	iov[0].iov_len = sizeof (struct req_lib_cmanquorum_trackstart);
@@ -790,9 +792,10 @@ cs_error_t cmanquorum_dispatch (
 			res_lib_cmanquorum_notification = (struct res_lib_cmanquorum_notification *)&dispatch_data;
 
 			callbacks.cmanquorum_notify_fn ( handle,
-						     res_lib_cmanquorum_notification->quorate,
-						     res_lib_cmanquorum_notification->node_list_entries,
-						     (cmanquorum_node_t *)res_lib_cmanquorum_notification->node_list );
+							 res_lib_cmanquorum_notification->context,
+							 res_lib_cmanquorum_notification->quorate,
+							 res_lib_cmanquorum_notification->node_list_entries,
+							 (cmanquorum_node_t *)res_lib_cmanquorum_notification->node_list );
 				;
 			break;
 

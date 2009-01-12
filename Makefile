@@ -1,12 +1,13 @@
 include make/defines.mk
 
-REALSUBDIRS = common cman/lib config cman group doc \
-	      bindings contrib 
+REALSUBDIRS = common config/libs/libccsconfdb cman/services config cman group doc \
+	      bindings contrib
 
 SUBDIRS = $(filter-out \
 	  $(if ${without_common},common) \
+	  $(if ${without_config},config/libs/libccsconfdb) \
 	  $(if ${without_config},config) \
-	  $(if ${without_cman},cman/lib) \
+	  $(if ${without_cman},cman/services) \
 	  $(if ${without_cman},cman) \
 	  $(if ${without_group},group) \
 	  $(if ${without_bindings},bindings) \
@@ -20,7 +21,8 @@ ${SUBDIRS}:
 # Dependencies
 
 common:
-config: cman/lib
+cman/services: config/libs/libccsconfdb
+config: cman/services
 cman: common config
 group: cman
 bindings: cman

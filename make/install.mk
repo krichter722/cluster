@@ -12,6 +12,12 @@ ifdef INCDIRT
 		install -m644 $(S)/$$i ${incdir}; \
 	done
 endif
+ifdef COROSYNCINCDIRT
+	install -d ${DESTDIR}/${corosyncincdir}/corosync
+	for i in ${COROSYNCINCDIRT}; do \
+		install -m644 $(S)/$$i ${DESTDIR}/${corosyncincdir}/corosync; \
+	done
+endif
 ifdef SBINDIRT
 	install -d ${sbindir}
 	install -m755 ${SBINDIRT} ${sbindir}

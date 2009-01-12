@@ -7,7 +7,7 @@
 #include <sys/types.h>
 #include <sys/un.h>
 
-#include <openais/saAis.h>
+#include <corosync/corotypes.h>
 #include <corosync/confdb.h>
 
 confdb_callbacks_t callbacks = {
@@ -73,13 +73,13 @@ static void print_config_tree(confdb_handle_t handle, unsigned int parent_object
 
 	/* Show the keys */
 	res = confdb_key_iter_start(handle, parent_object_handle);
-	if (res != SA_AIS_OK) {
+	if (res != CS_OK) {
 		printf( "error resetting key iterator for object %d: %d\n", parent_object_handle, res);
 		return;
 	}
 
 	while ( (res = confdb_key_iter(handle, parent_object_handle, key_name, &key_name_len,
-				       key_value, &key_value_len)) == SA_AIS_OK) {
+				       key_value, &key_value_len)) == CS_OK) {
 		key_name[key_name_len] = '\0';
 		key_value[key_value_len] = '\0';
 
@@ -104,16 +104,16 @@ static void print_config_tree(confdb_handle_t handle, unsigned int parent_object
 
 	/* Show sub-objects */
 	res = confdb_object_iter_start(handle, parent_object_handle);
-	if (res != SA_AIS_OK) {
+	if (res != CS_OK) {
 		printf( "error resetting object iterator for object %d: %d\n", parent_object_handle, res);
 		return;
 	}
 
-	while ( (res = confdb_object_iter(handle, parent_object_handle, &object_handle, object_name, &object_name_len)) == SA_AIS_OK)	{
+	while ( (res = confdb_object_iter(handle, parent_object_handle, &object_handle, object_name, &object_name_len)) == CS_OK)	{
 		unsigned int parent;
 
 		res = confdb_object_parent_get(handle, object_handle, &parent);
-		if (res != SA_AIS_OK) {
+		if (res != CS_OK) {
 			printf( "error getting parent for object %d: %d\n", object_handle, res);
 			return;
 		}
@@ -122,7 +122,7 @@ static void print_config_tree(confdb_handle_t handle, unsigned int parent_object
 
 		/* Check for "name", and create dummy parent object */
 		res = confdb_key_get(handle, object_handle, "name", strlen("name"), key_value, &key_value_len);
-		if (res == SA_AIS_OK) {
+		if (res == CS_OK) {
 			sprintf(cumulative_dn, "cn=%s,%s", object_name, fulldn);
 			printf("\n");
 			printf("dn: %s\n", cumulative_dn);
@@ -167,7 +167,7 @@ int main(int argc, char *argv[])
 	}
 
 	result = confdb_initialize (&handle, &callbacks);
-	if (result != SA_AIS_OK) {
+	if (result != CS_OK) {
 		printf ("Could not initialize Cluster Configuration Database API instance error %d\n", result);
 		exit (1);
 	}
@@ -175,13 +175,13 @@ int main(int argc, char *argv[])
 	/* Find the starting object ... this should be a param */
 
 	result = confdb_object_find_start(handle, OBJECT_PARENT_HANDLE);
-	if (result != SA_AIS_OK) {
+	if (result != CS_OK) {
 		printf ("Could not start object_find %d\n", result);
 		exit (1);
 	}
 
 	result = confdb_object_find(handle, OBJECT_PARENT_HANDLE, clusterroot, strlen(clusterroot), &cluster_handle);
-	if (result != SA_AIS_OK) {
+	if (result != CS_OK) {
 		printf ("Could not object_find \"cluster\": %d\n", result);
 		exit (1);
 	}

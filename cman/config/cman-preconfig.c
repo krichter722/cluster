@@ -22,9 +22,7 @@
 
 #include "cman.h"
 #define OBJDB_API struct objdb_iface_ver0
-#include "cnxman-socket.h"
 #include "nodelist.h"
-#include "logging.h"
 
 #define MAX_PATH_LEN PATH_MAX
 
@@ -34,7 +32,7 @@ static int cmanpre_reloadconfig(struct objdb_iface_ver0 *objdb, int flush, char 
 
 static char *nodename_env;
 static int expected_votes;
-static int votes;
+static int node_votes=0;
 static int num_interfaces;
 static int startup_pipe;
 static unsigned int cluster_id;
@@ -226,6 +224,27 @@ static unsigned int find_cman_logger(struct objdb_iface_ver0 *objdb, unsigned in
 
 }
 
+static int sum_expected(struct objdb_iface_ver0 *objdb)
+{
+	int vote_sum = 0;
+	unsigned int nodes_handle;
+	unsigned int find_handle=0;
+
+	nodes_handle = nodeslist_init(objdb, cluster_parent_handle, &find_handle);
+	do {
+		int votes;
+
+		objdb_get_int(objdb, nodes_handle, "votes", (unsigned int *)&votes, 1);
+		if (votes < 0) {
+			votes = 1;
+		}
+		vote_sum += votes;
+		nodes_handle = nodeslist_next(objdb, find_handle);
+	} while (nodes_handle);
+	objdb->object_find_destroy(find_handle);
+
+	return vote_sum;
+}
 
 static int add_ifaddr(struct objdb_iface_ver0 *objdb, char *mcast, char *ifaddr, int portnum)
 {
@@ -308,7 +327,6 @@ static char *default_mcast(char *nodename, uint16_t cluster_id)
         ret = getaddrinfo(nodename, NULL, &ahints, &ainfo);
 	if (ret) {
 		sprintf(error_reason, "Can't determine address family of nodename %s\n", nodename);
-		write_cman_pipe("Can't determine address family of nodename");
 		return NULL;
 	}
 
@@ -463,14 +481,14 @@ static int get_env_overrides()
 	if (getenv("CMAN_KEYFILE")) {
 		key_filename = strdup(getenv("CMAN_KEYFILE"));
 		if (key_filename == NULL) {
-			write_cman_pipe("Cannot allocate memory for key filename");
+			sprintf(error_reason, "Cannot allocate memory for key filename");
 			return -1;
 		}
 	}
 
 	/* find our own number of votes */
 	if (getenv("CMAN_VOTES")) {
-		votes = atoi(getenv("CMAN_VOTES"));
+		node_votes = atoi(getenv("CMAN_VOTES"));
 	}
 
 	/* nodeid */
@@ -485,7 +503,7 @@ static int get_env_overrides()
 	if (getenv("CMAN_2NODE")) {
 		two_node = 1;
 		expected_votes = 1;
-		votes = 1;
+		node_votes = 1;
 	}
 	if (getenv("CMAN_DEBUGLOG")) {
 		debug_mask = atoi(getenv("CMAN_DEBUGLOG"));
@@ -498,6 +516,7 @@ static int get_env_overrides()
 static int get_nodename(struct objdb_iface_ver0 *objdb)
 {
 	char *nodeid_str = NULL;
+	char *votes_str;
 	unsigned int object_handle;
 	unsigned int find_handle;
 	unsigned int node_object_handle;
@@ -509,7 +528,6 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 		if (nodename_env != NULL) {
 			if (strlen(nodename_env) >= sizeof(nodename)) {
 				sprintf(error_reason, "Overridden node name %s is too long", nodename);
-				write_cman_pipe("Overridden node name is too long");
 				error = -1;
 				goto out;
 			}
@@ -518,7 +536,6 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 
 			if (!(node_object_handle = nodelist_byname(objdb, cluster_parent_handle, nodename))) {
 				sprintf(error_reason, "Overridden node name %s is not in CCS", nodename);
-				write_cman_pipe("Overridden node name is not in CCS");
 				error = -1;
 				goto out;
 			}
@@ -529,14 +546,12 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 			error = uname(&utsname);
 			if (error) {
 				sprintf(error_reason, "cannot get node name, uname failed");
-				write_cman_pipe("Can't determine local node name");
 				error = -1;
 				goto out;
 			}
 
 			if (strlen(utsname.nodename) >= sizeof(nodename)) {
 				sprintf(error_reason, "node name from uname is too long");
-				write_cman_pipe("Can't determine local node name");
 				error = -1;
 				goto out;
 			}
@@ -552,8 +567,10 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 	if ( (node_object_handle = nodelist_byname(objdb, cluster_parent_handle, nodename))) {
 		if (objdb_get_string(objdb, node_object_handle, "nodeid", &nodeid_str)) {
 			sprintf(error_reason, "This node has no nodeid in cluster.conf");
-			write_cman_pipe("This node has no nodeid in cluster.conf");
 			return -1;
+		}
+		if (!objdb_get_string(objdb, node_object_handle, "votes", &votes_str)) {
+			node_votes=atoi(votes_str);
 		}
 	}
 
@@ -634,6 +651,7 @@ static void add_cman_overrides(struct objdb_iface_ver0 *objdb)
 	char *logfacility;
 	unsigned int object_handle;
 	unsigned int find_handle;
+	unsigned int tmpint;
 	char tmp[256];
 
 	/* "totem" key already exists, because we have added the interfaces by now */
@@ -788,11 +806,6 @@ static void add_cman_overrides(struct objdb_iface_ver0 *objdb)
 		objdb->object_key_create(object_handle, "cluster_id", strlen("cluster_id"),
 					 str, strlen(str) + 1);
 
-		if (two_node) {
-			sprintf(str, "%d", 1);
-			objdb->object_key_create(object_handle, "two_node", strlen("two_node"),
-						 str, strlen(str) + 1);
-		}
 		if (debug_mask) {
 			sprintf(str, "%d", debug_mask);
 			objdb->object_key_create(object_handle, "debug_mask", strlen("debug_mask"),
@@ -818,7 +831,31 @@ static void add_cman_overrides(struct objdb_iface_ver0 *objdb)
 	objdb->object_find_destroy(find_handle);
 
 	objdb->object_key_create(object_handle, "provider", strlen("provider"),
-				 "quorum_cman", strlen("quorum_cman") + 1);
+				 "corosync_cmanquorum", strlen("corosync_cmanquorum") + 1);
+
+	if (!expected_votes)
+		expected_votes = sum_expected(objdb);
+
+	sprintf(tmp, "%d", expected_votes);
+	objdb->object_key_create(object_handle, "expected_votes", strlen("expected_votes"),
+				    tmp, strlen(tmp)+1);
+
+	sprintf(tmp, "%d", node_votes);
+	objdb->object_key_create(object_handle, "votes", strlen("votes"),
+				 tmp, strlen(tmp)+1);
+
+
+	/* Disallowed can be disabled in cluster.conf by setting it to zero */
+	objdb_get_int(objdb, object_handle, "disallowed", &tmpint, 999);
+	if (tmpint == 999) { /* Value was not set by the user ... */
+		objdb->object_key_create(object_handle, "disallowed", strlen("disallowed"),
+					 "1", strlen("1") + 1);
+	}
+
+	if (two_node) {
+		objdb->object_key_create(object_handle, "two_node", strlen("two_node"),
+					 "1", strlen("1") + 1);
+	}
 }
 
 /* If ccs is not available then use some defaults */
@@ -826,7 +863,6 @@ static int set_noccs_defaults(struct objdb_iface_ver0 *objdb)
 {
 	char tmp[255];
 	unsigned int object_handle;
-	unsigned int find_handle;
 
 	/* Enforce key */
 	key_filename = NOCCS_KEY_FILENAME;
@@ -844,7 +880,6 @@ static int set_noccs_defaults(struct objdb_iface_ver0 *objdb)
 		error = uname(&utsname);
 		if (error) {
 			sprintf(error_reason, "cannot get node name, uname failed");
-			write_cman_pipe("Can't determine local node name");
 			return -1;
 		}
 
@@ -860,8 +895,8 @@ static int set_noccs_defaults(struct objdb_iface_ver0 *objdb)
 	/* This will increase as nodes join the cluster */
 	if (!expected_votes)
 		expected_votes = 1;
-	if (!votes)
-		votes = 1;
+	if (!node_votes)
+		node_votes = 1;
 
 	if (!portnum)
 		portnum = DEFAULT_PORT;
@@ -876,7 +911,6 @@ static int set_noccs_defaults(struct objdb_iface_ver0 *objdb)
 		ret = getaddrinfo(nodename, NULL, &ahints, &ainfo);
 		if (ret) {
 			sprintf(error_reason, "Can't determine address family of nodename %s\n", nodename);
-			write_cman_pipe("Can't determine address family of nodename");
 			return -1;
 		}
 
@@ -899,7 +933,7 @@ static int set_noccs_defaults(struct objdb_iface_ver0 *objdb)
 	objdb->object_key_create(object_handle, "name", strlen("name"),
 				 nodename, strlen(nodename)+1);
 
-	sprintf(tmp, "%d", votes);
+	sprintf(tmp, "%d", node_votes);
 	objdb->object_key_create(object_handle, "votes", strlen("votes"),
 				 tmp, strlen(tmp)+1);
 
@@ -912,21 +946,6 @@ static int set_noccs_defaults(struct objdb_iface_ver0 *objdb)
 				 cluster_name, strlen(cluster_name)+1);
 
 
-	objdb->object_find_create(cluster_parent_handle, "cman", strlen("cman"), &find_handle);
-	if (objdb->object_find_next(find_handle, &object_handle) == 0) {
-
-                objdb->object_create(cluster_parent_handle, &object_handle,
-                                            "cman", strlen("cman"));
-        }
-	sprintf(tmp, "%d", cluster_id);
-	objdb->object_key_create(object_handle, "cluster_id", strlen("cluster_id"),
-				    tmp, strlen(tmp)+1);
-
-	sprintf(tmp, "%d", expected_votes);
-	objdb->object_key_create(object_handle, "expected_votes", strlen("expected_votes"),
-				    tmp, strlen(tmp)+1);
-
-	objdb->object_find_destroy(find_handle);
 	return 0;
 }
 
@@ -1148,7 +1167,6 @@ static int cmanpre_readconfig(struct objdb_iface_ver0 *objdb, char **error_strin
 		add_cman_overrides(objdb);
 	}
 
-
 	if (!ret) {
 		sprintf (error_reason, "%s", "Successfully parsed cman config\n");
 	}
@@ -1159,14 +1177,4 @@ static int cmanpre_readconfig(struct objdb_iface_ver0 *objdb, char **error_strin
         *error_string = error_reason;
 
 	return ret;
-}
-
-/* Write an error message down the CMAN startup pipe so
-   that cman_tool can display it */
-int write_cman_pipe(char *message)
-{
-	if (startup_pipe)
-		return write(startup_pipe, message, strlen(message)+1);
-
-	return 0;
 }
