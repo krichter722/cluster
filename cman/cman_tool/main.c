@@ -344,7 +344,6 @@ static void print_node(commandline_t *comline, cman_handle_t h, int *format, str
 		       node->cn_nodeid, member_type,
 		       node->cn_incarnation, jstring, node->cn_name);
 	}
-#if 0
 	int numaddrs;
 	struct cman_node_address addrs[MAX_INTERFACES];
 
@@ -363,7 +362,6 @@ static void print_node(commandline_t *comline, cman_handle_t h, int *format, str
 			}
 		}
 	}
-#endif
 	if (comline->format_opts) {
 		for (j = 0; j < MAX_FORMAT_OPTS; j++) {
 			switch (format[j]) {
@@ -378,7 +376,6 @@ static void print_node(commandline_t *comline, cman_handle_t h, int *format, str
 			case FMT_TYPE:
 				printf("%c ", member_type);
 				break;
-#if 0
 			case FMT_ADDR:
 				for (k = 0; k < numaddrs; k++) {
 					print_address(addrs[k].cna_address);
@@ -387,7 +384,6 @@ static void print_node(commandline_t *comline, cman_handle_t h, int *format, str
 					}
 				}
 				printf(" ");
-#endif
 				break;
 			default:
 				break;

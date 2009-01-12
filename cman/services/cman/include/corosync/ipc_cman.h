@@ -12,6 +12,7 @@ enum req_cman_types {
 	MESSAGE_REQ_CMAN_IS_LISTENING,
 	MESSAGE_REQ_CMAN_BIND,
 	MESSAGE_REQ_CMAN_UNBIND,
+	MESSAGE_REQ_CMAN_GET_NODE_ADDRS,
 };
 
 enum res_cman_types {
@@ -19,7 +20,10 @@ enum res_cman_types {
 	MESSAGE_RES_CMAN_IS_LISTENING,
 	MESSAGE_RES_CMAN_BIND,
 	MESSAGE_RES_CMAN_UNBIND,
+	MESSAGE_RES_CMAN_GET_NODE_ADDRS,
 };
+
+#define TOTEMIP_ADDRLEN (sizeof(struct in6_addr))
 
 struct req_lib_cman_bind {
         mar_req_header_t header __attribute__((aligned(8)));
@@ -51,6 +55,18 @@ struct req_lib_cman_is_listening {
 struct res_lib_cman_is_listening {
         mar_res_header_t header __attribute__((aligned(8)));
 	unsigned int status;
+};
+
+struct req_lib_cman_get_node_addrs {
+        mar_req_header_t header __attribute__((aligned(8)));
+	unsigned int nodeid;
+};
+
+struct res_lib_cman_get_node_addrs {
+        mar_res_header_t header __attribute__((aligned(8)));
+	unsigned int family;
+	unsigned int num_addrs;
+	char addrs[TOTEMIP_ADDRLEN][0];
 };
 
 
