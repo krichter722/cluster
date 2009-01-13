@@ -578,13 +578,13 @@ static void set_votes(commandline_t *comline)
 }
 
 
-// TODO this is obsolete really
+/* This just tells corosync to reload the config file */
 static void version(commandline_t *comline)
 {
 	struct cman_version ver;
 	cman_handle_t h;
 	int result;
-#if 0
+
 	h = open_cman_handle(1);
 
 	if ((result = cman_get_version(h, &ver)))
@@ -602,7 +602,6 @@ static void version(commandline_t *comline)
 		die("can't set version: %s", cman_error(errno));
  out:
 	cman_finish(h);
-#endif
 }
 
 static int cluster_wait(commandline_t *comline)

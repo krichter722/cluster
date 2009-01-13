@@ -46,7 +46,6 @@ struct cman_inst {
 
 	corosync_cfg_handle_t cfg_handle;
 	cmanquorum_handle_t cmq_handle;
-	confdb_handle_t confdb_handle;
 };
 
 static void cfg_shutdown_callback(
@@ -950,6 +949,53 @@ int cman_get_cluster(cman_handle_t handle, cman_cluster_t *clinfo)
 	return 0;
 }
 
+int cman_set_version(cman_handle_t handle, const cman_version_t *version)
+{
+	struct cman_inst *cman_inst;
+	confdb_handle_t confdb_handle;
+	unsigned int ccs_handle;
+	char *value;
+	char error[256];
+	int ret = 0;
+	int cur_version=0;
+	confdb_callbacks_t callbacks = {
+        	.confdb_key_change_notify_fn = NULL,
+        	.confdb_object_create_change_notify_fn = NULL,
+        	.confdb_object_delete_change_notify_fn = NULL
+	};
+
+
+	cman_inst = (struct cman_inst *)handle;
+	VALIDATE_HANDLE(cman_inst);
+
+	ccs_handle = ccs_connect();
+	if (!ccs_get(ccs_handle, "/cluster/@config_version", &value)) {
+		cur_version = atoi(value);
+		free(value);
+	}
+	ccs_disconnect(ccs_handle);
+
+	if (cur_version >= version->cv_config) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	if (confdb_initialize(&confdb_handle, &callbacks) != CS_OK) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	if (confdb_reload(confdb_handle, 0, error) != CS_OK) {
+		ret = EINVAL;
+	}
+
+	confdb_finalize(confdb_handle);
+	return ret;
+}
+
+
+
+
 int cman_get_version(cman_handle_t handle, cman_version_t *version)
 {
 	struct cman_inst *cman_inst;
@@ -1120,7 +1166,7 @@ int cman_start_notification(cman_handle_t handle, cman_callback_t callback)
 
 	cman_inst->notify_callback = callback;
 
-	if (cmanquorum_trackstart(cman_inst->cmq_handle, (uint64_t)handle, CS_TRACK_CURRENT) != CS_OK)
+	if (cmanquorum_trackstart(cman_inst->cmq_handle, (uint64_t)(long)handle, CS_TRACK_CURRENT) != CS_OK)
 		return -1;
 
 	return 0;
