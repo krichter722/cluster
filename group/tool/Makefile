@@ -12,7 +12,6 @@ include $(OBJDIR)/make/uninstall.mk
 
 OBJS=	main.o
 
-CFLAGS += -I$(S)
 CFLAGS += -I${incdir}
 
 LDFLAGS += -L${libdir}
