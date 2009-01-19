@@ -50,7 +50,7 @@ struct cman_inst {
 
 static void cfg_shutdown_callback(
 	corosync_cfg_handle_t handle,
-	CorosyncCfgShutdownFlagsT flags);
+	corosync_cfg_shutdown_flags_t flags);
 
 static void cmanquorum_notification_callback(
         cmanquorum_handle_t handle,
@@ -64,10 +64,10 @@ static cmanquorum_callbacks_t cmq_callbacks =
 	.cmanquorum_notify_fn = cmanquorum_notification_callback,
 };
 
-static CorosyncCfgCallbacksT cfg_callbacks =
+static corosync_cfg_callbacks_t cfg_callbacks =
 {
-	.corosyncCfgStateTrackCallback = NULL,
-	.corosyncCfgShutdownCallback = cfg_shutdown_callback,
+	.corosync_cfg_state_track_callback = NULL,
+	.corosync_cfg_shutdown_callback = cfg_shutdown_callback,
 };
 
 
@@ -77,7 +77,7 @@ static struct cman_inst *admin_inst;
 
 static void cfg_shutdown_callback(
 	corosync_cfg_handle_t handle,
-	CorosyncCfgShutdownFlagsT flags)
+	corosync_cfg_shutdown_flags_t flags)
 {
 	int cman_flags = 0;
 
@@ -318,64 +318,19 @@ int cman_get_node_addrs (
 	struct cman_node_address *addrs)
 {
 	int error;
-	char buf[PIPE_BUF];
-	struct req_lib_cman_get_node_addrs req_lib_cman_get_node_addrs;
-	struct res_lib_cman_get_node_addrs * res_lib_cman_get_node_addrs = (struct res_lib_cman_get_node_addrs *)buf;
 	struct cman_inst *cman_inst;
-	int addrlen;
-	int i;
-	struct iovec iov[2];
 
 	cman_inst = (struct cman_inst *)handle;
 	VALIDATE_HANDLE(cman_inst);
 
-	pthread_mutex_lock (&cman_inst->response_mutex);
-
-	req_lib_cman_get_node_addrs.header.size = sizeof (req_lib_cman_get_node_addrs);
-	req_lib_cman_get_node_addrs.header.id = MESSAGE_REQ_CMAN_GET_NODE_ADDRS;
-	req_lib_cman_get_node_addrs.nodeid = nodeid;
-
-	iov[0].iov_base = (char *)&req_lib_cman_get_node_addrs;
-	iov[0].iov_len = sizeof (req_lib_cman_get_node_addrs);
-
-	error = saSendMsgReceiveReply (cman_inst->response_fd, iov, 1,
-				       res_lib_cman_get_node_addrs, sizeof (mar_res_header_t));
-
-	if (error == CS_OK && res_lib_cman_get_node_addrs->header.size > sizeof(mar_res_header_t)) {
-		error = saRecvRetry (cman_inst->response_fd, (char *)res_lib_cman_get_node_addrs + sizeof (mar_res_header_t),
-				     res_lib_cman_get_node_addrs->header.size - sizeof (mar_res_header_t));
-	}
-	pthread_mutex_unlock (&cman_inst->response_mutex);
-
-	if (error != CS_OK) {
-		goto error_exit;
-	}
-
-	if (res_lib_cman_get_node_addrs->family == AF_INET)
-		addrlen = sizeof(struct sockaddr_in);
-	if (res_lib_cman_get_node_addrs->family == AF_INET6)
-		addrlen = sizeof(struct sockaddr_in6);
-
-	for (i=0; i<max_addrs && i<res_lib_cman_get_node_addrs->num_addrs; i++) {
-		addrs[i].cna_addrlen = addrlen;
-		struct sockaddr_in *in;
-		struct sockaddr_in6 *in6;
-
-		if (res_lib_cman_get_node_addrs->family == AF_INET) {
-			in = (struct sockaddr_in *)addrs[i].cna_address;
-			in->sin_family = AF_INET;
-			memcpy(&in->sin_addr, &res_lib_cman_get_node_addrs->addrs[i][0], sizeof(struct in_addr));
-		}
-		if (res_lib_cman_get_node_addrs->family == AF_INET6) {
-			in6 = (struct sockaddr_in6 *)addrs[i].cna_address;
-			in6->sin6_family = AF_INET6;
-			memcpy(&in6->sin6_addr, &res_lib_cman_get_node_addrs->addrs[i][0], sizeof(struct in6_addr));
+	if (!cman_inst->cfg_handle) {
+		if (corosync_cfg_initialize(&cman_inst->cfg_handle, &cfg_callbacks) != CS_OK) {
+			errno = ENOMEM;
+			return -1;
 		}
 	}
-	*num_addrs = res_lib_cman_get_node_addrs->num_addrs;
-	errno = error = res_lib_cman_get_node_addrs->header.error;
 
-error_exit:
+	error = corosync_cfg_get_node_addrs(cman_inst->cfg_handle, nodeid, max_addrs, num_addrs, addrs);
 
 	return (error?-1:0);
 }
@@ -486,7 +441,7 @@ int cman_shutdown(cman_handle_t handle, int flags)
 {
 	struct cman_inst *cman_inst;
 	int error;
-	CorosyncCfgShutdownFlagsT cfg_flags = 0;
+	corosync_cfg_shutdown_flags_t cfg_flags = 0;
 
 	cman_inst = (struct cman_inst *)handle;
 	VALIDATE_HANDLE(cman_inst);
@@ -514,7 +469,7 @@ int cman_leave_cluster(cman_handle_t handle, int flags)
 {
 	struct cman_inst *cman_inst;
 	int error;
-	CorosyncCfgShutdownFlagsT cfg_flags = 0;
+	corosync_cfg_shutdown_flags_t cfg_flags = 0;
 
 	cman_inst = (struct cman_inst *)handle;
 	VALIDATE_HANDLE(cman_inst);
