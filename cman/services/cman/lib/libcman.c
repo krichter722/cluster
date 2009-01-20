@@ -330,7 +330,7 @@ int cman_get_node_addrs (
 		}
 	}
 
-	error = corosync_cfg_get_node_addrs(cman_inst->cfg_handle, nodeid, max_addrs, num_addrs, addrs);
+	error = corosync_cfg_get_node_addrs(cman_inst->cfg_handle, nodeid, max_addrs, num_addrs, (corosync_cfg_node_address_t *)addrs);
 
 	return (error?-1:0);
 }
