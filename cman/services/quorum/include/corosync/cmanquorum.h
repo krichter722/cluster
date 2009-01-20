@@ -21,7 +21,7 @@ typedef uint64_t cmanquorum_handle_t;
 /** @} */
 
 struct cmanquorum_info {
-	int node_id;
+	unsigned int node_id;
 	unsigned int node_votes;
 	unsigned int node_expected_votes;
 	unsigned int highest_expected;
@@ -31,8 +31,8 @@ struct cmanquorum_info {
 };
 
 struct cmanquorum_qdisk_info {
-	int votes;
-	int state;
+	unsigned int votes;
+	unsigned int state;
 	char name[CMANQUORUM_MAX_QDISK_NAME_LEN];
 };
 
@@ -82,7 +82,7 @@ cs_error_t cmanquorum_dispatch (
  */
 cs_error_t cmanquorum_getinfo (
 	cmanquorum_handle_t handle,
-	int nodeid,
+	unsigned int nodeid,
 	struct cmanquorum_info *info);
 
 /*
@@ -97,7 +97,7 @@ cs_error_t cmanquorum_setexpected (
  */
 cs_error_t cmanquorum_setvotes (
 	cmanquorum_handle_t handle,
-	int nodeid,
+	unsigned int nodeid,
 	unsigned int votes);
 
 /*
@@ -120,7 +120,7 @@ cs_error_t cmanquorum_qdisk_unregister (
  */
 cs_error_t cmanquorum_qdisk_poll (
 	cmanquorum_handle_t handle,
-	int state);
+	unsigned int state);
 
 /*
  * Get quorum device information
@@ -140,7 +140,7 @@ cs_error_t cmanquorum_setdirty (
  */
 cs_error_t cmanquorum_killnode (
 	cmanquorum_handle_t handle,
-	int nodeid,
+	unsigned int nodeid,
 	unsigned int reason);
 
 /* Track node and quorum changes */

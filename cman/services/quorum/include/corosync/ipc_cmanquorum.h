@@ -41,7 +41,7 @@ struct req_lib_cmanquorum_setvotes {
 
 struct req_lib_cmanquorum_qdisk_register {
         mar_req_header_t header __attribute__((aligned(8)));
-	int votes;
+	unsigned int votes;
 	char name[CMANQUORUM_MAX_QDISK_NAME_LEN];
 };
 
@@ -52,7 +52,7 @@ struct req_lib_cmanquorum_qdisk_poll {
 
 struct req_lib_cmanquorum_setexpected {
         mar_req_header_t header __attribute__((aligned(8)));
-	int expected_votes;
+	unsigned int expected_votes;
 };
 
 struct req_lib_cmanquorum_trackstart {
@@ -102,8 +102,8 @@ struct res_lib_cmanquorum_getinfo {
 
 struct res_lib_cmanquorum_qdisk_getinfo {
         mar_res_header_t header __attribute__((aligned(8)));
-	int votes;
-	int state;
+	unsigned int votes;
+	unsigned int state;
 	char name[CMANQUORUM_MAX_QDISK_NAME_LEN];
 };
 

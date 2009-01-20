@@ -131,7 +131,7 @@ cs_error_t cmanquorum_finalize (
 
 cs_error_t cmanquorum_getinfo (
 	cmanquorum_handle_t handle,
-	int nodeid,
+	unsigned int nodeid,
 	struct cmanquorum_info *info)
 {
 	cs_error_t error;
@@ -222,7 +222,7 @@ error_exit:
 
 cs_error_t cmanquorum_setvotes (
 	cmanquorum_handle_t handle,
-	int nodeid,
+	unsigned int nodeid,
 	unsigned int votes)
 {
 	cs_error_t error;
@@ -311,7 +311,7 @@ error_exit:
 
 cs_error_t cmanquorum_qdisk_poll (
 	cmanquorum_handle_t handle,
-	int state)
+	unsigned int state)
 {
 	cs_error_t error;
 	struct cmanquorum_inst *cmanquorum_inst;
@@ -516,7 +516,7 @@ error_exit:
 
 cs_error_t cmanquorum_killnode (
 	cmanquorum_handle_t handle,
-	int nodeid,
+	unsigned int nodeid,
 	unsigned int reason)
 {
 	cs_error_t error;

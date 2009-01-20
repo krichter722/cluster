@@ -380,8 +380,8 @@ struct req_exec_quorum_nodeinfo {
 	unsigned char cmd;
 	unsigned char first_trans;
 	uint16_t cluster_id;
-	int votes;
-	int expected_votes;
+	unsigned int votes;
+	unsigned int expected_votes;
 
 	unsigned int   major_version;	/* Not backwards compatible */
 	unsigned int   minor_version;	/* Backwards compatible */
@@ -638,7 +638,7 @@ static void set_quorate(int total_votes)
 	ENTER();
 }
 
-static int calculate_quorum(int allow_decrease, unsigned int *ret_total_votes)
+static int calculate_quorum(int allow_decrease, int max_expected, unsigned int *ret_total_votes)
 {
 	struct list_head *nodelist;
 	struct cluster_node *node;
@@ -646,7 +646,6 @@ static int calculate_quorum(int allow_decrease, unsigned int *ret_total_votes)
 	unsigned int highest_expected = 0;
 	unsigned int newquorum, q1, q2;
 	unsigned int total_nodes = 0;
-	unsigned int max_expected = 0;
 	unsigned int leaving = 0;
 
 	ENTER();
@@ -657,8 +656,10 @@ static int calculate_quorum(int allow_decrease, unsigned int *ret_total_votes)
 			   node->node_id, node->state, node->votes, node->expected_votes);
 
 		if (node->state == NODESTATE_MEMBER) {
-			highest_expected =
-				max(highest_expected, node->expected_votes);
+			if (max_expected)
+				node->expected_votes = max_expected;
+			else
+				highest_expected = max(highest_expected, node->expected_votes);
 			total_votes += node->votes;
 			total_nodes++;
 		}
@@ -706,7 +707,7 @@ static void recalculate_quorum(int allow_decrease)
 	unsigned int total_votes;
 
 	ENTER();
-	quorum = calculate_quorum(allow_decrease, &total_votes);
+	quorum = calculate_quorum(allow_decrease, 0, &total_votes);
 	set_quorate(total_votes);
 	send_quorum_notification(NULL, 0L);
 	LEAVE();
@@ -975,7 +976,7 @@ static void message_handler_req_exec_quorum_nodeinfo (
 	if (req_exec_quorum_nodeinfo->flags & NODE_FLAGS_SEESDISALLOWED && !have_disallowed()) {
 		/* Must use syslog directly here or the message will never arrive */
 		syslog(LOG_CRIT, "[CMANQ]: Joined a cluster with disallowed nodes. must die");
-		corosync_api->fatal_error(2, __FILE__, __LINE__); // CC:
+		corosync_api->fatal_error(2, __FILE__, __LINE__);
 		exit(2);
 	}
 
@@ -1082,8 +1083,8 @@ static void message_handler_req_lib_cmanquorum_getinfo (void *conn, void *messag
 	struct req_lib_cmanquorum_getinfo *req_lib_cmanquorum_getinfo = (struct req_lib_cmanquorum_getinfo *)message;
 	struct res_lib_cmanquorum_getinfo res_lib_cmanquorum_getinfo;
 	struct cluster_node *node;
-	int highest_expected = 0;
-	int total_votes = 0;
+	unsigned int highest_expected = 0;
+	unsigned int total_votes = 0;
 	cs_error_t error = CS_OK;
 
 	log_printf(LOG_LEVEL_DEBUG, "got getinfo request on %p for node %d\n", conn, req_lib_cmanquorum_getinfo->nodeid);
@@ -1167,14 +1168,32 @@ static void message_handler_req_lib_cmanquorum_setexpected (void *conn, void *me
 	struct req_lib_cmanquorum_setexpected *req_lib_cmanquorum_setexpected = (struct req_lib_cmanquorum_setexpected *)message;
 	struct res_lib_cmanquorum_status res_lib_cmanquorum_status;
 	cs_error_t error = CS_OK;
+	unsigned int newquorum;
+	unsigned int total_votes;
 
 	ENTER();
 
-	// TODO validate as cman does
+	/*
+	 * If there are disallowed nodes, then we can't allow the user
+	 * to bypass them by fiddling with expected votes.
+	 */
+	if (quorum_flags & CMANQUORUM_FLAG_FEATURE_DISALLOWED && have_disallowed()) {
+		error = -EINVAL;
+		goto error_exit;
+	}
+
+	/* Validate new expected votes */
+	newquorum = calculate_quorum(1, req_lib_cmanquorum_setexpected->expected_votes, &total_votes);
+	if (newquorum < total_votes / 2
+	    || newquorum > total_votes) {
+		error = -EINVAL;
+		goto error_exit;
+	}
 
 	quorum_exec_send_reconfigure(RECONFIG_PARAM_EXPECTED_VOTES, us->node_id, req_lib_cmanquorum_setexpected->expected_votes);
 
 	/* send status */
+error_exit:
 	res_lib_cmanquorum_status.header.size = sizeof(res_lib_cmanquorum_status);
 	res_lib_cmanquorum_status.header.id = MESSAGE_RES_CMANQUORUM_STATUS;
 	res_lib_cmanquorum_status.header.error = error;
@@ -1187,17 +1206,38 @@ static void message_handler_req_lib_cmanquorum_setvotes (void *conn, void *messa
 {
 	struct req_lib_cmanquorum_setvotes *req_lib_cmanquorum_setvotes = (struct req_lib_cmanquorum_setvotes *)message;
 	struct res_lib_cmanquorum_status res_lib_cmanquorum_status;
+	struct cluster_node *node;
+	unsigned int newquorum;
+	unsigned int total_votes;
+	unsigned int saved_votes;
 	cs_error_t error = CS_OK;
 
 	ENTER();
 
-	// TODO validate as cman does
+	node = find_node_by_nodeid(req_lib_cmanquorum_setvotes->nodeid);
+	if (!node) {
+		error = -EINVAL;
+		goto error_exit;
+	}
+
+	/* Check votes is valid */
+	saved_votes = node->votes;
+	node->votes = req_lib_cmanquorum_setvotes->votes;
+
+	newquorum = calculate_quorum(1, 0, &total_votes);
+
+	if (newquorum < total_votes / 2 || newquorum > total_votes) {
+		node->votes = saved_votes;
+		error = -EINVAL;
+		goto error_exit;
+	}
 
 	if (!req_lib_cmanquorum_setvotes->nodeid)
 		req_lib_cmanquorum_setvotes->nodeid = corosync_api->totem_nodeid_get();
 
 	quorum_exec_send_reconfigure(RECONFIG_PARAM_NODE_VOTES, req_lib_cmanquorum_setvotes->nodeid, req_lib_cmanquorum_setvotes->votes);
 
+error_exit:
 	/* send status */
 	res_lib_cmanquorum_status.header.size = sizeof(res_lib_cmanquorum_status);
 	res_lib_cmanquorum_status.header.id = MESSAGE_RES_CMANQUORUM_STATUS;
