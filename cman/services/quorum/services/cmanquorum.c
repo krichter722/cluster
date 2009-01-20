@@ -1178,7 +1178,7 @@ static void message_handler_req_lib_cmanquorum_setexpected (void *conn, void *me
 	 * to bypass them by fiddling with expected votes.
 	 */
 	if (quorum_flags & CMANQUORUM_FLAG_FEATURE_DISALLOWED && have_disallowed()) {
-		error = -EINVAL;
+		error = CS_ERR_EXIST;
 		goto error_exit;
 	}
 
@@ -1186,7 +1186,7 @@ static void message_handler_req_lib_cmanquorum_setexpected (void *conn, void *me
 	newquorum = calculate_quorum(1, req_lib_cmanquorum_setexpected->expected_votes, &total_votes);
 	if (newquorum < total_votes / 2
 	    || newquorum > total_votes) {
-		error = -EINVAL;
+		error = CS_ERR_INVALID_PARAM;
 		goto error_exit;
 	}
 
@@ -1216,7 +1216,7 @@ static void message_handler_req_lib_cmanquorum_setvotes (void *conn, void *messa
 
 	node = find_node_by_nodeid(req_lib_cmanquorum_setvotes->nodeid);
 	if (!node) {
-		error = -EINVAL;
+		error = CS_ERR_NAME_NOT_FOUND;
 		goto error_exit;
 	}
 
@@ -1228,7 +1228,7 @@ static void message_handler_req_lib_cmanquorum_setvotes (void *conn, void *messa
 
 	if (newquorum < total_votes / 2 || newquorum > total_votes) {
 		node->votes = saved_votes;
-		error = -EINVAL;
+		error = CS_ERR_INVALID_PARAM;
 		goto error_exit;
 	}
 
