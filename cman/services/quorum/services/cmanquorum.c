@@ -85,12 +85,12 @@ struct cluster_node {
 };
 
 #define CMANQUORUM_FLAG_FEATURE_DISALLOWED 1
+#define CMANQUORUM_FLAG_FEATURE_TWONODE 1
 static int quorum_flags;
 
 static int quorum;
 static int cluster_is_quorate;
 static int first_trans = 1;
-static unsigned int two_node;
 static unsigned int quorumdev_poll = DEFAULT_QDEV_POLL;
 
 static struct cluster_node *us;
@@ -197,6 +197,9 @@ static void message_handler_req_lib_cmanquorum_trackstop (void *conn, void *msg)
 static int quorum_exec_send_nodeinfo(void);
 static int quorum_exec_send_reconfigure(int param, int nodeid, int value);
 static int quorum_exec_send_killnode(int nodeid, unsigned int reason);
+
+static void add_cmanquorum_config_notification(unsigned int quorum_object_handle);
+
 
 /*
  * Library Handler Definition
@@ -364,22 +367,17 @@ static void cmanquorum_init(struct corosync_api_v1 *api,
 	LEAVE();
 }
 
-#define CMANQUORUM_MSG_ACK          1
-#define CMANQUORUM_MSG_PORTOPENED   2
-#define CMANQUORUM_MSG_PORTCLOSED   3
-#define CMANQUORUM_MSG_BARRIER      4
+/* Message types */
 #define CMANQUORUM_MSG_NODEINFO     5
 #define CMANQUORUM_MSG_KILLNODE     6
-#define CMANQUORUM_MSG_LEAVE        7
 #define CMANQUORUM_MSG_RECONFIGURE  8
-#define CMANQUORUM_MSG_PORTENQ      9
-#define CMANQUORUM_MSG_PORTSTATUS  10
-#define CMANQUORUM_MSG_FENCESTATUS 11
 
 struct req_exec_quorum_nodeinfo {
 	unsigned char cmd;
 	unsigned char first_trans;
+#ifdef CMAN_COMPATIBILITY
 	uint16_t cluster_id;
+#endif
 	unsigned int votes;
 	unsigned int expected_votes;
 
@@ -423,7 +421,7 @@ static inline int objdb_get_string(struct corosync_api_v1 *corosync, unsigned in
 	int res;
 
 	*value = NULL;
-	if ( !(res = corosync->object_key_get(object_service_handle,
+	if ( !(res = corosync_api->object_key_get(object_service_handle,
 					      key,
 					      strlen(key),
 					      (void *)value,
@@ -441,7 +439,7 @@ static inline void objdb_get_int(struct corosync_api_v1 *corosync, unsigned int 
 
 	*intvalue = default_value;
 
-	if (!corosync->object_key_get(object_service_handle, key, strlen(key),
+	if (!corosync_api->object_key_get(object_service_handle, key, strlen(key),
 				 (void *)&value, NULL)) {
 		if (value) {
 			*intvalue = atoi(value);
@@ -466,6 +464,28 @@ static int quorum_send_message(void *message, int len)
 	iov[1].iov_len  = len;
 
 	return corosync_api->tpg_joined_mcast(group_handle, iov, 2, TOTEM_AGREED);
+}
+
+static void read_quorum_config(unsigned int quorum_handle)
+{
+	unsigned int value = 0;
+
+	log_printf(LOG_INFO, "Reading configuration\n");
+
+	objdb_get_int(corosync_api, quorum_handle, "expected_votes", &us->expected_votes, DEFAULT_EXPECTED);
+	objdb_get_int(corosync_api, quorum_handle, "votes", &us->votes, 1);
+	objdb_get_int(corosync_api, quorum_handle, "quorumdev_poll", &quorumdev_poll, DEFAULT_QDEV_POLL);
+	objdb_get_int(corosync_api, quorum_handle, "disallowed", &value, 0);
+	if (value)
+		quorum_flags |= CMANQUORUM_FLAG_FEATURE_DISALLOWED;
+	else
+		quorum_flags &= ~CMANQUORUM_FLAG_FEATURE_DISALLOWED;
+
+	objdb_get_int(corosync_api, quorum_handle, "two_node", &value, 0);
+	if (value)
+		quorum_flags |= CMANQUORUM_FLAG_FEATURE_TWONODE;
+	else
+		quorum_flags &= ~CMANQUORUM_FLAG_FEATURE_TWONODE;
 }
 
 static int cmanquorum_exec_init_fn (struct corosync_api_v1 *api)
@@ -495,15 +515,10 @@ static int cmanquorum_exec_init_fn (struct corosync_api_v1 *api)
 	corosync_api->object_find_create(OBJECT_PARENT_HANDLE, "quorum", strlen("quorum"), &find_handle);
 
 	if (corosync_api->object_find_next(find_handle, &object_handle) == 0) {
-		unsigned int value = 0;
-		objdb_get_int(corosync_api, object_handle, "expected_votes", &us->expected_votes, DEFAULT_EXPECTED);
-		objdb_get_int(corosync_api, object_handle, "votes", &us->votes, 1);
-		objdb_get_int(corosync_api, object_handle, "two_node", &two_node, 0);
-		objdb_get_int(corosync_api, object_handle, "quorumdev_poll", &quorumdev_poll, DEFAULT_QDEV_POLL);
-		objdb_get_int(corosync_api, object_handle, "disallowed", &value, 0);
-		if (value)
-			quorum_flags |= CMANQUORUM_FLAG_FEATURE_DISALLOWED;
+		read_quorum_config(object_handle);
 	}
+	/* Listen for changes */
+	add_cmanquorum_config_notification(object_handle);
 	corosync_api->object_find_destroy(find_handle);
 
 #ifdef CMAN_COMPATIBILITY
@@ -691,7 +706,7 @@ static int calculate_quorum(int allow_decrease, int max_expected, unsigned int *
 	 * Also: if there are more than two nodes, force us inquorate to avoid
 	 * any damage or confusion.
 	 */
-	if (two_node && total_nodes <= 2)
+	if ((quorum_flags & CMANQUORUM_FLAG_FEATURE_TWONODE) && total_nodes <= 2)
 		newquorum = 1;
 
 	if (ret_total_votes)
@@ -887,7 +902,9 @@ static void exec_quorum_nodeinfo_endian_convert (void *msg)
 {
 	struct req_exec_quorum_nodeinfo *nodeinfo = (struct req_exec_quorum_nodeinfo *)msg;
 
+#ifdef CMAN_COMPATIBILITY
 	nodeinfo->cluster_id = swab16(nodeinfo->cluster_id);
+#endif
 	nodeinfo->votes = swab32(nodeinfo->votes);
 	nodeinfo->expected_votes = swab32(nodeinfo->expected_votes);
 	nodeinfo->major_version = swab32(nodeinfo->major_version);
@@ -1125,7 +1142,7 @@ static void message_handler_req_lib_cmanquorum_getinfo (void *conn, void *messag
 
 		if (us->flags & NODE_FLAGS_DIRTY)
 			res_lib_cmanquorum_getinfo.flags |= CMANQUORUM_INFO_FLAG_DIRTY;
-		if (two_node)
+		if (quorum_flags & CMANQUORUM_FLAG_FEATURE_TWONODE)
 			res_lib_cmanquorum_getinfo.flags |= CMANQUORUM_INFO_FLAG_TWONODE;
 		if (cluster_is_quorate)
 			res_lib_cmanquorum_getinfo.flags |= CMANQUORUM_INFO_FLAG_QUORATE;
@@ -1468,22 +1485,23 @@ static void message_handler_req_lib_cmanquorum_trackstop (void *conn, void *msg)
 {
 	struct res_lib_cmanquorum_status res_lib_cmanquorum_status;
 	struct quorum_pd *quorum_pd = (struct quorum_pd *)corosync_api->ipc_private_data_get (conn);
+	int error = CS_OK;
 
 	ENTER();
 
 	if (quorum_pd->tracking_enabled) {
-		res_lib_cmanquorum_status.header.error = CS_OK;
+		error = CS_OK;
 		quorum_pd->tracking_enabled = 0;
 		list_del (&quorum_pd->list);
 		list_init (&quorum_pd->list);
 	} else {
-		res_lib_cmanquorum_status.header.error = CS_ERR_NOT_EXIST;
+		error = CS_ERR_NOT_EXIST;
 	}
 
 	/* send status */
 	res_lib_cmanquorum_status.header.size = sizeof(res_lib_cmanquorum_status);
 	res_lib_cmanquorum_status.header.id = MESSAGE_RES_CMANQUORUM_STATUS;
-	res_lib_cmanquorum_status.header.error = CS_OK;
+	res_lib_cmanquorum_status.header.error = error;
 	corosync_api->ipc_conn_send_response(conn, &res_lib_cmanquorum_status, sizeof(res_lib_cmanquorum_status));
 
 	LEAVE();
@@ -1511,3 +1529,102 @@ static char *kill_reason(int reason)
 	}
 }
 
+static void reread_config(unsigned int object_handle)
+{
+	unsigned int old_votes;
+	unsigned int old_expected;
+
+	old_votes = us->votes;
+	old_expected = us->expected_votes;
+
+	/*
+	 * Reload the configuration
+	 */
+	read_quorum_config(object_handle);
+
+	/*
+	 * Check for fundamental changes that we need to propogate
+	 */
+	if (old_votes != us->votes) {
+		quorum_exec_send_reconfigure(RECONFIG_PARAM_NODE_VOTES, us->node_id, us->votes);
+	}
+	if (old_expected != us->expected_votes) {
+		quorum_exec_send_reconfigure(RECONFIG_PARAM_EXPECTED_VOTES, us->node_id, us->expected_votes);
+	}
+}
+
+static void quorum_key_change_notify(object_change_type_t change_type,
+				     unsigned int parent_object_handle,
+				     unsigned int object_handle,
+				     void *object_name_pt, int object_name_len,
+				     void *key_name_pt, int key_len,
+				     void *key_value_pt, int key_value_len,
+				     void *priv_data_pt)
+{
+	if (memcmp(object_name_pt, "quorum", object_name_len) == 0)
+		reread_config(object_handle);
+}
+
+
+/* Called when the objdb is reloaded */
+static void cmanquorum_objdb_reload_notify(
+	objdb_reload_notify_type_t type, int flush,
+	void *priv_data_pt)
+{
+	/*
+	 * A new quorum {} key might exist, cancel the
+	 * existing notification at the start of reload,
+	 * and start a new one on the new object when
+	 * it's all settled.
+	 */
+
+	if (type == OBJDB_RELOAD_NOTIFY_START) {
+		corosync_api->object_track_stop(
+			quorum_key_change_notify,
+			NULL,
+			NULL,
+			NULL,
+			NULL);
+	}
+
+	if (type == OBJDB_RELOAD_NOTIFY_END ||
+	    type == OBJDB_RELOAD_NOTIFY_FAILED) {
+		unsigned int find_handle;
+		unsigned int object_handle;
+
+		corosync_api->object_find_create(OBJECT_PARENT_HANDLE, "quorum", strlen("quorum"), &find_handle);
+		if (corosync_api->object_find_next(find_handle, &object_handle) == 0) {
+			add_cmanquorum_config_notification(object_handle);
+
+			reread_config(object_handle);
+		}
+		else {
+			log_printf(LOG_LEVEL_ERROR, "cmanquorum objdb tracking stopped, cannot find quorum{} handle in objdb\n");
+		}
+	}
+}
+
+
+static void add_cmanquorum_config_notification(
+	unsigned int quorum_object_handle)
+{
+
+	corosync_api->object_track_start(quorum_object_handle,
+					 1,
+					 quorum_key_change_notify,
+					 NULL, // object_create_notify,
+					 NULL, // object_destroy_notify,
+					 NULL, // object_reload_notify
+					 NULL); // priv_data
+
+	/*
+	 * Reload notify must be on the parent object
+	 */
+	corosync_api->object_track_start(OBJECT_PARENT_HANDLE,
+					 1,
+					 NULL, // key_change_notify,
+					 NULL, // object_create_notify,
+					 NULL, // object_destroy_notify,
+					 cmanquorum_objdb_reload_notify, // object_reload_notify
+					 NULL); // priv_data
+}
