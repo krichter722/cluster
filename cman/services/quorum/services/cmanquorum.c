@@ -977,6 +977,9 @@ static void message_handler_req_exec_quorum_nodeinfo (
 {
 	struct req_exec_quorum_nodeinfo *req_exec_quorum_nodeinfo = (struct req_exec_quorum_nodeinfo *)message;
 	struct cluster_node *node;
+	int old_votes;
+	int old_expected;
+	nodestate_t old_state;
 
 	ENTER();
 	log_printf(LOG_LEVEL_DEBUG, "got nodeinfo message from cluster node %d\n", nodeid);
@@ -990,12 +993,19 @@ static void message_handler_req_exec_quorum_nodeinfo (
 		return;
 	}
 
+	/*
+	 * If the node sending the message sees disallowed nodes and we don't, then
+	 * we have to leave
+	 */
 	if (req_exec_quorum_nodeinfo->flags & NODE_FLAGS_SEESDISALLOWED && !have_disallowed()) {
 		/* Must use syslog directly here or the message will never arrive */
 		syslog(LOG_CRIT, "[CMANQ]: Joined a cluster with disallowed nodes. must die");
 		corosync_api->fatal_error(2, __FILE__, __LINE__);
 		exit(2);
 	}
+	old_votes = node->votes;
+	old_expected = node->expected_votes;
+	old_state = node->state;
 
 	/* Update node state */
 	if (req_exec_quorum_nodeinfo->minor_version >= 2)
@@ -1022,8 +1032,8 @@ static void message_handler_req_exec_quorum_nodeinfo (
 	}
 	node->flags &= ~NODE_FLAGS_BEENDOWN;
 
-	// TODO do we need this as well as in confchg ?
-	recalculate_quorum(0);
+	if (old_votes != node->votes || old_expected != node->expected_votes || old_state != node->state)
+		recalculate_quorum(0);
 	LEAVE();
 }
 
