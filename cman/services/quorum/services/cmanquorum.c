@@ -84,9 +84,9 @@ struct cluster_node {
 	struct list_head list;
 };
 
+static int quorum_flags;
 #define CMANQUORUM_FLAG_FEATURE_DISALLOWED 1
 #define CMANQUORUM_FLAG_FEATURE_TWONODE 1
-static int quorum_flags;
 
 static int quorum;
 static int cluster_is_quorate;
@@ -103,13 +103,12 @@ static struct list_head trackers_list;
 static unsigned int cman_members[PROCESSOR_COUNT_MAX+1];
 static int cman_members_entries = 0;
 static struct memb_ring_id cman_ringid;
+static cs_tpg_handle group_handle;
 
 #define max(a,b) (((a) > (b)) ? (a) : (b))
 static struct cluster_node *find_node_by_nodeid(int nodeid);
 static struct cluster_node *allocate_node(int nodeid);
 static char *kill_reason(int reason);
-
-static cs_tpg_handle group_handle;
 
 #define CMAN_COMPATIBILITY
 #ifdef CMAN_COMPATIBILITY
@@ -301,7 +300,7 @@ static struct corosync_service_engine quorum_service_handler = {
 	.exec_init_fn				= cmanquorum_exec_init_fn,
 	.exec_engine				= NULL,
 	.exec_engine_count		        = 0,
-	.confchg_fn                             = NULL, /* Invoked by tpg */
+	.confchg_fn                             = NULL,
 };
 
 /*
@@ -447,7 +446,7 @@ static inline void objdb_get_int(struct corosync_api_v1 *corosync, unsigned int 
 	}
 }
 
-static int quorum_send_message(void *message, int len)
+static int cmanquorum_send_message(void *message, int len)
 {
 	struct iovec iov[2];
 	struct q_protheader header;
@@ -469,6 +468,9 @@ static int quorum_send_message(void *message, int len)
 static void read_quorum_config(unsigned int quorum_handle)
 {
 	unsigned int value = 0;
+	int cluster_members = 0;
+	struct list_head *tmp;
+	struct cluster_node *node;
 
 	log_printf(LOG_INFO, "Reading configuration\n");
 
@@ -486,6 +488,19 @@ static void read_quorum_config(unsigned int quorum_handle)
 		quorum_flags |= CMANQUORUM_FLAG_FEATURE_TWONODE;
 	else
 		quorum_flags &= ~CMANQUORUM_FLAG_FEATURE_TWONODE;
+
+	/*
+	 * two_node mode is invalid if there are more than 2 nodes in the cluster!
+	 */
+	list_iterate(tmp, &cluster_members_list) {
+		node = list_entry(tmp, struct cluster_node, list);
+		cluster_members++;
+        }
+
+	if (quorum_flags & CMANQUORUM_FLAG_FEATURE_TWONODE && cluster_members > 2) {
+		log_printf(LOG_WARNING, "quorum.two_node was set but there are more than 2 nodes in the cluster. It will be ignored.");
+		quorum_flags &= ~CMANQUORUM_FLAG_FEATURE_TWONODE;
+	}
 }
 
 static int cmanquorum_exec_init_fn (struct corosync_api_v1 *api)
@@ -818,7 +833,7 @@ static int quorum_exec_send_nodeinfo()
 	req_exec_quorum_nodeinfo.cluster_id = cluster_id;
 #endif
 
-	ret = quorum_send_message(&req_exec_quorum_nodeinfo, sizeof(req_exec_quorum_nodeinfo));
+	ret = cmanquorum_send_message(&req_exec_quorum_nodeinfo, sizeof(req_exec_quorum_nodeinfo));
 	LEAVE();
 	return ret;
 }
@@ -836,7 +851,7 @@ static int quorum_exec_send_reconfigure(int param, int nodeid, int value)
 	req_exec_quorum_reconfigure.nodeid = nodeid;
 	req_exec_quorum_reconfigure.value = value;
 
-	ret = quorum_send_message(&req_exec_quorum_reconfigure, sizeof(req_exec_quorum_reconfigure));
+	ret = cmanquorum_send_message(&req_exec_quorum_reconfigure, sizeof(req_exec_quorum_reconfigure));
 	LEAVE();
 	return ret;
 }
@@ -852,7 +867,7 @@ static int quorum_exec_send_killnode(int nodeid, unsigned int reason)
 	req_exec_quorum_killnode.nodeid = nodeid;
 	req_exec_quorum_killnode.reason = reason;
 
-	ret = quorum_send_message(&req_exec_quorum_killnode, sizeof(req_exec_quorum_killnode));
+	ret = cmanquorum_send_message(&req_exec_quorum_killnode, sizeof(req_exec_quorum_killnode));
 	LEAVE();
 	return ret;
 }
@@ -980,6 +995,7 @@ static void message_handler_req_exec_quorum_nodeinfo (
 	int old_votes;
 	int old_expected;
 	nodestate_t old_state;
+	int new_node = 0;
 
 	ENTER();
 	log_printf(LOG_LEVEL_DEBUG, "got nodeinfo message from cluster node %d\n", nodeid);
@@ -987,9 +1003,10 @@ static void message_handler_req_exec_quorum_nodeinfo (
 	node = find_node_by_nodeid(nodeid);
 	if (!node) {
 		node = allocate_node(nodeid);
+		new_node = 1;
 	}
 	if (!node) {
-		// TODO enomem error
+		corosync_api->error_memory_failure();
 		return;
 	}
 
@@ -1032,7 +1049,7 @@ static void message_handler_req_exec_quorum_nodeinfo (
 	}
 	node->flags &= ~NODE_FLAGS_BEENDOWN;
 
-	if (old_votes != node->votes || old_expected != node->expected_votes || old_state != node->state)
+	if (new_node || old_votes != node->votes || old_expected != node->expected_votes || old_state != node->state)
 		recalculate_quorum(0);
 	LEAVE();
 }
@@ -1046,7 +1063,7 @@ static void message_handler_req_exec_quorum_killnode (
 	if (req_exec_quorum_killnode->nodeid == corosync_api->totem_nodeid_get()) {
 		log_printf(LOG_CRIT, "Killed by node %d: %s\n", nodeid, kill_reason(req_exec_quorum_killnode->reason));
 
-		// Is there a better way!! ????
+		corosync_api->fatal_error(1, __FILE__, __LINE__);
 		exit(1);
 	}
 }
@@ -1622,19 +1639,19 @@ static void add_cmanquorum_config_notification(
 	corosync_api->object_track_start(quorum_object_handle,
 					 1,
 					 quorum_key_change_notify,
-					 NULL, // object_create_notify,
-					 NULL, // object_destroy_notify,
-					 NULL, // object_reload_notify
-					 NULL); // priv_data
+					 NULL,
+					 NULL,
+					 NULL,
+					 NULL);
 
 	/*
 	 * Reload notify must be on the parent object
 	 */
 	corosync_api->object_track_start(OBJECT_PARENT_HANDLE,
 					 1,
-					 NULL, // key_change_notify,
-					 NULL, // object_create_notify,
-					 NULL, // object_destroy_notify,
-					 cmanquorum_objdb_reload_notify, // object_reload_notify
-					 NULL); // priv_data
+					 NULL,
+					 NULL,
+					 NULL,
+					 cmanquorum_objdb_reload_notify,
+					 NULL);
 }
