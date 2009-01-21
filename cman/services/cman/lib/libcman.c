@@ -930,7 +930,7 @@ int cman_set_version(cman_handle_t handle, const cman_version_t *version)
 	}
 	ccs_disconnect(ccs_handle);
 
-	if (cur_version >= version->cv_config) {
+	if (cur_version && cur_version >= version->cv_config) {
 		errno = EINVAL;
 		return -1;
 	}
