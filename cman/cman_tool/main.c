@@ -199,9 +199,6 @@ static void show_status(void)
 	struct cman_node_address addrs[MAX_INTERFACES];
 	int quorate;
 	int i;
-	int j;
-	int portnum;
-	char *addrptr;
 
 	h = open_cman_handle(0);
 
@@ -318,7 +315,6 @@ static int get_format_opt(const char *opt)
 static void print_node(commandline_t *comline, cman_handle_t h, int *format, struct cman_node *node)
 {
 	char member_type;
-	struct tm *ftime;
 	struct tm *jtime;
 	char jstring[1024];
 	int i,j,k;
@@ -590,7 +586,7 @@ static void version(commandline_t *comline)
 	if ((result = cman_get_version(h, &ver)))
 		die("can't get version: %s", cman_error(errno));
 
-	if (!comline->config_version) {
+	if (!comline->config_version_opt) {
 		printf("%d.%d.%d config %d\n", ver.cv_major, ver.cv_minor, ver.cv_patch,
 		       ver.cv_config);
 		goto out;
