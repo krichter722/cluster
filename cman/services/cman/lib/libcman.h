@@ -142,7 +142,7 @@ typedef struct cman_cluster
 
 /* Flags in ei_flags
    NOTE: These have changed from Cluster2/3! */
-#define CMAN_EXTRA_FLAG_DIRTY      1
+#define CMAN_EXTRA_FLAG_HASSTATE   1
 #define CMAN_EXTRA_FLAG_DISALLOWED 2
 #define CMAN_EXTRA_FLAG_2NODE      4
 #define CMAN_EXTRA_FLAG_QUORATE    8

@@ -17,4 +17,4 @@ CFLAGS += -I../include -I../../quorum/include
 
 LDFLAGS += -L${corosynclibdir} -lcoroutil -lcfg 
 LDFLAGS += -L${ccslibdir} -lccs
-LDFLAGS += -L../../quorum/lib/ -Wl,-Bstatic -lcmanquorum -Wl,-Bdynamic
+LDFLAGS += -lvotequorum 

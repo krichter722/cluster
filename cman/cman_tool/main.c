@@ -233,10 +233,11 @@ static void show_status(void)
 		printf(" 2node");
 	if (einfo->ei_flags & CMAN_EXTRA_FLAG_DISALLOWED)
 		printf(" DisallowedNodes");
-	if (einfo->ei_flags & CMAN_EXTRA_FLAG_DIRTY)
-		printf(" Dirty");
+	if (einfo->ei_flags & CMAN_EXTRA_FLAG_HASSTATE)
+		printf(" HasState");
 	printf(" \n");
 
+	memset(&node, 0, sizeof(node));
 	if (cman_get_node(h, CMAN_NODEID_US, &node) == 0) {
 		printf("Node name: %s\n", node.cn_name);
 		printf("Node ID: %d\n", node.cn_nodeid);

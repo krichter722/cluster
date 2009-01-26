@@ -840,7 +840,7 @@ static void add_cman_overrides(struct objdb_iface_ver0 *objdb)
 	objdb->object_find_destroy(find_handle);
 
 	objdb->object_key_create(object_handle, "provider", strlen("provider"),
-				 "corosync_cmanquorum", strlen("corosync_cmanquorum") + 1);
+				 "corosync_votequorum", strlen("corosync_votequorum") + 1);
 
 	if (!expected_votes)
 		expected_votes = sum_expected(objdb);
