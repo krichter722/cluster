@@ -13,8 +13,7 @@ include $(OBJDIR)/make/uninstall.mk
 CFLAGS += -fPIC
 CFLAGS += -I${ccsincdir} -I${cmanincdir}
 CFLAGS += -I${incdir}
-CFLAGS += -I../include -I../../quorum/include
+CFLAGS += -I../include 
 
-LDFLAGS += -L${corosynclibdir} -lcoroutil -lcfg 
+LDFLAGS += -L${corosynclibdir} -lcoroutil -lcfg -lvotequorum
 LDFLAGS += -L${ccslibdir} -lccs
-LDFLAGS += -lvotequorum 
