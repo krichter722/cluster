@@ -958,9 +958,19 @@ static int set_noccs_defaults(struct objdb_iface_ver0 *objdb)
 	objdb->object_key_create(object_handle, "nodeid", strlen("nodeid"),
 				 tmp, strlen(tmp)+1);
 
-	/* Write the default cluster name & ID in here too */
+	/* Write the default cluster name */
 	objdb->object_key_create(cluster_parent_handle, "name", strlen("name"),
 				 cluster_name, strlen(cluster_name)+1);
+
+	/* Add a dummy config_version */
+	sprintf(tmp, "%d", 0);
+	objdb->object_key_create(cluster_parent_handle, "config_version", strlen("config_version"),
+				 tmp, strlen(tmp)+1);
+
+	/* A flag to show there is no configuration file */
+	sprintf(tmp, "%d", 1);
+	objdb->object_key_create(cluster_parent_handle, "no_config", strlen("no_config"),
+				 tmp, strlen(tmp)+1);
 
 
 	return 0;

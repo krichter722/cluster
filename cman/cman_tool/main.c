@@ -235,6 +235,8 @@ static void show_status(void)
 		printf(" DisallowedNodes");
 	if (einfo->ei_flags & CMAN_EXTRA_FLAG_HASSTATE)
 		printf(" HasState");
+	if (einfo->ei_flags & CMAN_EXTRA_FLAG_NOCONFIG)
+		printf(" NoConfig");
 	printf(" \n");
 
 	memset(&node, 0, sizeof(node));

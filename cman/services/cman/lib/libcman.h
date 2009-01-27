@@ -146,6 +146,7 @@ typedef struct cman_cluster
 #define CMAN_EXTRA_FLAG_DISALLOWED 2
 #define CMAN_EXTRA_FLAG_2NODE      4
 #define CMAN_EXTRA_FLAG_QUORATE    8
+#define CMAN_EXTRA_FLAG_NOCONFIG 256
 
 typedef struct cman_extra_info {
 	int           ei_node_state;

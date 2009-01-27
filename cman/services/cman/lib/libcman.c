@@ -983,6 +983,7 @@ int cman_get_nodes(cman_handle_t handle, int maxnodes, int *retnodes, cman_node_
 	int i;
 	int num_nodes = 0;
 	char path[PATH_MAX];
+	int noconfig_flag;
 
 	cman_inst = (struct cman_inst *)handle;
 	VALIDATE_HANDLE(cman_inst);
@@ -990,32 +991,52 @@ int cman_get_nodes(cman_handle_t handle, int maxnodes, int *retnodes, cman_node_
 	refresh_node_list(cman_inst);
 	ccs_handle = ccs_connect();
 
-	do {
-		sprintf(path, "/cluster/clusternodes/clusternode[%d]/@name", num_nodes+1);
-		ccs_get(ccs_handle, path, &value);
-		if (value) {
-			strcpy(nodes[num_nodes].cn_name, value);
-			free(value);
-		}
+	if (!ccs_get(ccs_handle, "/cluster/@no_config", &value)) {
+		noconfig_flag = atoi(value);
+		free(value);
+	}
 
-		sprintf(path, "/cluster/clusternodes/clusternode[%d]/@nodeid", num_nodes+1);
-		ret = ccs_get(ccs_handle, path, &value);
-		if (value) {
-			nodes[num_nodes].cn_nodeid = atoi(value);
-			free(value);
-		}
+	/* If we don't have a config file we will have to make up node names */
+	if (noconfig_flag) {
 
-		/* Reconcile with active nodes list. */
 		for (i=0; i < cman_inst->node_count; i++) {
-			if (cman_inst->node_list[i].nodeid == nodes[num_nodes].cn_nodeid) {
-				nodes[num_nodes].cn_member = (cman_inst->node_list[i].state == NODESTATE_MEMBER);
-			}
+			nodes[i].cn_nodeid = cman_inst->node_list[i].nodeid;
+			nodes[i].cn_member = 1;
+			sprintf(nodes[i].cn_name, "Node-%x", nodes[i].cn_nodeid);
 		}
+	}
+	else {
 
-		num_nodes++;
-	} while (ret == 0 && num_nodes < maxnodes);
+		/* We DO have a config file, reconcile in-memory with configuration */
+		do {
+			sprintf(path, "/cluster/clusternodes/clusternode[%d]/@name", num_nodes+1);
+			ret = ccs_get(ccs_handle, path, &value);
+			if (!ret) {
+				strcpy(nodes[num_nodes].cn_name, value);
+				free(value);
+			}
+
+			sprintf(path, "/cluster/clusternodes/clusternode[%d]/@nodeid", num_nodes+1);
+			ret = ccs_get(ccs_handle, path, &value);
+			if (!ret) {
+				nodes[num_nodes].cn_nodeid = atoi(value);
+				free(value);
+			}
+
+			/* Reconcile with active nodes list. */
+			for (i=0; i < cman_inst->node_count; i++) {
+				if (cman_inst->node_list[i].nodeid == nodes[num_nodes].cn_nodeid) {
+					nodes[num_nodes].cn_member = (cman_inst->node_list[i].state == NODESTATE_MEMBER);
+				}
+			}
+
+			num_nodes++;
+		} while (ret == 0 && num_nodes < maxnodes);
+	}
 
 	*retnodes = num_nodes-1;
+	if (cman_inst->node_count > *retnodes)
+		*retnodes = cman_inst->node_count;
 	ccs_disconnect(ccs_handle);
 	return 0;
 }
@@ -1046,6 +1067,9 @@ int cman_get_disallowed_nodes(cman_handle_t handle, int maxnodes, int *retnodes,
 			if (!ret) {
 				strcpy(nodes[num_nodes].cn_name, value);
 				free(value);
+			}
+			else {
+				sprintf(nodes[i].cn_name, "Node-%x", nodes[i].cn_nodeid);
 			}
 		}
 	}
@@ -1173,6 +1197,12 @@ int cman_get_extra_info(cman_handle_t handle, cman_extra_info_t *info, int maxle
 		strcpy(info->ei_addresses, value);
 		free(value);
 	}
+
+	if (!ccs_get(ccs_handle, "/cluster/@no_config", &value)) {
+		free(value);
+		info->ei_flags |= CMAN_EXTRA_FLAG_NOCONFIG;
+	}
+
 
 	ccs_disconnect(ccs_handle);
 
