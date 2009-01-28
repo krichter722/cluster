@@ -110,7 +110,6 @@ static void message_handler_req_lib_cman_is_listening (void *conn, void *msg);
 static void message_handler_req_lib_cman_sendmsg (void *conn, void *msg);
 static void message_handler_req_lib_cman_unbind (void *conn, void *msg);
 static void message_handler_req_lib_cman_bind (void *conn, void *msg);
-static void message_handler_req_lib_cman_get_node_addrs (void *conn, void *msg);
 
 /*
  * Library Handler Definition
@@ -139,12 +138,6 @@ static struct corosync_lib_handler cman_lib_service[] =
 		.lib_handler_fn				= message_handler_req_lib_cman_unbind,
 		.response_size				= sizeof (mar_res_header_t),
 		.response_id				= MESSAGE_RES_CMAN_UNBIND,
-		.flow_control				= COROSYNC_LIB_FLOW_CONTROL_NOT_REQUIRED
-	},
-	{ /* 4 */
-		.lib_handler_fn				= message_handler_req_lib_cman_get_node_addrs,
-		.response_size				= sizeof (mar_res_header_t),
-		.response_id				= MESSAGE_RES_CMAN_GET_NODE_ADDRS,
 		.flow_control				= COROSYNC_LIB_FLOW_CONTROL_NOT_REQUIRED
 	}
 };
@@ -577,37 +570,4 @@ static void message_handler_req_lib_cman_is_listening (void *conn, void *msg)
 	res_lib_cman_is_listening.header.id = MESSAGE_RES_CMAN_SENDMSG;
 	res_lib_cman_is_listening.header.error = error;
 	corosync_api->ipc_conn_send_response(conn, &res_lib_cman_is_listening, sizeof(res_lib_cman_is_listening));
-}
-
-
-static void message_handler_req_lib_cman_get_node_addrs (void *conn, void *msg)
-{
-	struct totem_ip_address node_ifs[MAX_INTERFACES];
-	char buf[PIPE_BUF];
-	char **status;
-	unsigned int num_interfaces = 0;
-	int ret = 0;
-	int i;
-	struct req_lib_cman_get_node_addrs *req_lib_cman_get_node_addrs = (struct req_lib_cman_get_node_addrs *)msg;
-	struct res_lib_cman_get_node_addrs *res_lib_cman_get_node_addrs = (struct res_lib_cman_get_node_addrs *)buf;
-
-	if (req_lib_cman_get_node_addrs->nodeid == 0)
-		req_lib_cman_get_node_addrs->nodeid = our_node.nodeid;
-
-	corosync_api->totem_ifaces_get(req_lib_cman_get_node_addrs->nodeid, node_ifs, &status, &num_interfaces);
-
-	res_lib_cman_get_node_addrs->header.size = sizeof(struct res_lib_cman_get_node_addrs) + (num_interfaces * TOTEMIP_ADDRLEN);
-	res_lib_cman_get_node_addrs->header.id = MESSAGE_RES_CMAN_GET_NODE_ADDRS;
-	res_lib_cman_get_node_addrs->header.error = ret;
-	res_lib_cman_get_node_addrs->num_addrs = num_interfaces;
-	if (num_interfaces) {
-		res_lib_cman_get_node_addrs->family = node_ifs[0].family;
-		for (i = 0; i<num_interfaces; i++) {
-			memcpy(&res_lib_cman_get_node_addrs->addrs[i][0], node_ifs[i].addr, TOTEMIP_ADDRLEN);
-		}
-	}
-	else {
-		res_lib_cman_get_node_addrs->header.error = EINVAL;
-	}
-	corosync_api->ipc_conn_send_response(conn, res_lib_cman_get_node_addrs, res_lib_cman_get_node_addrs->header.size);
 }
