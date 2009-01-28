@@ -963,7 +963,7 @@ static int set_noccs_defaults(struct objdb_iface_ver0 *objdb)
 				 cluster_name, strlen(cluster_name)+1);
 
 	/* Add a dummy config_version */
-	sprintf(tmp, "%d", 0);
+	sprintf(tmp, "%d", -1);
 	objdb->object_key_create(cluster_parent_handle, "config_version", strlen("config_version"),
 				 tmp, strlen(tmp)+1);
 
