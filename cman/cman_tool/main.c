@@ -532,6 +532,10 @@ static void set_expected(commandline_t *comline)
 	cman_handle_t h;
 	int result;
 
+	if (comline->expected_votes == 0) {
+		die("expected_votes not specified");
+	}
+
 	h = open_cman_handle(1);
 
 	if ((result = cman_set_expected_votes(h, comline->expected_votes)))
