@@ -1015,6 +1015,7 @@ int cman_get_nodes(cman_handle_t handle, int maxnodes, int *retnodes, cman_node_
 		int max_addrs = 4;
 		corosync_cfg_node_address_t addrs[max_addrs];
 		int num_addrs;
+		char *name = NULL;
 		int error;
 
 		if (!cman_inst->cfg_handle) {
@@ -1029,11 +1030,13 @@ int cman_get_nodes(cman_handle_t handle, int maxnodes, int *retnodes, cman_node_
 			nodes[i].cn_member = 1;
 
 			error = corosync_cfg_get_node_addrs(cman_inst->cfg_handle, nodes[i].cn_nodeid, max_addrs, &num_addrs, addrs);
-			if (error) {
-				sprintf(nodes[i].cn_name, "Node-%x", nodes[i].cn_nodeid);
+			if (!error)
+				name = node_name(&addrs[0]);
+			if (name) {
+				sprintf(nodes[i].cn_name, "%s", name);
 			}
 			else {
-				sprintf(nodes[i].cn_name, "%s", node_name(&addrs[0]));
+				sprintf(nodes[i].cn_name, "Node-%x", nodes[i].cn_nodeid);
 			}
 		}
 	}
