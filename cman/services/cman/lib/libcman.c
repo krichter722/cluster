@@ -10,6 +10,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <errno.h>
+#include <netdb.h>
 #include <limits.h>
 
 #include <corosync/corotypes.h>
@@ -965,13 +966,26 @@ int cman_get_version(cman_handle_t handle, cman_version_t *version)
 		version->cv_config = atoi(value);
 		free(value);
 	}
-	//  CC: TODO ??? */
+
+	/* These are cman_tool versions now ;-) */
 	version->cv_major = 7;
 	version->cv_minor = 0;
 	version->cv_patch = 1;
 	ccs_disconnect(ccs_handle);
 
 	return 0;
+}
+
+
+
+static char *node_name(corosync_cfg_node_address_t *addr)
+{
+	static char name[256];
+
+	if (getnameinfo((struct sockaddr *)addr->address, addr->address_length, name, sizeof(name), NULL, 0, NI_NAMEREQD))
+		return NULL;
+	else
+		return name;
 }
 
 int cman_get_nodes(cman_handle_t handle, int maxnodes, int *retnodes, cman_node_t *nodes)
@@ -983,7 +997,7 @@ int cman_get_nodes(cman_handle_t handle, int maxnodes, int *retnodes, cman_node_
 	int i;
 	int num_nodes = 0;
 	char path[PATH_MAX];
-	int noconfig_flag;
+	int noconfig_flag=0;
 
 	cman_inst = (struct cman_inst *)handle;
 	VALIDATE_HANDLE(cman_inst);
@@ -996,13 +1010,31 @@ int cman_get_nodes(cman_handle_t handle, int maxnodes, int *retnodes, cman_node_
 		free(value);
 	}
 
-	/* If we don't have a config file we will have to make up node names */
+	/* If we don't have a config file we will have to look up node names */
 	if (noconfig_flag) {
+		int max_addrs = 4;
+		corosync_cfg_node_address_t addrs[max_addrs];
+		int num_addrs;
+		int error;
+
+		if (!cman_inst->cfg_handle) {
+			if (corosync_cfg_initialize(&cman_inst->cfg_handle, &cfg_callbacks) != CS_OK) {
+				errno = ENOMEM;
+				return -1;
+			}
+		}
 
 		for (i=0; i < cman_inst->node_count; i++) {
 			nodes[i].cn_nodeid = cman_inst->node_list[i].nodeid;
 			nodes[i].cn_member = 1;
-			sprintf(nodes[i].cn_name, "Node-%x", nodes[i].cn_nodeid);
+
+			error = corosync_cfg_get_node_addrs(cman_inst->cfg_handle, nodes[i].cn_nodeid, max_addrs, &num_addrs, addrs);
+			if (error) {
+				sprintf(nodes[i].cn_name, "Node-%x", nodes[i].cn_nodeid);
+			}
+			else {
+				sprintf(nodes[i].cn_name, "%s", node_name(&addrs[0]));
+			}
 		}
 	}
 	else {

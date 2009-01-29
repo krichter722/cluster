@@ -318,8 +318,6 @@ static int get_format_opt(const char *opt)
 static void print_node(commandline_t *comline, cman_handle_t h, int *format, struct cman_node *node)
 {
 	char member_type;
-	struct tm *jtime;
-	char jstring[1024];
 	int i,j,k;
 
 	if (comline->num_nodenames > 0) {
@@ -343,16 +341,10 @@ static void print_node(commandline_t *comline, cman_handle_t h, int *format, str
 		break;
 	}
 
-	jtime = localtime(&node->cn_jointime.tv_sec);
-	if (node->cn_jointime.tv_sec && node->cn_member)
-		strftime(jstring, sizeof(jstring), "%F %H:%M:%S", jtime);
-	else
-		strcpy(jstring, "                   ");
-
 	if (!comline->format_opts) {
-		printf("%4d   %c  %5d   %s  %s\n",
+		printf("%8d   %c   %s\n",
 		       node->cn_nodeid, member_type,
-		       node->cn_incarnation, jstring, node->cn_name);
+		       node->cn_name);
 	}
 	int numaddrs;
 	struct cman_node_address addrs[MAX_INTERFACES];
@@ -462,7 +454,7 @@ static void show_nodes(commandline_t *comline)
 	}
 
 	if (!comline->format_opts) {
-		printf("Node  Sts   Inc   Joined               Name\n");
+		printf(" Node Id  Sts  Name\n");
 	}
 
 	/* Print nodes */
