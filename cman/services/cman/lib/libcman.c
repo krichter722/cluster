@@ -143,7 +143,7 @@ static int refresh_node_list(struct cman_inst *cman_inst)
 	votequorum_trackstart(cman_inst->cmq_handle, 0, CS_TRACK_CURRENT);
 
 	error = votequorum_dispatch(cman_inst->cmq_handle, CS_DISPATCH_ONE);
-	return error;
+	return (error==CS_OK?0:-1);
 }
 
 cman_handle_t cman_init (
@@ -272,7 +272,7 @@ int cman_start_recv_data (
 	errno = error = res.error;
 
 error_exit:
-	return (error?-1:0);
+	return (error==CS_OK?0:-1);
 }
 
 int cman_end_recv_data (
@@ -333,7 +333,7 @@ int cman_get_node_addrs (
 
 	error = corosync_cfg_get_node_addrs(cman_inst->cfg_handle, nodeid, max_addrs, num_addrs, (corosync_cfg_node_address_t *)addrs);
 
-	return (error?-1:0);
+	return (error==CS_OK?0:-1);
 }
 
 int cman_send_data(cman_handle_t handle, const void *message, int len, int flags, uint8_t port, int nodeid)
@@ -529,7 +529,7 @@ int cman_kill_node(cman_handle_t handle, int nodeid)
 
 	error = corosync_cfg_kill_node(cman_inst->cfg_handle, nodeid, "Killed by cman_tool");
 
-	return error;
+	return (error==CS_OK?0:-1);
 }
 
 int cman_set_votes(cman_handle_t handle, int votes, int nodeid)
@@ -545,7 +545,7 @@ int cman_set_votes(cman_handle_t handle, int votes, int nodeid)
 
 	error = votequorum_setvotes(cman_inst->cmq_handle, nodeid, votes);
 
-	return error;
+	return (error==CS_OK?0:-1);
 }
 
 int cman_set_expected_votes(cman_handle_t handle, int expected)
@@ -561,7 +561,7 @@ int cman_set_expected_votes(cman_handle_t handle, int expected)
 
 	error = votequorum_setexpected(cman_inst->cmq_handle, expected);
 
-	return error;
+	return (error==CS_OK?0:-1);
 }
 
 int cman_get_fd (
