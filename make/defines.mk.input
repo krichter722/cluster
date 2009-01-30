@@ -11,6 +11,7 @@ logrotatedir ?= ${DESTDIR}@LOGROTATEDIR@
 mandir ?= ${DESTDIR}@MANDIR@
 incdir ?= ${DESTDIR}@INCDIR@
 notifyddir ?= ${DESTDIR}@CONFDIR@/cman-notify.d
+pkgconfigdir ?= ${DESTDIR}@LIBDIR@/pkgconfig
 
 # Build information
 
