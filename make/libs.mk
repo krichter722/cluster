@@ -41,6 +41,8 @@ $(PKGCONF): $(S)/$(PKGCONF).in
 	cat $(S)/$(PKGCONF).in | \
 	sed \
 		-e 's#@PREFIX@#${prefix}#g' \
+		-e 's#@LIBDIR@#${libdir}#g' \
+		-e 's#@INCDIR@#${incdir}#g' \
 		-e 's#@VERSION@#${RELEASE_VERSION}#g' \
 	> $@
 
