@@ -6,3 +6,4 @@ make/defines.mk
 *.so*
 *.lcrso
 *.po
+*.pc
