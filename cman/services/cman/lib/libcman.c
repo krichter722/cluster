@@ -236,7 +236,12 @@ int cman_finish (
 	return 0;
 }
 
-
+/* These next four calls are the only ones that are specific to cman i nthe release. Everything else
+ * uses standard corosync or 'ccs' libraries.
+ * If you really want to do inter-node communications then CPG might be more appropriate to
+ * your needs. These functions are here partly to provide an API compatibility, but mainly
+ * to provide wire-protocol compatibility with older versions.
+ */
 int cman_start_recv_data (
 	cman_handle_t handle,
 	cman_datacallback_t callback,
@@ -309,31 +314,6 @@ int cman_end_recv_data (
 error_exit:
 
 	return (error?-1:0);
-}
-
-int cman_get_node_addrs (
-	cman_handle_t handle,
-	int nodeid,
-	int max_addrs,
-	int *num_addrs,
-	struct cman_node_address *addrs)
-{
-	int error;
-	struct cman_inst *cman_inst;
-
-	cman_inst = (struct cman_inst *)handle;
-	VALIDATE_HANDLE(cman_inst);
-
-	if (!cman_inst->cfg_handle) {
-		if (corosync_cfg_initialize(&cman_inst->cfg_handle, &cfg_callbacks) != CS_OK) {
-			errno = ENOMEM;
-			return -1;
-		}
-	}
-
-	error = corosync_cfg_get_node_addrs(cman_inst->cfg_handle, nodeid, max_addrs, num_addrs, (corosync_cfg_node_address_t *)addrs);
-
-	return (error==CS_OK?0:-1);
 }
 
 int cman_send_data(cman_handle_t handle, const void *message, int len, int flags, uint8_t port, int nodeid)
@@ -416,7 +396,40 @@ error_exit:
 	return (error?-1:0);
 }
 
-/* an example of how we would query the quorum service */
+/* This call is now handled by cfg */
+int cman_get_node_addrs (
+	cman_handle_t handle,
+	int nodeid,
+	int max_addrs,
+	int *num_addrs,
+	struct cman_node_address *addrs)
+{
+	int error;
+	struct cman_inst *cman_inst;
+
+	cman_inst = (struct cman_inst *)handle;
+	VALIDATE_HANDLE(cman_inst);
+
+	if (!cman_inst->cfg_handle) {
+		if (corosync_cfg_initialize(&cman_inst->cfg_handle, &cfg_callbacks) != CS_OK) {
+			errno = ENOMEM;
+			return -1;
+		}
+	}
+
+	error = corosync_cfg_get_node_addrs(cman_inst->cfg_handle, nodeid, max_addrs, num_addrs, (corosync_cfg_node_address_t *)addrs);
+
+	return (error==CS_OK?0:-1);
+}
+
+/*
+ * An example of how we would query the quorum service.
+ * In fact we can use the lower-level quorum service if quorate all we
+ * needed to know - it provides the quorum state regardless of which
+ * quorum provider is loaded.
+ * Users of libcman typically are nos and wany to know all sorts of
+ * other things.
+ */
 int cman_is_quorate(cman_handle_t handle)
 {
 	struct cman_inst *cman_inst;
@@ -437,7 +450,7 @@ int cman_is_quorate(cman_handle_t handle)
 	return quorate;
 }
 
-
+/* This call is now handled by cfg */
 int cman_shutdown(cman_handle_t handle, int flags)
 {
 	struct cman_inst *cman_inst;
@@ -454,6 +467,13 @@ int cman_shutdown(cman_handle_t handle, int flags)
 		}
 	}
 
+	if (flags && CMAN_LEAVEFLAG_REMOVED) {
+		if (votequorum_check_and_start(cman_inst))
+			return -1;
+
+		votequorum_leaving(cman_inst->cmq_handle);
+	}
+
 	if (flags == CMAN_SHUTDOWN_ANYWAY)
 		cfg_flags = COROSYNC_CFG_SHUTDOWN_FLAG_REGARDLESS;
 
@@ -465,7 +485,11 @@ int cman_shutdown(cman_handle_t handle, int flags)
 
 	return error;
 }
-
+/*
+ * This call is now mostly handled by cfg.
+ * However if we want to do a "leave remove" then we need to tell
+ * votequorum first.
+ */
 int cman_leave_cluster(cman_handle_t handle, int flags)
 {
 	struct cman_inst *cman_inst;
@@ -482,6 +506,15 @@ int cman_leave_cluster(cman_handle_t handle, int flags)
 		}
 	}
 
+	/* Tell votequorum to reduce quorum when we go */
+	if (flags && CMAN_LEAVEFLAG_REMOVED) {
+		if (votequorum_check_and_start(cman_inst))
+			return -1;
+
+		votequorum_leaving(cman_inst->cmq_handle);
+	}
+
+
 	cfg_flags = COROSYNC_CFG_SHUTDOWN_FLAG_IMMEDIATE;
 
 	error = corosync_cfg_try_shutdown(cman_inst->cfg_handle, cfg_flags);
@@ -492,6 +525,7 @@ int cman_leave_cluster(cman_handle_t handle, int flags)
 	return error;
 }
 
+/* This call is now handled by cfg */
 int cman_replyto_shutdown(cman_handle_t handle, int flags)
 {
 	struct cman_inst *cman_inst;
@@ -512,6 +546,7 @@ int cman_replyto_shutdown(cman_handle_t handle, int flags)
 	return error;
 }
 
+/* This call is now handled by cfg */
 int cman_kill_node(cman_handle_t handle, int nodeid)
 {
 	struct cman_inst *cman_inst;
@@ -532,6 +567,7 @@ int cman_kill_node(cman_handle_t handle, int nodeid)
 	return (error==CS_OK?0:-1);
 }
 
+/* This call is handled by votequorum */
 int cman_set_votes(cman_handle_t handle, int votes, int nodeid)
 {
 	struct cman_inst *cman_inst;
@@ -548,6 +584,7 @@ int cman_set_votes(cman_handle_t handle, int votes, int nodeid)
 	return (error==CS_OK?0:-1);
 }
 
+/* This call is handled by votequorum */
 int cman_set_expected_votes(cman_handle_t handle, int expected)
 {
 	struct cman_inst *cman_inst;
@@ -606,7 +643,7 @@ int cman_setprivdata(
 	return (CS_OK);
 }
 
-
+/* This call is handled by votequorum */
 int cman_register_quorum_device(cman_handle_t handle, char *name, int votes)
 {
 	struct cman_inst *cman_inst;
@@ -623,6 +660,7 @@ int cman_register_quorum_device(cman_handle_t handle, char *name, int votes)
 	return error;
 }
 
+/* This call is handled by votequorum */
 int cman_unregister_quorum_device(cman_handle_t handle)
 {
 	struct cman_inst *cman_inst;
@@ -638,6 +676,8 @@ int cman_unregister_quorum_device(cman_handle_t handle)
 
 	return error;
 }
+
+/* This call is handled by votequorum */
 int cman_poll_quorum_device(cman_handle_t handle, int isavailable)
 {
 	struct cman_inst *cman_inst;
@@ -654,6 +694,7 @@ int cman_poll_quorum_device(cman_handle_t handle, int isavailable)
 	return error;
 }
 
+/* This call is handled by votequorum */
 int cman_get_quorum_device(cman_handle_t handle, struct cman_qdev_info *info)
 {
 	struct cman_inst *cman_inst;
@@ -677,6 +718,7 @@ int cman_get_quorum_device(cman_handle_t handle, struct cman_qdev_info *info)
 	return error;
 }
 
+/* This call is handled by votequorum */
 int cman_set_dirty(cman_handle_t handle)
 {
 	struct cman_inst *cman_inst;
@@ -839,7 +881,11 @@ error_put:
 	return (error);
 }
 
-
+/*
+ * This call expects to get a listing of all nodes known to the
+ * system so we query ccs rather than corsync, as some nodes
+ * might not be up yet
+ */
 int cman_get_node_count(cman_handle_t handle)
 {
 	struct cman_inst *cman_inst;
@@ -877,6 +923,9 @@ int cman_is_active(cman_handle_t handle)
 	return 1;
 }
 
+/*
+ * Here we just read values from ccs
+ */
 int cman_get_cluster(cman_handle_t handle, cman_cluster_t *clinfo)
 {
 	struct cman_inst *cman_inst;
@@ -905,6 +954,11 @@ int cman_get_cluster(cman_handle_t handle, cman_cluster_t *clinfo)
 	return 0;
 }
 
+/*
+ * libccs doesn't do writes yet so we need to use confdb to
+ * change the config version.
+ * This will signal votequorum to reload the configuration 'file'
+ */
 int cman_set_version(cman_handle_t handle, const cman_version_t *version)
 {
 	struct cman_inst *cman_inst;
@@ -950,8 +1004,7 @@ int cman_set_version(cman_handle_t handle, const cman_version_t *version)
 }
 
 
-
-
+/* This mainly just retreives values from ccs */
 int cman_get_version(cman_handle_t handle, cman_version_t *version)
 {
 	struct cman_inst *cman_inst;
@@ -988,6 +1041,12 @@ static char *node_name(corosync_cfg_node_address_t *addr)
 		return name;
 }
 
+/*
+ * This is a slightly complicated mix of ccs and votequorum queries.
+ * votequorum only knows about active nodes and does not hold node names.
+ * so once we have a list of active nodes we fill in the names
+ * and also the nodes that have never been seen by corosync.
+ */
 int cman_get_nodes(cman_handle_t handle, int maxnodes, int *retnodes, cman_node_t *nodes)
 {
 	struct cman_inst *cman_inst;
