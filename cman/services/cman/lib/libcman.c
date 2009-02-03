@@ -236,7 +236,7 @@ int cman_finish (
 	return 0;
 }
 
-/* These next four calls are the only ones that are specific to cman i nthe release. Everything else
+/* These next four calls are the only ones that are specific to cman in the release. Everything else
  * uses standard corosync or 'ccs' libraries.
  * If you really want to do inter-node communications then CPG might be more appropriate to
  * your needs. These functions are here partly to provide an API compatibility, but mainly
@@ -427,7 +427,7 @@ int cman_get_node_addrs (
  * In fact we can use the lower-level quorum service if quorate all we
  * needed to know - it provides the quorum state regardless of which
  * quorum provider is loaded.
- * Users of libcman typically are nos and wany to know all sorts of
+ * Users of libcman typically are nosy and want to know all sorts of
  * other things.
  */
 int cman_is_quorate(cman_handle_t handle)
@@ -883,7 +883,7 @@ error_put:
 
 /*
  * This call expects to get a listing of all nodes known to the
- * system so we query ccs rather than corsync, as some nodes
+ * system so we query ccs rather than corosync, as some nodes
  * might not be up yet
  */
 int cman_get_node_count(cman_handle_t handle)
