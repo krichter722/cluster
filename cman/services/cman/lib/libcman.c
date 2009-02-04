@@ -1053,7 +1053,7 @@ int cman_get_nodes(cman_handle_t handle, int maxnodes, int *retnodes, cman_node_
 	int ccs_handle;
 	char *value;
 	int ret;
-	int i;
+	int i,j;
 	int num_nodes = 0;
 	char path[PATH_MAX];
 	int noconfig_flag=0;
@@ -1086,7 +1086,6 @@ int cman_get_nodes(cman_handle_t handle, int maxnodes, int *retnodes, cman_node_
 
 		for (i=0; i < cman_inst->node_count; i++) {
 			nodes[i].cn_nodeid = cman_inst->node_list[i].nodeid;
-			nodes[i].cn_member = 1;
 			name = NULL;
 
 			error = corosync_cfg_get_node_addrs(cman_inst->cfg_handle, nodes[i].cn_nodeid, max_addrs, &num_addrs, addrs);
@@ -1099,6 +1098,14 @@ int cman_get_nodes(cman_handle_t handle, int maxnodes, int *retnodes, cman_node_
 			else {
 				sprintf(nodes[i].cn_name, "Node-%x", nodes[i].cn_nodeid);
 			}
+
+			/* Reconcile with active nodes list. */
+			for (j=0; j < cman_inst->node_count; j++) {
+				if (cman_inst->node_list[j].nodeid == nodes[i].cn_nodeid) {
+					nodes[i].cn_member = (cman_inst->node_list[j].state == NODESTATE_MEMBER);
+				}
+			}
+
 		}
 	}
 	else {
