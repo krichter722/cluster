@@ -1053,7 +1053,7 @@ int cman_get_nodes(cman_handle_t handle, int maxnodes, int *retnodes, cman_node_
 	int ccs_handle;
 	char *value;
 	int ret;
-	int i,j;
+	int i;
 	int num_nodes = 0;
 	char path[PATH_MAX];
 	int noconfig_flag=0;
@@ -1099,13 +1099,7 @@ int cman_get_nodes(cman_handle_t handle, int maxnodes, int *retnodes, cman_node_
 				sprintf(nodes[i].cn_name, "Node-%x", nodes[i].cn_nodeid);
 			}
 
-			/* Reconcile with active nodes list. */
-			for (j=0; j < cman_inst->node_count; j++) {
-				if (cman_inst->node_list[j].nodeid == nodes[i].cn_nodeid) {
-					nodes[i].cn_member = (cman_inst->node_list[j].state == NODESTATE_MEMBER);
-				}
-			}
-
+			nodes[i].cn_member = (cman_inst->node_list[i].state == NODESTATE_MEMBER);
 		}
 	}
 	else {
