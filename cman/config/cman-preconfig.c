@@ -861,14 +861,6 @@ static void add_cman_overrides(struct objdb_iface_ver0 *objdb)
 	objdb->object_key_create(object_handle, "votes", strlen("votes"),
 				 tmp, strlen(tmp)+1);
 
-
-	/* Disallowed can be disabled in cluster.conf by setting it to zero */
-	objdb_get_int(objdb, object_handle, "disallowed", &tmpint, 999);
-	if (tmpint == 999) { /* Value was not set by the user ... */
-		objdb->object_key_create(object_handle, "disallowed", strlen("disallowed"),
-					 "1", strlen("1") + 1);
-	}
-
 	if (two_node) {
 		objdb->object_key_create(object_handle, "two_node", strlen("two_node"),
 					 "1", strlen("1") + 1);
