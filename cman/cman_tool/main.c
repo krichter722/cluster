@@ -242,7 +242,7 @@ static void show_status(void)
 	memset(&node, 0, sizeof(node));
 	if (cman_get_node(h, CMAN_NODEID_US, &node) == 0) {
 		printf("Node name: %s\n", node.cn_name);
-		printf("Node ID: %d\n", node.cn_nodeid);
+		printf("Node ID: %u\n", node.cn_nodeid);
 	}
 	if (einfo->ei_num_addresses > 0) {
 		printf("Multicast addresses: %s\n", einfo->ei_addresses);
@@ -342,7 +342,7 @@ static void print_node(commandline_t *comline, cman_handle_t h, int *format, str
 	}
 
 	if (!comline->format_opts) {
-		printf("%8d   %c   %s\n",
+		printf("%8u   %c   %s\n",
 		       node->cn_nodeid, member_type,
 		       node->cn_name);
 	}
@@ -370,7 +370,7 @@ static void print_node(commandline_t *comline, cman_handle_t h, int *format, str
 			case FMT_NONE:
 				break;
 			case FMT_ID:
-				printf("%d ", node->cn_nodeid);
+				printf("%u ", node->cn_nodeid);
 				break;
 			case FMT_NAME:
 				printf("%s ", node->cn_name);
