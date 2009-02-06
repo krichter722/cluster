@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <netdb.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <errno.h>
 
 #include <corosync/corotypes.h>
@@ -33,6 +35,27 @@ static char *node_name(corosync_cfg_node_address_t *addr)
 		return name;
 }
 
+static char *ip_address(corosync_cfg_node_address_t *addr)
+{
+	static char name[256];
+	struct sockaddr *sa = (struct sockaddr *)addr->address;
+	char *addrpart;
+
+	if (sa->sa_family == AF_INET) {
+		struct sockaddr_in *sin = (struct sockaddr_in *)sa;
+		addrpart = (char *)&sin->sin_addr;
+	}
+	else {
+		struct sockaddr_in6 *sin = (struct sockaddr_in6 *)sa;
+		addrpart = (char *)&sin->sin6_addr;
+	}
+
+	if (inet_ntop(sa->sa_family, addrpart, name, sizeof(name)))
+		return name;
+	else
+		return NULL;
+}
+
 static void quorum_notification_callback(
 	quorum_handle_t handle,
         uint32_t quorate,
@@ -52,7 +75,7 @@ static void quorum_notification_callback(
 }
 
 
-static int refresh_node_list(void)
+static int refresh_node_list(int use_ip_addrs)
 {
 	int error;
 	int i;
@@ -84,10 +107,12 @@ static int refresh_node_list(void)
 
 	for (i=0; i < node_list_size; i++) {
 
-
 		error = corosync_cfg_get_node_addrs(cfg_handle, node_list[i].nodeid, max_addrs, &num_addrs, addrs);
 		if (error == CS_OK) {
-			name = node_name(&addrs[0]);
+			if (use_ip_addrs)
+				name = ip_address(&addrs[0]);
+			else
+				name = node_name(&addrs[0]);
 		}
 		if (name) {
 			sprintf(node_list[i].name, "%s", name);
@@ -136,10 +161,11 @@ int main(int argc, char *argv[])
 	char *cluster_name = NULL;
 	char *fence_type = "default";
 	char *fence_param = "ipaddr";
+	char *fence_agent = "fence_manual";
 
 	/* Parse options... */
 	do {
-		optchar = getopt(argc, argv, "?hNn:if:F:v:");
+		optchar = getopt(argc, argv, "?hNn:if:F:v:a:");
 		switch (optchar) {
 		case 'N':
 			seq_nodeids=1;
@@ -152,6 +178,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'f':
 			fence_type = strdup(optarg);
+			break;
+		case 'a':
+			fence_agent = strdup(optarg);
 			break;
 		case 'F':
 			fence_param = strdup(optarg);
@@ -171,7 +200,7 @@ int main(int argc, char *argv[])
 
 
 	/* Get the list of nodes and names */
-	if (refresh_node_list()){
+	if (refresh_node_list(use_ip_addrs)){
 		fprintf(stderr, "Unable to get node information from corosync\n");
 		return 1;
 	}
@@ -185,12 +214,10 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	/* TODO more ccs keys as a filled in by NOCONFIG ... */
-
 	/* Print config file header */
 	printf("<?xml version=\"1.0\" ?>\n");
 	printf("<cluster name=\"%s\" config_version=\"0\">\n", cluster_name);
-	printf("  <clusternodes>\n");
+	printf("  <clusternodes>\n\n");
 	for (i=0; i<node_list_size; i++) {
 		printf("    <clusternode name=\"%s\" nodeid=\"%u\">\n", node_list[i].name,
 		       seq_nodeids?++nodeid:node_list[i].nodeid);
@@ -203,6 +230,14 @@ int main(int argc, char *argv[])
 		printf("\n");
 	}
 	printf("  </clusternodes>\n");
+
+	/* Make up something for fence devices */
+	printf("<fencedevices>\n");
+
+	printf("  <fencedevice name=\"%s\"> agent=\"%s\"/>\n", fence_type, fence_agent);
+
+	printf("</fencedevices>\n");
+
 
 	printf("</cluster>\n");
 
