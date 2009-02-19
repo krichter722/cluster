@@ -14,9 +14,9 @@
 #include <limits.h>
 
 #include <corosync/corotypes.h>
+#include <corosync/coroipc.h>
 #include <corosync/mar_gen.h>
 #include <corosync/ipc_gen.h>
-#include <corosync/ais_util.h>
 #include <corosync/cfg.h>
 #include <corosync/confdb.h>
 #include <corosync/votequorum.h>
@@ -32,8 +32,7 @@
 
 struct cman_inst {
 	int magic;
-	int response_fd;
-	int dispatch_fd;
+	void *ipc_ctx;
 	int finalize;
 	void *privdata;
 	cman_datacallback_t data_callback;
@@ -157,9 +156,7 @@ cman_handle_t cman_init (
 		return NULL;
 
 	memset(cman_inst, 0, sizeof(struct cman_inst));
-	error = saServiceConnect (&cman_inst->dispatch_fd,
-				  &cman_inst->response_fd,
-				  CMAN_SERVICE);
+	error = cslib_service_connect (CMAN_SERVICE, &cman_inst->ipc_ctx);
 	if (error != CS_OK) {
 		goto error;
 	}
@@ -228,10 +225,7 @@ int cman_finish (
 	/*
 	 * Disconnect from the server
 	 */
-	if (cman_inst->response_fd != -1) {
-		shutdown(cman_inst->response_fd, 0);
-		close(cman_inst->response_fd);
-	}
+	cslib_service_disconnect (&cman_inst->ipc_ctx);
 
 	return 0;
 }
@@ -265,8 +259,9 @@ int cman_start_recv_data (
 	iov[0].iov_base = (char *)&req_lib_cman_bind;
 	iov[0].iov_len = sizeof (struct req_lib_cman_bind);
 
-	error = saSendMsgReceiveReply (cman_inst->response_fd, iov, 1,
-		&res, sizeof (mar_res_header_t));
+        error = cslib_msg_send_reply_receive (cman_inst->ipc_ctx,
+					      iov, 1,
+					      &res, sizeof (mar_res_header_t));
 
 	pthread_mutex_unlock (&cman_inst->response_mutex);
 
@@ -300,8 +295,9 @@ int cman_end_recv_data (
 	iov[0].iov_base = (char *)&req;
 	iov[0].iov_len = sizeof (mar_req_header_t);
 
-	error = saSendMsgReceiveReply (cman_inst->response_fd, iov, 1,
-		&res, sizeof (mar_res_header_t));
+        error = cslib_msg_send_reply_receive (cman_inst->ipc_ctx,
+					      iov, 1,
+					      &res, sizeof (mar_res_header_t));
 
 	pthread_mutex_unlock (&cman_inst->response_mutex);
 
@@ -340,8 +336,9 @@ int cman_send_data(cman_handle_t handle, const void *message, int len, int flags
 	iov[0].iov_base = buf;
 	iov[0].iov_len = len+sizeof(struct req_lib_cman_sendmsg);
 
-	error = saSendMsgReceiveReply (cman_inst->response_fd, iov, 1,
-		&res, sizeof (mar_res_header_t));
+        error = cslib_msg_send_reply_receive (cman_inst->ipc_ctx,
+					      iov, 1,
+					      &res, sizeof (mar_res_header_t));
 
 	pthread_mutex_unlock (&cman_inst->response_mutex);
 
@@ -380,8 +377,9 @@ int cman_is_listening (
 	iov[0].iov_base = (char *)&req_lib_cman_is_listening;
 	iov[0].iov_len = sizeof (struct req_lib_cman_is_listening);
 
-	error = saSendMsgReceiveReply (cman_inst->response_fd, iov, 1,
-		&res_lib_cman_is_listening, sizeof (struct res_lib_cman_is_listening));
+        error = cslib_msg_send_reply_receive (cman_inst->ipc_ctx,
+					      iov, 1,
+					      &res_lib_cman_is_listening, sizeof (struct res_lib_cman_is_listening));
 
 	pthread_mutex_unlock (&cman_inst->response_mutex);
 
@@ -610,7 +608,7 @@ int cman_get_fd (
 	cman_inst = (struct cman_inst *)handle;
 	VALIDATE_HANDLE(cman_inst);
 
-	fd = cman_inst->dispatch_fd;
+	fd = cslib_fd_get (cman_inst->ipc_ctx);
 
 	return fd;
 }
@@ -746,9 +744,8 @@ int cman_dispatch (
 	cman_handle_t handle,
 	int dispatch_types)
 {
-	struct pollfd ufds;
 	int timeout = -1;
-	cs_error_t error;
+	cs_error_t error = CS_OK;
 	int cont = 1; /* always continue do loop except when set to 0 */
 	int dispatch_avail;
 	struct cman_inst *cman_inst;
@@ -774,32 +771,18 @@ int cman_dispatch (
 	}
 
 	do {
-		ufds.fd = cman_inst->dispatch_fd;
-		ufds.events = POLLIN;
-		ufds.revents = 0;
-
 		pthread_mutex_lock (&cman_inst->dispatch_mutex);
 
-		error = saPollRetry (&ufds, 1, timeout);
+		dispatch_avail = cslib_dispatch_recv (cman_inst->ipc_ctx,
+			(void *)&dispatch_data, timeout);
+
+		pthread_mutex_unlock (&cman_inst->dispatch_mutex);
+
 		if (error != CS_OK) {
-			goto error_unlock;
+			goto error_put;
 		}
 
-		/*
-		 * Handle has been finalized in another thread
-		 */
-		if (cman_inst->finalize == 1) {
-			error = CS_OK;
-			goto error_unlock;
-		}
-
-		if ((ufds.revents & (POLLERR|POLLHUP|POLLNVAL)) != 0) {
-			error = CS_ERR_BAD_HANDLE;
-			goto error_unlock;
-		}
-
-		dispatch_avail = ufds.revents & POLLIN;
-		if (dispatch_avail == 0 && dispatch_types == CS_DISPATCH_ALL) {
+		if (dispatch_avail == 0 && dispatch_types == CMAN_DISPATCH_ALL) {
 			pthread_mutex_unlock (&cman_inst->dispatch_mutex);
 			break; /* exit do while cont is 1 loop */
 		} else
@@ -807,30 +790,14 @@ int cman_dispatch (
 			pthread_mutex_unlock (&cman_inst->dispatch_mutex);
 			continue; /* next poll */
 		}
-
-		if (ufds.revents & POLLIN) {
-			error = saRecvRetry (cman_inst->dispatch_fd, &dispatch_data.header,
-				sizeof (mar_res_header_t));
-			if (error != CS_OK) {
-				goto error_unlock;
+		if (dispatch_avail == -1) {
+			if (cman_inst->finalize == 1) {
+				error = CS_OK;
+			} else {
+				error = CS_ERR_LIBRARY;
 			}
-			if (dispatch_data.header.size > sizeof (mar_res_header_t)) {
-				error = saRecvRetry (cman_inst->dispatch_fd, &dispatch_data.data,
-					dispatch_data.header.size - sizeof (mar_res_header_t));
-				if (error != CS_OK) {
-					goto error_unlock;
-				}
-			}
-		} else {
-			pthread_mutex_unlock (&cman_inst->dispatch_mutex);
-			continue;
+			goto error_put;
 		}
-
-		/*
-		 * Make copy of callbacks, message data, unlock instance, and call callback
-		 * A risk of this dispatch method is that the callback routines may
-		 * operate at the same time that cman_finalize has been called in another thread.
-		 */
 		pthread_mutex_unlock (&cman_inst->dispatch_mutex);
 
 		/*
@@ -873,9 +840,6 @@ int cman_dispatch (
 	} while (cont);
 
 	goto error_put;
-
-error_unlock:
-	pthread_mutex_unlock (&cman_inst->dispatch_mutex);
 
 error_put:
 	return (error);

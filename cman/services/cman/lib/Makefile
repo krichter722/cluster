@@ -15,5 +15,5 @@ CFLAGS += -I${ccsincdir} -I${cmanincdir}
 CFLAGS += -I${incdir}
 CFLAGS += -I../include 
 
-LDFLAGS += -L${corosynclibdir} -lcoroutil -lcfg -lvotequorum
+LDFLAGS += -L${corosynclibdir} -lcoroipc -lcfg -lvotequorum
 LDFLAGS += -L${ccslibdir} -lccs

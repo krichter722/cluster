@@ -403,7 +403,7 @@ static void cman_deliver_fn(unsigned int nodeid, struct iovec *iovec, int iov_le
 		buf = iovec->iov_base + sizeof(struct cman_protheader);
 
 		if (ports[header->tgtport]) {
-			corosync_api->ipc_conn_send_response(ports[header->tgtport], buf,  iovec->iov_len - sizeof(struct cman_protheader));
+			corosync_api->ipc_response_send(ports[header->tgtport], buf,  iovec->iov_len - sizeof(struct cman_protheader));
 		}
 	}
 
@@ -472,7 +472,7 @@ static void message_handler_req_lib_cman_bind (void *conn, void *msg)
 	}
 	if (error == CS_OK) {
 		cman_pd->port = req_lib_cman_bind->port;
-		ports[cman_pd->port] = corosync_api->ipc_conn_partner_get(conn);
+		ports[cman_pd->port] = conn;
 
 		/* Tell the cluster */
 		portmsg[0] = CLUSTER_MSG_PORTOPENED;
@@ -483,7 +483,7 @@ static void message_handler_req_lib_cman_bind (void *conn, void *msg)
 	res.size = sizeof(res);
 	res.id = MESSAGE_RES_CMAN_BIND;
 	res.error = error;
-	corosync_api->ipc_conn_send_response(conn, &res, sizeof(res));
+	corosync_api->ipc_response_send(conn, &res, sizeof(res));
 }
 
 static void message_handler_req_lib_cman_unbind (void *conn, void *msg)
@@ -506,7 +506,7 @@ static void message_handler_req_lib_cman_unbind (void *conn, void *msg)
 	res.size = sizeof(res);
 	res.id = MESSAGE_RES_CMAN_UNBIND;
 	res.error = error;
-	corosync_api->ipc_conn_send_response(conn, &res, sizeof(res));
+	corosync_api->ipc_response_send(conn, &res, sizeof(res));
 }
 
 static void message_handler_req_lib_cman_sendmsg (void *conn, void *msg)
@@ -531,7 +531,7 @@ static void message_handler_req_lib_cman_sendmsg (void *conn, void *msg)
 	res.size = sizeof(res);
 	res.id = MESSAGE_RES_CMAN_SENDMSG;
 	res.error = error;
-	corosync_api->ipc_conn_send_response(conn, &res, sizeof(res));
+	corosync_api->ipc_response_send(conn, &res, sizeof(res));
 }
 
 static void message_handler_req_lib_cman_is_listening (void *conn, void *msg)
@@ -569,5 +569,5 @@ static void message_handler_req_lib_cman_is_listening (void *conn, void *msg)
 	res_lib_cman_is_listening.header.size = sizeof(res_lib_cman_is_listening);
 	res_lib_cman_is_listening.header.id = MESSAGE_RES_CMAN_SENDMSG;
 	res_lib_cman_is_listening.header.error = error;
-	corosync_api->ipc_conn_send_response(conn, &res_lib_cman_is_listening, sizeof(res_lib_cman_is_listening));
+	corosync_api->ipc_response_send(conn, &res_lib_cman_is_listening, sizeof(res_lib_cman_is_listening));
 }
