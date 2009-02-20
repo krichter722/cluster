@@ -8,6 +8,7 @@ ifdef LIBSYMT
 endif
 ifdef INCDIRT
 	install -d ${incdir}
+	set -e; \
 	for i in ${INCDIRT}; do \
 		install -m644 $(S)/$$i ${incdir}; \
 	done
@@ -31,6 +32,7 @@ ifdef LCRSOT
 endif
 ifdef INITDT
 	install -d ${initddir}
+	set -e; \
 	for i in ${INITDT}; do \
 		if [ -f $$i ]; then \
 			install -m755 $$i ${initddir}; \
@@ -41,12 +43,14 @@ ifdef INITDT
 endif
 ifdef UDEVT
 	install -d ${DESTDIR}/etc/udev/rules.d
+	set -e; \
 	for i in ${UDEVT}; do \
 		install -m644 $(S)/$$i ${DESTDIR}/etc/udev/rules.d; \
 	done
 endif
 ifdef DOCS
 	install -d ${docdir}
+	set -e; \
 	for i in ${DOCS}; do \
 		install -m644 $(S)/$$i ${docdir}; \
 	done
