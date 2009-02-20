@@ -225,7 +225,7 @@ int cman_finish (
 	/*
 	 * Disconnect from the server
 	 */
-	cslib_service_disconnect (&cman_inst->ipc_ctx);
+	cslib_service_disconnect (cman_inst->ipc_ctx);
 
 	return 0;
 }
