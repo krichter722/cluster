@@ -55,7 +55,7 @@ struct cman_protheader {
 	int            tgtid;	/* Node ID of the target */
 };
 
-static cs_tpg_handle group_handle;
+static hdb_handle_t group_handle;
 static struct corosync_tpg_group cman_group[1] = {
         { .group          = "CMAN", .group_len      = 4},
 };
@@ -200,7 +200,7 @@ __attribute__ ((constructor)) static void cman_comp_register (void) {
 
 
 /* These just make the access a little neater */
-static inline int objdb_get_string(struct corosync_api_v1 *corosync, unsigned int object_service_handle,
+static inline int objdb_get_string(struct corosync_api_v1 *corosync, hdb_handle_t object_service_handle,
 				   char *key, char **value)
 {
 	int res;
@@ -217,7 +217,7 @@ static inline int objdb_get_string(struct corosync_api_v1 *corosync, unsigned in
 	return -1;
 }
 
-static inline void objdb_get_int(struct corosync_api_v1 *corosync, unsigned int object_service_handle,
+static inline void objdb_get_int(struct corosync_api_v1 *corosync, hdb_handle_t object_service_handle,
 				 char *key, unsigned int *intvalue, unsigned int default_value)
 {
 	char *value = NULL;
@@ -312,8 +312,7 @@ static int cman_send_message(int fromport, int toport, int tonode, void *message
 
 static int cman_exec_init_fn (struct corosync_api_v1 *api)
 {
-//	unsigned int object_handle;
-	unsigned int find_handle;
+	hdb_handle_t find_handle;
 
 	log_printf(LOG_LEVEL_NOTICE, "cman_exec_init_fn \n");
 
