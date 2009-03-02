@@ -630,6 +630,16 @@ stop()
 	fi
     fi
 
+    echo -n "   Stopping daemons... "
+    stop_daemons
+    if [ $? -eq 0 ]
+    then
+	echo "done"
+    else
+	echo "failed"
+	return 1
+    fi
+
     echo -n "   Stopping cman... "
     if [ $1 ]; then
 	stop_cman $1
@@ -653,9 +663,6 @@ stop()
 	echo "failed"
 	return 1
     fi
-
-#   stop_daemons
-#   [ $? -ne 0 ] && return 1
 
     echo -n "   Unmounting configfs... "
     stop_configfs
