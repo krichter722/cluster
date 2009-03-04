@@ -55,9 +55,9 @@ static char *ldap_attr_name(char *attrname)
 
 
 /* Recursively dump the object tree */
-static void print_config_tree(confdb_handle_t handle, unsigned int parent_object_handle, char *dn, char *fulldn)
+static void print_config_tree(confdb_handle_t handle, hdb_handle_t parent_object_handle, char *dn, char *fulldn)
 {
-	unsigned int object_handle;
+	hdb_handle_t object_handle;
 	char object_name[1024];
 	int object_name_len;
 	char key_name[1024];
@@ -74,7 +74,7 @@ static void print_config_tree(confdb_handle_t handle, unsigned int parent_object
 	/* Show the keys */
 	res = confdb_key_iter_start(handle, parent_object_handle);
 	if (res != CS_OK) {
-		printf( "error resetting key iterator for object %d: %d\n", parent_object_handle, res);
+		printf( "error resetting key iterator for object %llu: %d\n", parent_object_handle, res);
 		return;
 	}
 
@@ -105,16 +105,16 @@ static void print_config_tree(confdb_handle_t handle, unsigned int parent_object
 	/* Show sub-objects */
 	res = confdb_object_iter_start(handle, parent_object_handle);
 	if (res != CS_OK) {
-		printf( "error resetting object iterator for object %d: %d\n", parent_object_handle, res);
+		printf( "error resetting object iterator for object %llu: %d\n", parent_object_handle, res);
 		return;
 	}
 
 	while ( (res = confdb_object_iter(handle, parent_object_handle, &object_handle, object_name, &object_name_len)) == CS_OK)	{
-		unsigned int parent;
+		hdb_handle_t parent;
 
 		res = confdb_object_parent_get(handle, object_handle, &parent);
 		if (res != CS_OK) {
-			printf( "error getting parent for object %d: %d\n", object_handle, res);
+			printf( "error getting parent for object %llu: %d\n", object_handle, res);
 			return;
 		}
 
@@ -145,7 +145,7 @@ int main(int argc, char *argv[])
 {
 	confdb_handle_t handle;
 	int result;
-	unsigned int cluster_handle;
+	hdb_handle_t cluster_handle;
 	char *clusterroot = "cluster";
 	char basedn[1024];
 
