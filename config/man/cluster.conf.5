@@ -5,29 +5,52 @@ cluster.conf - configuration file for cman, fence, dlm, gfs, rgmanager
 
 .SH DESCRIPTION
 
-The \fBcluster.conf\fP file is located in the /etc/cluster directory.  It
-is the source of information used by cman, fence, dlm, gfs and rgmanager.
-It's accessed indirectly through libccs (see \fBccs(7)\fP).  This file
-contains all the information needed for the cluster to operate, such as
-what nodes are in the cluster and how to I/O fence those nodes.
+The /etc/cluster/cluster.conf file contains configuration for:
 
-This man page describes the generic contents of the \fBcluster.conf\fP
-file.  For other information see man pages for cman(5), fenced(8) and
-dlm_controld(8).
+.B cman(5)
+for corosync and quorum configuration
+.br
+.B qdisk(5)
+for quorum disk configuration
+.br
+.B groupd(8)
+for daemon configuration
+.br
+.B fenced(8)
+for daemon and fence device configuration
+.br
+.B dlm_controld(8)
+for daemon configuration
+.br
+.B gfs_controld(8)
+for daemon configuration
+.br
+.B rgmanager(8)
+for daemon and resource configuration
 
-\fBcluster.conf\fP is an XML file.  It has one top-level \fIcluster\fP
-section containing everything else.  The cluster section has two mandatory
+The same cluster.conf file must exist on each cluster node.
+
+When cman_tool starts corosync, the contents of cluster.conf are loaded into
+the corosync in-memory configuration database (confdb).  Daemons and programs
+listed above use the libccs library to read cluster.conf data from the
+corosync confdb.  (The libconfdb library can also be used for more general,
+non-xml confdb queries.)
+
+When cman configures corosync using cluster.conf, the corosync.conf file is
+not used.
+
+.SS Cluster Nodes
+
+cluster.conf is an XML file.  It has one top-level \fIcluster\fP section
+containing everything else.  The cluster section has two mandatory
 attributes: \fIname\fP and \fIconfig_version\fP.  \fIname\fP can be up to
-16 characters long and specifies the name of the cluster.  It is important
-that this name is unique from other clusters the user might set up.
-\fIconfig_version\fP is a number used to identify the revision level of
-the \fBcluster.conf\fP file.  Given this information, your
-\fBcluster.conf\fP file might look something like:
+15 characters long (16 including terminating null) and specifies the name
+of the cluster.  It is important that this name be unique among clusters
+on the same network.  \fIconfig_version\fP is a number used to identify
+the revision level of the cluster.conf file.
 
   <cluster name="alpha" config_version="1">
   </cluster>
-
-.SS Nodes
 
 The set of nodes that make up the cluster are defined under the
 \fIclusternodes\fP section.  A \fIclusternode\fP section defines each
@@ -53,9 +76,133 @@ communication.  Nodeid's must be greater than zero and unique.
           </clusternodes>
   </cluster>
 
-The next step in completing cluster.conf is adding fencing information;
-see fenced(8).
+.SS Logging
+.br
+All daemons listed above use the <logging> section to configure loggging.
+Global settings apply to all:
+
+  <logging debug="on"/>
+
+Per-daemon settings override the corresponding global setting.  logging_daemon
+names that can be configured include: corosync, qdiskd, groupd, fenced,
+dlm_controld, gfs_controld, rgmanager.
+
+  <logging>
+      <logging_daemon name="qdiskd" debug="on"/>
+      <logging_daemon name="fenced" debug="on"/>
+  </logging>
+
+corosync daemon settings apply to all corosync subsystems by default, but
+subsystems can also be configured individually.  These include CLM, CPG, MAIN,
+SERV, CMAN, TOTEM, QUORUM, CONFDB, CKPT, EVT.
+
+  <logging>
+      <logging_daemon name="corosync" subsys="QUORUM" debug="on"/>
+      <logging_daemon name="corosync" subsys="CONFDB" debug="on"/>
+  </logging>
+
+.B Settings
+.br
+The settings available at global, daemon and subsystem levels are:
+
+.B to_syslog
+.br
+enable/disable messages to syslog (yes/no)
+.br
+default "yes"
+
+.B to_logfile
+.br
+enable/disable messages to log file (yes/no)
+.br
+default "yes"
+
+.B syslog_facility
+.br
+facility used for syslog messages
+.br
+default "daemon"
+
+.B syslog_priority
+.br
+messages at this level and up will be sent to syslog
+.br
+default "info"
+
+.B logfile_priority
+.br
+messages at this level and up will be written to log file
+.br
+default "info"
+
+.B logfile
+.br
+the log file name, default /var/log/cluster/<daemon>.log
+
+.B debug="on"
+.br
+is a shortcut for logfile_priority="debug"
+
+.B Defaults
+.br
+An explicit configuration for the default settings would be:
+
+<logging to_syslog="yes" to_logfile="yes" syslog_facility="daemon"
+         syslog_priority="info" logfile_priority="info">
+.br
+    <logging_daemon name="qdiskd"
+             logfile="/var/log/cluster/qdisk.log"/>
+.br
+    <logging_daemon name="groupd"
+             logfile="/var/log/cluster/groupd.log"/>
+.br
+    <logging_daemon name="fenced"
+             logfile="/var/log/cluster/fenced.log"/>
+.br
+    <logging_daemon name="dlm_controld"
+             logfile="/var/log/cluster/dlm_controld.log"/>
+.br
+    <logging_daemon name="gfs_controld"
+             logfile="/var/log/cluster/gfs_controld.log"/>
+.br
+    <logging_daemon name="rgmanager"
+             logfile="/var/log/cluster/rgmanager.log"/>
+.br
+    <logging_daemon name="corosync"
+             logfile="/var/log/cluster/corosync.log"/>
+.br
+</logging>
+
+.B Examples
+.br
+To include debug messages (and above) from all daemons in their default log files, either
+.in +7
+<logging debug="on"/> or
+<logging logfile_priority="debug"/>
+.in -7
+
+To exclude all log messages from syslog
+.in +7
+<logging to_syslog="no"/>
+.in -7
+
+To disable logging to all log files
+.in +7
+<logging to_file="no"/>
+.in -7
+
+To include debug messages (and above) from all daemons in syslog
+.in +7
+<logging syslog_priority="debug"/>
+.in -7
+
+To limit syslog messages to error (and above), keeping info (and above) in
+log files (this logfile_priority setting is the default so could be omitted)
+.in +7
+<logging syslog_priority="error" logfile_priority="info"/>
+.in -7
+
 
 .SH SEE ALSO
-ccs(7), ccs_tool(8), ccsd(8), cman(5), fenced(8), dlm_controld(8)
+cman(5), qdisk(5), groupd(8), fenced(8), dlm_controld(8), gfs_controld(8), rgmanager(8)
 
