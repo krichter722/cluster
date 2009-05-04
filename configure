@@ -4,6 +4,7 @@ use warnings;
 use Getopt::Long;
 use Cwd 'abs_path';
 use File::Basename;
+use File::Spec;
 
 print "\nConfiguring Makefiles for your system...\n";
 
@@ -308,6 +309,7 @@ if (!$mandir) {
 if (!$sbindir) {
   $sbindir="${prefix}/sbin";
 }
+$relativesbin=File::Spec->abs2rel("/sbin", $sbindir);
 if (!$initddir) {
   $initddir="/etc/init.d";
 }
@@ -413,6 +415,7 @@ while (<IFILE>) {
   $_ =~ s/\@LIBEXECDIR\@/$libexecdir/;
   $_ =~ s/\@MANDIR\@/$mandir/;
   $_ =~ s/\@SBINDIR\@/$sbindir/;
+  $_ =~ s/\@RELATIVESBIN\@/$relativesbin/;
   $_ =~ s/\@PREFIX\@/$prefix/;
   $_ =~ s/\@INITDDIR\@/$initddir/;
   $_ =~ s/\@SHAREDIR\@/$sharedir/;
