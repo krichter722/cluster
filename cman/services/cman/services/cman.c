@@ -21,11 +21,11 @@
 #include <arpa/inet.h>
 
 #include <corosync/corotypes.h>
+#include <corosync/coroipc_types.h>
 #include <corosync/cfg.h>
 #include <corosync/list.h>
 #include <corosync/lcr/lcr_comp.h>
 #include <corosync/engine/logsys.h>
-#include <corosync/ipc_gen.h>
 #include <corosync/engine/coroapi.h>
 #include <corosync/ipc_cman.h>
 #include <corosync/cman.h>
@@ -36,7 +36,7 @@
 
 #define MAX_INTERFACES 4
 
-LOGSYS_DECLARE_SUBSYS ("CMAN", LOG_INFO);
+LOGSYS_DECLARE_SUBSYS ("CMAN");
 
 /* Messages we send on port 0 */
 #define CLUSTER_MSG_PORTOPENED   2
@@ -91,14 +91,14 @@ static struct list_head node_list;
  * Service Interfaces required by service_message_handler struct
  */
 
-static void cman_deliver_fn(unsigned int nodeid, struct iovec *iovec, int iov_len,
-			      int endian_conversion_required);
+static void cman_deliver_fn(unsigned int nodeid, const void *buf, unsigned int buf_len,
+			    int endian_conversion_required);
 
 static void cman_confchg_fn(enum totem_configuration_type configuration_type,
-			    unsigned int *member_list, int member_list_entries,
-			    unsigned int *left_list, int left_list_entries,
-			    unsigned int *joined_list, int joined_list_entries,
-			    struct memb_ring_id *ring_id);
+			    const unsigned int *member_list, size_t member_list_entries,
+			    const unsigned int *left_list, size_t left_list_entries,
+			    const unsigned int *joined_list, size_t joined_list_entries,
+			    const struct memb_ring_id *ring_id);
 
 static int cman_exec_init_fn (struct corosync_api_v1 *corosync_api);
 
@@ -106,10 +106,10 @@ static int cman_lib_init_fn (void *conn);
 
 static int cman_lib_exit_fn (void *conn);
 
-static void message_handler_req_lib_cman_is_listening (void *conn, void *msg);
-static void message_handler_req_lib_cman_sendmsg (void *conn, void *msg);
-static void message_handler_req_lib_cman_unbind (void *conn, void *msg);
-static void message_handler_req_lib_cman_bind (void *conn, void *msg);
+static void message_handler_req_lib_cman_is_listening (void *conn, const void *msg);
+static void message_handler_req_lib_cman_sendmsg (void *conn, const void *msg);
+static void message_handler_req_lib_cman_unbind (void *conn, const void *msg);
+static void message_handler_req_lib_cman_bind (void *conn, const void *msg);
 
 /*
  * Library Handler Definition
@@ -118,26 +118,18 @@ static struct corosync_lib_handler cman_lib_service[] =
 {
 	{ /* 0 */
 		.lib_handler_fn				= message_handler_req_lib_cman_sendmsg,
-		.response_size				= sizeof (mar_res_header_t),
-		.response_id				= MESSAGE_RES_CMAN_SENDMSG,
 		.flow_control				= COROSYNC_LIB_FLOW_CONTROL_REQUIRED
 	},
 	{ /* 1 */
 		.lib_handler_fn				= message_handler_req_lib_cman_is_listening,
-		.response_size				= sizeof (struct res_lib_cman_is_listening),
-		.response_id				= MESSAGE_RES_CMAN_IS_LISTENING,
 		.flow_control				= COROSYNC_LIB_FLOW_CONTROL_NOT_REQUIRED
 	},
 	{ /* 2 */
 		.lib_handler_fn				= message_handler_req_lib_cman_bind,
-		.response_size				= sizeof (mar_res_header_t),
-		.response_id				= MESSAGE_RES_CMAN_BIND,
 		.flow_control				= COROSYNC_LIB_FLOW_CONTROL_NOT_REQUIRED
 	},
 	{ /* 3 */
 		.lib_handler_fn				= message_handler_req_lib_cman_unbind,
-		.response_size				= sizeof (mar_res_header_t),
-		.response_id				= MESSAGE_RES_CMAN_UNBIND,
 		.flow_control				= COROSYNC_LIB_FLOW_CONTROL_NOT_REQUIRED
 	}
 };
@@ -314,7 +306,7 @@ static int cman_exec_init_fn (struct corosync_api_v1 *api)
 {
 	hdb_handle_t find_handle;
 
-	log_printf(LOG_LEVEL_NOTICE, "cman_exec_init_fn \n");
+	log_printf(LOGSYS_LEVEL_NOTICE, "cman_exec_init_fn \n");
 
 	corosync_api = api;
 
@@ -366,10 +358,10 @@ static int cman_lib_exit_fn (void *conn)
 }
 
 static void cman_confchg_fn(enum totem_configuration_type configuration_type,
-			    unsigned int *member_list, int member_list_entries,
-			    unsigned int *left_list, int left_list_entries,
-			    unsigned int *joined_list, int joined_list_entries,
-			    struct memb_ring_id *ring_id)
+			    const unsigned int *member_list, size_t member_list_entries,
+			    const unsigned int *left_list, size_t left_list_entries,
+			    const unsigned int *joined_list, size_t joined_list_entries,
+			    const struct memb_ring_id *ring_id)
 {
 	int i;
 	struct cluster_node *node;
@@ -383,47 +375,51 @@ static void cman_confchg_fn(enum totem_configuration_type configuration_type,
 }
 
 
-static void cman_deliver_fn(unsigned int nodeid, struct iovec *iovec, int iov_len,
+static void cman_deliver_fn(unsigned int nodeid, const void *buf, unsigned int buf_len,
 			    int endian_conversion_required)
 {
-	struct cman_protheader *header = iovec->iov_base;
-	char *buf;
+	const struct cman_protheader *inheader = buf;
+	struct cman_protheader header;
+	const char *charbuf = buf;
 
 	if (endian_conversion_required) {
-		header->srcid = swab32(header->srcid);
-		header->tgtid = swab32(header->tgtid);
-		header->flags = swab32(header->flags);
+		header.srcid = swab32(inheader->srcid);
+		header.tgtid = swab32(inheader->tgtid);
+		header.flags = swab32(inheader->flags);
+	}
+	else {
+		memcpy(&header, buf, sizeof(header));
 	}
 
 	/* Messages to be sent to clients */
-	if (header->tgtport != 0 &&
-	    (header->tgtid == our_node.nodeid ||
-	     header->tgtid == 0)) {
-		buf = iovec->iov_base + sizeof(struct cman_protheader);
+	if (header.tgtport != 0 &&
+	    (header.tgtid == our_node.nodeid ||
+	     header.tgtid == 0)) {
+		buf += sizeof(struct cman_protheader);
 
-		if (ports[header->tgtport]) {
-			corosync_api->ipc_response_send(ports[header->tgtport], buf,  iovec->iov_len - sizeof(struct cman_protheader));
+		if (ports[header.tgtport]) {
+			corosync_api->ipc_response_send(ports[header.tgtport], buf,  buf_len - sizeof(struct cman_protheader));
 		}
 	}
 
 	/* Our messages. Careful here, messages for the quorum module on port 0 also
 	   arrive here and must be ignored */
-	if (header->tgtport == 0 &&
-	    (header->tgtid == our_node.nodeid ||
-	     header->tgtid == 0)) {
+	if (header.tgtport == 0 &&
+	    (header.tgtid == our_node.nodeid ||
+	     header.tgtid == 0)) {
 		struct cluster_node *node;
 
-		buf = iovec->iov_base + sizeof(struct cman_protheader);
-		node = find_node(header->tgtid, 1);
+		buf += sizeof(struct cman_protheader);
+		node = find_node(header.tgtid, 1);
 
-		switch (*buf) {
+		switch (*charbuf) {
 		case CLUSTER_MSG_PORTOPENED:
 			if (node) {
 				if (!(node->flags & NODE_FLAG_PORTS_VALID)) {
 					char reqmsg = CLUSTER_MSG_PORTENQ;
 					cman_send_message(0,0, nodeid, &reqmsg, 1);
 				}
-				set_port_bit(node, buf[2]);
+				set_port_bit(node, charbuf[2]);
 			}
 			break;
 		case CLUSTER_MSG_PORTCLOSED:
@@ -432,7 +428,7 @@ static void cman_deliver_fn(unsigned int nodeid, struct iovec *iovec, int iov_le
 					char reqmsg = CLUSTER_MSG_PORTENQ;
 					cman_send_message(0,0, nodeid, &reqmsg, 1);
 				}
-				clear_port_bit(node, buf[2]);
+				clear_port_bit(node, charbuf[2]);
 			}
 			break;
 		case CLUSTER_MSG_PORTENQ:
@@ -454,9 +450,9 @@ static void cman_deliver_fn(unsigned int nodeid, struct iovec *iovec, int iov_le
 	}
 }
 
-static void message_handler_req_lib_cman_bind (void *conn, void *msg)
+static void message_handler_req_lib_cman_bind (void *conn, const void *msg)
 {
-        mar_res_header_t res;
+        coroipc_response_header_t res;
 	struct req_lib_cman_bind *req_lib_cman_bind = (struct req_lib_cman_bind *)msg;
 	struct cman_pd *cman_pd = (struct cman_pd *)corosync_api->ipc_private_data_get (conn);
 	int error = 0;
@@ -485,9 +481,9 @@ static void message_handler_req_lib_cman_bind (void *conn, void *msg)
 	corosync_api->ipc_response_send(conn, &res, sizeof(res));
 }
 
-static void message_handler_req_lib_cman_unbind (void *conn, void *msg)
+static void message_handler_req_lib_cman_unbind (void *conn, const void *msg)
 {
-	mar_res_header_t res;
+	coroipc_response_header_t res;
 	struct cman_pd *cman_pd = (struct cman_pd *)corosync_api->ipc_private_data_get (conn);
 	int error = 0;
 	char portmsg[2];
@@ -508,10 +504,10 @@ static void message_handler_req_lib_cman_unbind (void *conn, void *msg)
 	corosync_api->ipc_response_send(conn, &res, sizeof(res));
 }
 
-static void message_handler_req_lib_cman_sendmsg (void *conn, void *msg)
+static void message_handler_req_lib_cman_sendmsg (void *conn, const void *msg)
 {
 	struct req_lib_cman_sendmsg *req_lib_cman_sendmsg = (struct req_lib_cman_sendmsg *)msg;
-	mar_res_header_t res;
+	coroipc_response_header_t res;
 	struct cman_pd *cman_pd = (struct cman_pd *)corosync_api->ipc_private_data_get (conn);
 	int error = CS_OK;
 
@@ -533,7 +529,7 @@ static void message_handler_req_lib_cman_sendmsg (void *conn, void *msg)
 	corosync_api->ipc_response_send(conn, &res, sizeof(res));
 }
 
-static void message_handler_req_lib_cman_is_listening (void *conn, void *msg)
+static void message_handler_req_lib_cman_is_listening (void *conn, const void *msg)
 {
 	struct req_lib_cman_is_listening *req_lib_cman_is_listening = (struct req_lib_cman_is_listening *)msg;
 	struct res_lib_cman_is_listening res_lib_cman_is_listening;

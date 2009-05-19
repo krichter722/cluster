@@ -14,9 +14,10 @@
 #include <limits.h>
 
 #include <corosync/corotypes.h>
-#include <corosync/coroipc.h>
-#include <corosync/mar_gen.h>
-#include <corosync/ipc_gen.h>
+#include <corosync/coroipc_types.h>
+#include <corosync/coroipcc.h>
+#include <corosync/corodefs.h>
+#include <corosync/hdb.h>
 #include <corosync/cfg.h>
 #include <corosync/confdb.h>
 #include <corosync/votequorum.h>
@@ -25,20 +26,24 @@
 #include "ccs.h"
 #include "libcman.h"
 
+DECLARE_HDB_DATABASE(cman_handle_t_db,NULL);
+
 #define CMAN_MAGIC 0x434d414e
+
+#define IPC_REQUEST_SIZE        8192*128
+#define IPC_RESPONSE_SIZE       8192*128
+#define IPC_DISPATCH_SIZE       8192*128
 
 #define CMAN_SHUTDOWN_ANYWAY   1
 #define CMAN_SHUTDOWN_REMOVED  2
 
 struct cman_inst {
 	int magic;
-	void *ipc_ctx;
+	hdb_handle_t handle;
 	int finalize;
 	void *privdata;
 	cman_datacallback_t data_callback;
 	cman_callback_t notify_callback;
-	pthread_mutex_t response_mutex;
-	pthread_mutex_t dispatch_mutex;
 
 	int node_count;
 	votequorum_node_t * node_list;
@@ -149,27 +154,41 @@ cman_handle_t cman_init (
 	void *privdata)
 {
 	cs_error_t error;
+	hdb_handle_t handle;
 	struct cman_inst *cman_inst;
 
-	cman_inst = malloc(sizeof(struct cman_inst));
-	if (!cman_inst)
-		return NULL;
+	error = hdb_handle_create (&cman_handle_t_db, sizeof (struct cman_inst), &handle);
+	if (error) {
+		goto error_no_destroy;
+	}
 
-	memset(cman_inst, 0, sizeof(struct cman_inst));
-	error = cslib_service_connect (CMAN_SERVICE, &cman_inst->ipc_ctx);
+	error = hdb_handle_get (&cman_handle_t_db, handle, (void *)&cman_inst);
+	if (error) {
+		goto error_destroy;
+	}
+
+	error = coroipcc_service_connect (
+		COROSYNC_SOCKET_NAME,
+		CMAN_SERVICE,
+		IPC_REQUEST_SIZE,
+		IPC_RESPONSE_SIZE,
+		IPC_DISPATCH_SIZE,
+		&cman_inst->handle);
 	if (error != CS_OK) {
-		goto error;
+		goto error_put_destroy;
 	}
 
 	cman_inst->privdata = privdata;
 	cman_inst->magic = CMAN_MAGIC;
-	pthread_mutex_init (&cman_inst->response_mutex, NULL);
-	pthread_mutex_init (&cman_inst->dispatch_mutex, NULL);
+	cman_inst->handle = handle;
 
 	return (void *)cman_inst;
 
-error:
-	free(cman_inst);
+error_put_destroy:
+	hdb_handle_put (&cman_handle_t_db, handle);
+error_destroy:
+	hdb_handle_destroy (&cman_handle_t_db, handle);
+error_no_destroy:
 	errno = ENOMEM;
 	return NULL;
 }
@@ -207,25 +226,20 @@ int cman_finish (
 	if (handle == admin_inst)
 		admin_inst = NULL;
 
-	pthread_mutex_lock (&cman_inst->response_mutex);
-
 	/*
 	 * Another thread has already started finalizing
 	 */
 	if (cman_inst->finalize) {
-		pthread_mutex_unlock (&cman_inst->response_mutex);
 		errno = EINVAL;
 		return -1;
 	}
 
 	cman_inst->finalize = 1;
 
-	pthread_mutex_unlock (&cman_inst->response_mutex);
-
 	/*
 	 * Disconnect from the server
 	 */
-	cslib_service_disconnect (cman_inst->ipc_ctx);
+	coroipcc_service_disconnect (cman_inst->handle);
 
 	return 0;
 }
@@ -245,12 +259,10 @@ int cman_start_recv_data (
 	struct cman_inst *cman_inst;
 	struct iovec iov[2];
 	struct req_lib_cman_bind req_lib_cman_bind;
-	mar_res_header_t res;
+	coroipc_response_header_t res;
 
 	cman_inst = (struct cman_inst *)handle;
 	VALIDATE_HANDLE(cman_inst);
-
-	pthread_mutex_lock (&cman_inst->response_mutex);
 
 	req_lib_cman_bind.header.size = sizeof (struct req_lib_cman_bind);
 	req_lib_cman_bind.header.id = MESSAGE_REQ_CMAN_BIND;
@@ -259,11 +271,9 @@ int cman_start_recv_data (
 	iov[0].iov_base = (char *)&req_lib_cman_bind;
 	iov[0].iov_len = sizeof (struct req_lib_cman_bind);
 
-        error = cslib_msg_send_reply_receive (cman_inst->ipc_ctx,
+        error = coroipcc_msg_send_reply_receive (cman_inst->handle,
 					      iov, 1,
-					      &res, sizeof (mar_res_header_t));
-
-	pthread_mutex_unlock (&cman_inst->response_mutex);
+					      &res, sizeof (coroipc_response_header_t));
 
 	if (error != CS_OK) {
 		goto error_exit;
@@ -281,25 +291,21 @@ int cman_end_recv_data (
 	int error;
 	struct cman_inst *cman_inst;
 	struct iovec iov[2];
-	mar_req_header_t req;
-	mar_res_header_t res;
+	coroipc_response_header_t req;
+	coroipc_response_header_t res;
 
 	cman_inst = (struct cman_inst *)handle;
 	VALIDATE_HANDLE(cman_inst);
 
-	pthread_mutex_lock (&cman_inst->response_mutex);
-
-	req.size = sizeof (mar_req_header_t);
+	req.size = sizeof (coroipc_response_header_t);
 	req.id = MESSAGE_REQ_CMAN_UNBIND;
 
 	iov[0].iov_base = (char *)&req;
-	iov[0].iov_len = sizeof (mar_req_header_t);
+	iov[0].iov_len = sizeof (coroipc_response_header_t);
 
-        error = cslib_msg_send_reply_receive (cman_inst->ipc_ctx,
+        error = coroipcc_msg_send_reply_receive (cman_inst->handle,
 					      iov, 1,
-					      &res, sizeof (mar_res_header_t));
-
-	pthread_mutex_unlock (&cman_inst->response_mutex);
+					      &res, sizeof (coroipc_response_header_t));
 
 	if (error != CS_OK) {
 		goto error_exit;
@@ -319,14 +325,12 @@ int cman_send_data(cman_handle_t handle, const void *message, int len, int flags
 	struct iovec iov[2];
 	char buf[len+sizeof(struct req_lib_cman_sendmsg)];
 	struct req_lib_cman_sendmsg *req_lib_cman_sendmsg = (struct req_lib_cman_sendmsg *)buf;
-	mar_res_header_t res;
+	coroipc_response_header_t res;
 
 	cman_inst = (struct cman_inst *)handle;
 	VALIDATE_HANDLE(cman_inst);
 
-	pthread_mutex_lock (&cman_inst->response_mutex);
-
-	req_lib_cman_sendmsg->header.size = sizeof (mar_req_header_t);
+	req_lib_cman_sendmsg->header.size = sizeof (coroipc_response_header_t);
 	req_lib_cman_sendmsg->header.id = MESSAGE_REQ_CMAN_SENDMSG;
 	req_lib_cman_sendmsg->to_port = port;
 	req_lib_cman_sendmsg->to_node = nodeid;
@@ -336,11 +340,9 @@ int cman_send_data(cman_handle_t handle, const void *message, int len, int flags
 	iov[0].iov_base = buf;
 	iov[0].iov_len = len+sizeof(struct req_lib_cman_sendmsg);
 
-        error = cslib_msg_send_reply_receive (cman_inst->ipc_ctx,
+        error = coroipcc_msg_send_reply_receive (cman_inst->handle,
 					      iov, 1,
-					      &res, sizeof (mar_res_header_t));
-
-	pthread_mutex_unlock (&cman_inst->response_mutex);
+					      &res, sizeof (coroipc_response_header_t));
 
 	if (error != CS_OK) {
 		goto error_exit;
@@ -367,8 +369,6 @@ int cman_is_listening (
 	cman_inst = (struct cman_inst *)handle;
 	VALIDATE_HANDLE(cman_inst);
 
-	pthread_mutex_lock (&cman_inst->response_mutex);
-
 	req_lib_cman_is_listening.header.size = sizeof (struct req_lib_cman_is_listening);
 	req_lib_cman_is_listening.header.id = MESSAGE_REQ_CMAN_IS_LISTENING;
 	req_lib_cman_is_listening.nodeid = nodeid;
@@ -377,11 +377,9 @@ int cman_is_listening (
 	iov[0].iov_base = (char *)&req_lib_cman_is_listening;
 	iov[0].iov_len = sizeof (struct req_lib_cman_is_listening);
 
-        error = cslib_msg_send_reply_receive (cman_inst->ipc_ctx,
+        error = coroipcc_msg_send_reply_receive (cman_inst->handle,
 					      iov, 1,
 					      &res_lib_cman_is_listening, sizeof (struct res_lib_cman_is_listening));
-
-	pthread_mutex_unlock (&cman_inst->response_mutex);
 
 	if (error != CS_OK) {
 		goto error_exit;
@@ -608,7 +606,7 @@ int cman_get_fd (
 	cman_inst = (struct cman_inst *)handle;
 	VALIDATE_HANDLE(cman_inst);
 
-	fd = cslib_fd_get (cman_inst->ipc_ctx);
+	coroipcc_fd_get (cman_inst->handle, &fd);
 
 	return fd;
 }
@@ -735,7 +733,7 @@ int cman_set_dirty(cman_handle_t handle)
 
 
 struct res_overlay {
-	mar_res_header_t header __attribute__((aligned(8)));
+	coroipc_response_header_t header __attribute__((aligned(8)));
 	char data[512000];
 };
 
@@ -771,23 +769,17 @@ int cman_dispatch (
 	}
 
 	do {
-		pthread_mutex_lock (&cman_inst->dispatch_mutex);
-
-		dispatch_avail = cslib_dispatch_recv (cman_inst->ipc_ctx,
+		dispatch_avail = coroipcc_dispatch_get (cman_inst->handle,
 			(void *)&dispatch_data, timeout);
-
-		pthread_mutex_unlock (&cman_inst->dispatch_mutex);
 
 		if (error != CS_OK) {
 			goto error_put;
 		}
 
 		if (dispatch_avail == 0 && dispatch_types == CMAN_DISPATCH_ALL) {
-			pthread_mutex_unlock (&cman_inst->dispatch_mutex);
 			break; /* exit do while cont is 1 loop */
 		} else
 		if (dispatch_avail == 0) {
-			pthread_mutex_unlock (&cman_inst->dispatch_mutex);
 			continue; /* next poll */
 		}
 		if (dispatch_avail == -1) {
@@ -798,7 +790,6 @@ int cman_dispatch (
 			}
 			goto error_put;
 		}
-		pthread_mutex_unlock (&cman_inst->dispatch_mutex);
 
 		/*
 		 * Dispatch incoming message
@@ -959,7 +950,7 @@ int cman_set_version(cman_handle_t handle, const cman_version_t *version)
 		return -1;
 	}
 
-	if (confdb_reload(confdb_handle, 0, error) != CS_OK) {
+	if (confdb_reload(confdb_handle, 0, error, sizeof(error)) != CS_OK) {
 		ret = EINVAL;
 	}
 

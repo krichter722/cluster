@@ -986,11 +986,11 @@ static int copy_config_tree(struct objdb_iface_ver0 *objdb, hdb_handle_t source_
 	hdb_handle_t new_object;
 	hdb_handle_t find_handle;
 	char object_name[1024];
-	int object_name_len;
+	size_t object_name_len;
 	void *key_name;
-	int key_name_len;
+	size_t key_name_len;
 	void *key_value;
-	int key_value_len;
+	size_t key_value_len;
 	int res;
 
 	/* Create new parent object if necessary */
@@ -1004,7 +1004,7 @@ static int copy_config_tree(struct objdb_iface_ver0 *objdb, hdb_handle_t source_
 	/* Copy the keys */
 	objdb->object_key_iter_reset(new_object);
 
-	while (!objdb->object_key_iter(source_object, &key_name, &key_name_len,
+	while (!objdb->object_key_iter(new_object, &key_name, &key_name_len,
 				       &key_value, &key_value_len)) {
 
 		objdb->object_key_create(new_object, key_name, key_name_len,

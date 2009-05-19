@@ -2,7 +2,6 @@
 #define IPC_CMAN_H_DEFINED
 
 #include <netinet/in.h>
-#include "corosync/ipc_gen.h"
 
 #define CMAN_SERVICE 9
 
@@ -24,12 +23,12 @@ enum res_cman_types {
 #define TOTEMIP_ADDRLEN (sizeof(struct in6_addr))
 
 struct req_lib_cman_bind {
-        mar_req_header_t header __attribute__((aligned(8)));
+        coroipc_request_header_t header __attribute__((aligned(8)));
 	unsigned int port;
 };
 
 struct req_lib_cman_sendmsg {
-        mar_req_header_t header __attribute__((aligned(8)));
+	coroipc_request_header_t header __attribute__((aligned(8)));
 	unsigned int to_port;
 	unsigned int to_node;
 	unsigned int msglen;
@@ -37,7 +36,7 @@ struct req_lib_cman_sendmsg {
 };
 
 struct res_lib_cman_sendmsg {
-        mar_req_header_t header __attribute__((aligned(8)));
+	coroipc_response_header_t header __attribute__((aligned(8)));
 	unsigned int from_port;
 	unsigned int from_node;
 	unsigned int msglen;
@@ -45,13 +44,13 @@ struct res_lib_cman_sendmsg {
 };
 
 struct req_lib_cman_is_listening {
-        mar_req_header_t header __attribute__((aligned(8)));
+	coroipc_request_header_t header __attribute__((aligned(8)));
 	unsigned int port;
 	unsigned int nodeid;
 };
 
 struct res_lib_cman_is_listening {
-        mar_res_header_t header __attribute__((aligned(8)));
+	coroipc_response_header_t header __attribute__((aligned(8)));
 	unsigned int status;
 };
 
