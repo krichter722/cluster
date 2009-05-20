@@ -408,17 +408,11 @@ int cman_get_quorum_device(cman_handle_t handle, struct cman_qdev_info *info);
  */
 int cman_set_dirty(cman_handle_t handle);
 
-
 /*
- * Changes the debug logging level inside cman.
- * subsystems is a bitmask of:
+ * From STABLE3 branch this call tells corosync to execute:
+ * logsys_config_debug_set(CMAN_NAME, value);
+ * and debugging for all CMAN subsystems is on.
  */
-#define CMAN_DEBUGLOG_NONE       0
-#define CMAN_DEBUGLOG_BARRIER    2
-#define CMAN_DEBUGLOG_MEMBERSHIP 4
-#define CMAN_DEBUGLOG_DAEMON     8
-#define CMAN_DEBUGLOG_AIS       16
-
-int cman_set_debuglog(cman_handle_t handle, int subsystems);
+int cman_set_debuglog(cman_handle_t handle, int value);
 
 #endif
