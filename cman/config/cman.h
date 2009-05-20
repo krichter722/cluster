@@ -5,7 +5,7 @@
 #define MAX_CLUSTER_MEMBER_NAME_LEN 255
 
 /* Defaults for configuration variables */
-#define NOCCS_KEY_FILENAME      "/etc/cluster/cman_authkey"
+#define NOCCS_KEY_FILENAME      DEFAULT_CONFIG_DIR "/cman_authkey"
 #define DEFAULT_PORT            5405
 #define DEFAULT_CLUSTER_NAME    "RHCluster"
 #define DEFAULT_MAX_QUEUED       128
