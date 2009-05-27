@@ -1245,7 +1245,11 @@ int cman_get_extra_info(cman_handle_t handle, cman_extra_info_t *info, int maxle
 	info->ei_num_addresses = 1;
 
 	ccs_handle = ccs_connect();
-	if (!ccs_get(ccs_handle, "/totem/interface/@mcastaddr", &value)) {
+	if (!ccs_get(ccs_handle, "/totem/interface/@broadcast", &value)) {
+		strcpy(info->ei_addresses, "255.255.255.255");
+		free(value);
+	}
+	else if (!ccs_get(ccs_handle, "/totem/interface/@mcastaddr", &value)) {
 		strcpy(info->ei_addresses, value);
 		free(value);
 	}

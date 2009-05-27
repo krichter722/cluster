@@ -239,7 +239,7 @@ static int sum_expected(struct objdb_iface_ver0 *objdb)
 	return vote_sum;
 }
 
-static int add_ifaddr(struct objdb_iface_ver0 *objdb, char *mcast, char *ifaddr, int portnum)
+static int add_ifaddr(struct objdb_iface_ver0 *objdb, char *mcast, char *ifaddr, int portnum, int broadcast)
 {
 	hdb_handle_t totem_object_handle;
 	hdb_handle_t find_handle;
@@ -288,8 +288,12 @@ static int add_ifaddr(struct objdb_iface_ver0 *objdb, char *mcast, char *ifaddr,
 		objdb->object_key_create(interface_object_handle, "bindnetaddr", strlen("bindnetaddr"),
 					 tmp, strlen(tmp)+1);
 
-		objdb->object_key_create(interface_object_handle, "mcastaddr", strlen("mcastaddr"),
-					 mcast, strlen(mcast)+1);
+		if (broadcast)
+			objdb->object_key_create(interface_object_handle, "broadcast", strlen("broadcast"),
+						 "yes", strlen("yes")+1);
+		else
+			objdb->object_key_create(interface_object_handle, "mcastaddr", strlen("mcastaddr"),
+						 mcast, strlen(mcast)+1);
 
 		sprintf(tmp, "%d", portnum);
 		objdb->object_key_create(interface_object_handle, "mcastport", strlen("mcastport"),
@@ -532,6 +536,8 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 	hdb_handle_t find_handle;
 	hdb_handle_t node_object_handle;
 	hdb_handle_t alt_object;
+	int broadcast = 0;
+	char *str;
 	int error;
 
 	if (!getenv("CMAN_NOCONFIG")) {
@@ -622,7 +628,18 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 		objdb_get_int(objdb, object_handle, "port", &portnum, DEFAULT_PORT);
 	}
 
-	if (add_ifaddr(objdb, mcast_name, nodename, portnum))
+	/* Check for broadcast */
+	if (!objdb_get_string(objdb, object_handle, "broadcast", &str)) {
+		if (strcmp(str, "yes") == 0) {
+			mcast_name = strdup("255.255.255.255");
+			if (!mcast_name)
+				return -1;
+			broadcast = 1;
+		}
+		free(str);
+	}
+
+	if (add_ifaddr(objdb, mcast_name, nodename, portnum, broadcast))
 		return -1;
 
 	/* Get all alternative node names */
@@ -643,7 +660,7 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 			mcast = mcast_name;
 		}
 
-		if (add_ifaddr(objdb, mcast, nodename, portnum))
+		if (add_ifaddr(objdb, mcast, nodename, portnum, broadcast))
 			return -1;
 
 		num_nodenames++;
