@@ -16,7 +16,9 @@ ccs_tool_LDFLAGS	= $(xml_LIBS)
 ccs_tool_LDADD		= $(top_builddir)/config/libs/libccsconfdb/libccs.la
 
 install-exec-hook:
-	(cd $(DESTDIR)/$(sbindir) && $(LN_S) ccs_tool ccs_test)
+	(cd $(DESTDIR)/$(sbindir) && \
+		rm -f ccs_test && \
+		$(LN_S) ccs_tool ccs_test)
 
 uninstall-hook:
 	(cd $(DESTDIR)/$(sbindir) && rm -f ccs_test)
