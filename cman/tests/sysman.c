@@ -15,6 +15,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <limits.h>
 
 #define LOCAL_SOCKNAME "/var/run/sysman"
 static int open_local_sock(void);
