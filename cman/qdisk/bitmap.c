@@ -1,6 +1,8 @@
 /** @file
  * Bitmap and membership mask handling routines.
  */
+#include "config.h"
+
 #include <stdint.h>
 
 int clear_bit(uint8_t *mask, uint32_t bitidx, uint32_t masklen);

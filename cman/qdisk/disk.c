@@ -11,6 +11,9 @@
  * aligned.  If it isn't a temporary aligned buffer is allocated, a data
  * copy is performed along with the IO operation itself.
  */
+
+#include "config.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>

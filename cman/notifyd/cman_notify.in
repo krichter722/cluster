@@ -5,18 +5,18 @@
 # keep going when something fails
 set +e
 
-if [ ! -d "@NOTIFYDDIR@" ]; then
+if [ ! -d "_NOTIFYDDIR_" ]; then
 	exit 0
 fi
 
-LOGFILE="@LOGDIR@/cman_notify.log"
+LOGFILE="_LOGDIR_/cman_notify.log"
 
 if [ "$CMAN_NOTIFICATION_DEBUG" = "1" ]; then
 	OUT="$LOGFILE"
 fi
 
 # Ignore *~ and *, scripts
-for i in $(LC_ALL=C; echo @NOTIFYDDIR@/*[^~,]); do
+for i in $(LC_ALL=C; echo _NOTIFYDDIR_/*[^~,]); do
 	[ -d $i ] && continue
 	# skip know scripts
 	[ "${i%.cfsaved}" != "${i}" ] && continue

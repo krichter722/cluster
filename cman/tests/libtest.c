@@ -1,3 +1,5 @@
+#include "config.h"
+
 #include <netinet/in.h>
 #include <inttypes.h>
 #include "libcman.h"

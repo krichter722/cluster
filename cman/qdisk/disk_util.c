@@ -1,6 +1,9 @@
 /**
   @file Misc. Quorum daemon context utilities / high-level functions
  */
+
+#include "config.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>

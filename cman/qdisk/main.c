@@ -1,6 +1,9 @@
 /**
   @file Main loop / functions for disk-based quorum daemon.
  */
+
+#include "config.h"
+
 #define SYSLOG_NAMES
 #include <stdio.h>
 #include <stdlib.h>

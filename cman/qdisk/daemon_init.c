@@ -10,6 +10,9 @@
  *
  *       Also need to add file locking for the pid file.
  */
+
+#include "config.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>

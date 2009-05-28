@@ -1,4 +1,6 @@
 /* test client */
+#include "config.h"
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/uio.h>

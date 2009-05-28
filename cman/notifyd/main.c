@@ -1,3 +1,5 @@
+#include "config.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,9 +14,9 @@
 #include <sys/wait.h>
 #include <sys/select.h>
 
-#include <libcman.h>
-#include <ccs.h>
-#include <liblogthread.h>
+#include "libcman.h"
+#include "ccs.h"
+#include "liblogthread.h"
 
 #include "copyright.cf"
 
@@ -74,7 +76,7 @@ static void read_arguments(int argc, char **argv)
 
 		case 'V':
 			printf("cmannotifyd %s (built %s %s)\n%s\n",
-			       RELEASE_VERSION, __DATE__, __TIME__,
+			       PACKAGE_VERSION, __DATE__, __TIME__,
 			       REDHAT_COPYRIGHT);
 			exit(EXIT_SUCCESS);
 			break;

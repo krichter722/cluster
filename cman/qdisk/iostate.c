@@ -1,3 +1,5 @@
+#include "config.h"
+
 #include <pthread.h>
 #include <iostate.h>
 #include <unistd.h>

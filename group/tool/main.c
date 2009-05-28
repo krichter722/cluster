@@ -1,3 +1,5 @@
+#include "config.h"
+
 #include <sys/types.h>
 #include <sys/un.h>
 #include <inttypes.h>
@@ -68,7 +70,7 @@ static void decode_arguments(int argc, char **argv)
 
 		case 'V':
 			printf("%s %s (built %s %s)\n",
-				prog_name, RELEASE_VERSION, __DATE__, __TIME__);
+				prog_name, PACKAGE_VERSION, __DATE__, __TIME__);
 			printf("%s\n", REDHAT_COPYRIGHT);
 			exit(EXIT_SUCCESS);
 			break;

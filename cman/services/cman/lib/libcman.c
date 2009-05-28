@@ -2,6 +2,8 @@
  * Provides a cman API using the corosync executive
  */
 
+#include "config.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>

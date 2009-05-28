@@ -1,3 +1,5 @@
+#include "config.h"
+
 #ifndef COROSYNC_BSD
 #include <alloca.h>
 #endif

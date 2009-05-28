@@ -1,4 +1,4 @@
-@LOGDIR@/*log {
+_LOGDIR_/*log {
 	missingok
 	compress
 	notifempty

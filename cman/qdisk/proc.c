@@ -1,6 +1,9 @@
 /**
   @file Quorum disk /proc/partition scanning functions
  */
+
+#include "config.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <disk.h>

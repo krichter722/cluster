@@ -1,6 +1,9 @@
 /**
   @file Quorum disk utility
  */
+
+#include "config.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <disk.h>
@@ -21,7 +24,7 @@ main(int argc, char **argv)
 	char *newdev = NULL, *newlabel = NULL;
 	int rv, verbose_level = 1;
 
-	printf(PROGRAM_NAME " v" RELEASE_VERSION "\n\n");
+	printf(PROGRAM_NAME " v" PACKAGE_VERSION "\n\n");
 
 	/* XXX this is horrible but we need to prioritize options as long as
 	 * we can't queue messages properly
