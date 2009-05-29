@@ -52,7 +52,7 @@ struct cman_inst {
 	int node_list_size;
 
 	corosync_cfg_handle_t cfg_handle;
-	votequorum_handle_t cmq_handle;
+	votequorum_handle_t voteq_handle;
 };
 
 static void cfg_shutdown_callback(
@@ -129,12 +129,12 @@ static void votequorum_notification_callback(
 
 static int votequorum_check_and_start(struct cman_inst *cman_inst)
 {
-	if (!cman_inst->cmq_handle) {
-		if (votequorum_initialize(&cman_inst->cmq_handle, &cmq_callbacks) != CS_OK) {
+	if (!cman_inst->voteq_handle) {
+		if (votequorum_initialize(&cman_inst->voteq_handle, &cmq_callbacks) != CS_OK) {
 			errno = ENOMEM;
 			return -1;
 		}
-		votequorum_context_set(cman_inst->cmq_handle, (void*)cman_inst);
+		votequorum_context_set(cman_inst->voteq_handle, (void*)cman_inst);
 	}
 	return 0;
 }
@@ -146,9 +146,9 @@ static int refresh_node_list(struct cman_inst *cman_inst)
 	if (votequorum_check_and_start(cman_inst))
 		return -1;
 
-	votequorum_trackstart(cman_inst->cmq_handle, 0, CS_TRACK_CURRENT);
+	votequorum_trackstart(cman_inst->voteq_handle, 0, CS_TRACK_CURRENT);
 
-	error = votequorum_dispatch(cman_inst->cmq_handle, CS_DISPATCH_ONE);
+	error = votequorum_dispatch(cman_inst->voteq_handle, CS_DISPATCH_ONE);
 	return (error==CS_OK?0:-1);
 }
 
@@ -183,6 +183,8 @@ cman_handle_t cman_init (
 	cman_inst->privdata = privdata;
 	cman_inst->magic = CMAN_MAGIC;
 	cman_inst->handle = handle;
+	cman_inst->cfg_handle = (corosync_cfg_handle_t)NULL;
+	cman_inst->voteq_handle = (votequorum_handle_t)NULL;
 
 	return (void *)cman_inst;
 
@@ -216,9 +218,9 @@ int cman_finish (
 	cman_inst = (struct cman_inst *)handle;
 	VALIDATE_HANDLE(cman_inst);
 
-	if (cman_inst->cmq_handle) {
-		votequorum_finalize(cman_inst->cmq_handle);
-		cman_inst->cmq_handle = 0;
+	if (cman_inst->voteq_handle) {
+		votequorum_finalize(cman_inst->voteq_handle);
+		cman_inst->voteq_handle = 0;
 	}
 	if (cman_inst->cfg_handle) {
 		corosync_cfg_finalize(cman_inst->cfg_handle);
@@ -440,7 +442,7 @@ int cman_is_quorate(cman_handle_t handle)
 	if (votequorum_check_and_start(cman_inst))
 		return -1;
 
-	if (votequorum_getinfo(cman_inst->cmq_handle, 0, &info) != CS_OK)
+	if (votequorum_getinfo(cman_inst->voteq_handle, 0, &info) != CS_OK)
 		errno = EINVAL;
 	else
 		quorate = ((info.flags & VOTEQUORUM_INFO_FLAG_QUORATE) != 0);
@@ -469,7 +471,7 @@ int cman_shutdown(cman_handle_t handle, int flags)
 		if (votequorum_check_and_start(cman_inst))
 			return -1;
 
-		votequorum_leaving(cman_inst->cmq_handle);
+		votequorum_leaving(cman_inst->voteq_handle);
 	}
 
 	if (flags == CMAN_SHUTDOWN_ANYWAY)
@@ -509,7 +511,7 @@ int cman_leave_cluster(cman_handle_t handle, int flags)
 		if (votequorum_check_and_start(cman_inst))
 			return -1;
 
-		votequorum_leaving(cman_inst->cmq_handle);
+		votequorum_leaving(cman_inst->voteq_handle);
 	}
 
 
@@ -577,7 +579,7 @@ int cman_set_votes(cman_handle_t handle, int votes, int nodeid)
 	if (votequorum_check_and_start(cman_inst))
 		return -1;
 
-	error = votequorum_setvotes(cman_inst->cmq_handle, nodeid, votes);
+	error = votequorum_setvotes(cman_inst->voteq_handle, nodeid, votes);
 
 	return (error==CS_OK?0:-1);
 }
@@ -594,7 +596,7 @@ int cman_set_expected_votes(cman_handle_t handle, int expected)
 	if (votequorum_check_and_start(cman_inst))
 		return -1;
 
-	error = votequorum_setexpected(cman_inst->cmq_handle, expected);
+	error = votequorum_setexpected(cman_inst->voteq_handle, expected);
 
 	return (error==CS_OK?0:-1);
 }
@@ -653,7 +655,7 @@ int cman_register_quorum_device(cman_handle_t handle, char *name, int votes)
 	if (votequorum_check_and_start(cman_inst))
 		return -1;
 
-	error = votequorum_qdisk_register(cman_inst->cmq_handle, name, votes);
+	error = votequorum_qdisk_register(cman_inst->voteq_handle, name, votes);
 
 	return error;
 }
@@ -670,7 +672,7 @@ int cman_unregister_quorum_device(cman_handle_t handle)
 	if (votequorum_check_and_start(cman_inst))
 		return -1;
 
-	error = votequorum_qdisk_unregister(cman_inst->cmq_handle);
+	error = votequorum_qdisk_unregister(cman_inst->voteq_handle);
 
 	return error;
 }
@@ -687,7 +689,7 @@ int cman_poll_quorum_device(cman_handle_t handle, int isavailable)
 	if (votequorum_check_and_start(cman_inst))
 		return -1;
 
-	error = votequorum_qdisk_poll(cman_inst->cmq_handle, 1);
+	error = votequorum_qdisk_poll(cman_inst->voteq_handle, 1);
 
 	return error;
 }
@@ -705,7 +707,7 @@ int cman_get_quorum_device(cman_handle_t handle, struct cman_qdev_info *info)
 	if (votequorum_check_and_start(cman_inst))
 		return -1;
 
-	error = votequorum_qdisk_getinfo(cman_inst->cmq_handle, &qinfo);
+	error = votequorum_qdisk_getinfo(cman_inst->voteq_handle, &qinfo);
 
 	if (!error) {
 		info->qi_state = qinfo.state;
@@ -728,7 +730,7 @@ int cman_set_dirty(cman_handle_t handle)
 	if (votequorum_check_and_start(cman_inst))
 		return -1;
 
-	error = votequorum_setstate(cman_inst->cmq_handle);
+	error = votequorum_setstate(cman_inst->voteq_handle);
 
 	return error;
 }
@@ -1152,7 +1154,7 @@ int cman_get_node(cman_handle_t handle, int nodeid, cman_node_t *node)
 	if (node->cn_name[0] == '\0') {
 		/* Query by node ID */
 		if (nodeid == CMAN_NODEID_US) {
-			if (votequorum_getinfo(cman_inst->cmq_handle, 0, &qinfo) != CS_OK) {
+			if (votequorum_getinfo(cman_inst->voteq_handle, 0, &qinfo) != CS_OK) {
 				return -1;
 			}
 			nodeid = node->cn_nodeid = qinfo.node_id;
@@ -1199,7 +1201,7 @@ int cman_start_notification(cman_handle_t handle, cman_callback_t callback)
 
 	cman_inst->notify_callback = callback;
 
-	if (votequorum_trackstart(cman_inst->cmq_handle, (uint64_t)(long)handle, CS_TRACK_CURRENT) != CS_OK)
+	if (votequorum_trackstart(cman_inst->voteq_handle, (uint64_t)(long)handle, CS_TRACK_CURRENT) != CS_OK)
 		return -1;
 
 	return 0;
@@ -1212,7 +1214,7 @@ int cman_stop_notification(cman_handle_t handle)
 	cman_inst = (struct cman_inst *)handle;
 	VALIDATE_HANDLE(cman_inst);
 
-	votequorum_trackstop(cman_inst->cmq_handle);
+	votequorum_trackstop(cman_inst->voteq_handle);
 	cman_inst->notify_callback = NULL;
 
 	return 0;
@@ -1232,7 +1234,7 @@ int cman_get_extra_info(cman_handle_t handle, cman_extra_info_t *info, int maxle
 
 	refresh_node_list(cman_inst);
 
-	if (votequorum_getinfo(cman_inst->cmq_handle, 0, &qinfo) != CS_OK) {
+	if (votequorum_getinfo(cman_inst->voteq_handle, 0, &qinfo) != CS_OK) {
 		return -1;
 	}
 
