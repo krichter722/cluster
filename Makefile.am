@@ -11,7 +11,11 @@ noinst_HEADERS		= make/copyright.cf
 
 ACLOCAL_AMFLAGS		= -I m4
 
-SUBDIRS			= common config cman group doc bindings
+SUBDIRS			= common config cman group doc
+
+if BUILD_BINDINGS
+SUBDIRS			+= bindings
+endif
 
 install-exec-local:
 			$(INSTALL) -d $(DESTDIR)/$(LOGDIR)

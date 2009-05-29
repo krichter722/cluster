@@ -128,24 +128,32 @@ AC_ARG_WITH([lcrso-dir],
 	[ LCRSODIR="$libexecdir/lcrso" ])
 
 AC_ARG_WITH([default-config-dir],
-	[  --default-config-dir=DIR    cluster config directory. ],
+	[  --default-config-dir=DIR
+                          cluster config directory. ],
 	[ DEFAULT_CONFIG_DIR="$withval" ],
 	[ DEFAULT_CONFIG_DIR="$sysconfdir/cluster" ])
 
 AC_ARG_WITH([default-config-file],
-	[  --default-config-file=FILE    cluster config file. ],
+	[  --default-config-file=FILE
+                          cluster config file. ],
 	[ DEFAULT_CONFIG_FILE="$withval" ],
 	[ DEFAULT_CONFIG_FILE="cluster.conf" ])
 
 AC_ARG_WITH([syslogfacility],
-	[  --syslogfacility=FACILITY    cluster default syslog facility. ],
+	[  --syslogfacility=FACILITY
+                          cluster default syslog facility. ],
 	[ SYSLOGFACILITY="$withval" ],
 	[ SYSLOGFACILITY="LOG_LOCAL4" ])
 
 AC_ARG_WITH([sysloglevel],
-	[  --sysloglevel=LEVEL    cluster default syslog level. ],
+	[  --sysloglevel=LEVEL
+                          cluster default syslog level. ],
 	[ SYSLOGLEVEL="$withval" ],
 	[ SYSLOGLEVEL="LOG_INFO" ])
+
+AC_ARG_ENABLE([bindings],
+	[  --enable-bindings       enable bindings build. ],
+	[ default="no" ])
 
 ## random vars
 
@@ -191,6 +199,8 @@ AC_DEFINE_UNQUOTED([SYSLOGFACILITY], $(eval echo ${SYSLOGFACILITY}),
 
 AC_DEFINE_UNQUOTED([SYSLOGLEVEL], $(eval echo ${SYSLOGLEVEL}),
 		   [Default syslog level])
+
+AM_CONDITIONAL(BUILD_BINDINGS, test "x${enable_bindings}" = xyes)
 
 ## *FLAGS handling
 
