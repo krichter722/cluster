@@ -17,7 +17,7 @@
 #include <fcntl.h>
 #include <limits.h>
 
-#define LOCAL_SOCKNAME "/var/run/sysman"
+#define LOCAL_SOCKNAME CLUSTERVARRUN "/sysman"
 static int open_local_sock(void);
 
 int main(int argc, char *argv[])

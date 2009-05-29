@@ -33,7 +33,7 @@
 #include <limits.h>
 
 #include "libcman.h"
-#define LOCAL_SOCKNAME "/var/run/sysman"
+#define LOCAL_SOCKNAME CLUSTERVARRUN "/sysman"
 #define CLUSTER_PORT_SYSMAN 12
 
 static cman_node_t *nodes = NULL;

@@ -120,7 +120,7 @@ check_process_running(char *prog, pid_t * pid)
 	memset(filename, 0, PATH_MAX);
 
 	cmd = basename(prog);
-	snprintf(filename, sizeof (filename), "/var/run/%s.pid", cmd);
+	snprintf(filename, sizeof (filename), CLUSTERVARRUN "/%s.pid", cmd);
 
 	ret = stat(filename, &st);
 	if ((ret < 0) || (!st.st_size))

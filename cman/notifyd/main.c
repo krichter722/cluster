@@ -26,7 +26,7 @@ int daemon_quit = 0;
 cman_handle_t cman_handle;
 int rr = 0;
 
-#define LOCKFILE_NAME	"/var/run/cmannotifyd.pid"
+#define LOCKFILE_NAME	CLUSTERVARRUN "/cmannotifyd.pid"
 
 #define OPTION_STRING "hdfVr"
 
