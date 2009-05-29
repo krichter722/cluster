@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                Cluster-CCS
-version:             @VERSION@
+version:             _VERSION_
 abstract:            ~
 license:             ~
 author:              

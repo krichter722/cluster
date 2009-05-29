@@ -299,6 +299,7 @@ AC_CONFIG_FILES([Makefile
 		 doc/Makefile
 		 bindings/Makefile
 		 bindings/perl/Makefile
+		 bindings/perl/ccs/Makefile
 		 ])
 
 AC_OUTPUT
