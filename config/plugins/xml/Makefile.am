@@ -1,7 +1,7 @@
 MAINTAINERCLEANFILES	= Makefile.in
 
 AM_CFLAGS		= -fPIC \
-			  $(xml_CFLAGS)
+			  $(xml_CFLAGS) $(corosync_CFLAGS)
 
 AM_LDFLAGS		= $(xml_LIBS)
 

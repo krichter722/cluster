@@ -2,7 +2,7 @@ MAINTAINERCLEANFILES	= Makefile.in
 
 dist_doc_DATA		= 99cluster.ldif example.ldif
 
-AM_CFLAGS		= -fPIC
+AM_CFLAGS		= -fPIC $(corosync_CFLAGS)
 
 AM_LDFLAGS		= -lldap
 
