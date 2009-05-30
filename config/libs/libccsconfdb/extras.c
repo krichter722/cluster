@@ -1,4 +1,4 @@
-#include "config.h"
+#include "clusterautoconfig.h"
 
 #include <ctype.h>
 #include <errno.h>

@@ -9,7 +9,7 @@ LT_INIT
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([config/plugins/xml/config.c])
-AC_CONFIG_HEADERS([make/config.h])
+AC_CONFIG_HEADERS([make/clusterautoconfig.h])
 
 AC_CANONICAL_HOST
 

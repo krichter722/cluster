@@ -1,4 +1,4 @@
-#include "config.h"
+#include "clusterautoconfig.h"
 
 #include <sys/types.h>
 #include <sys/un.h>

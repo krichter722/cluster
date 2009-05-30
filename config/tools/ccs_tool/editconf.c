@@ -1,4 +1,4 @@
-#include "config.h"
+#include "clusterautoconfig.h"
 
 #include <stdlib.h>
 #include <stdio.h>

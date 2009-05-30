@@ -1,5 +1,5 @@
 /* test client */
-#include "config.h"
+#include "clusterautoconfig.h"
 
 #include <sys/types.h>
 #include <sys/socket.h>

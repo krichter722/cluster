@@ -1,4 +1,4 @@
-#include "config.h"
+#include "clusterautoconfig.h"
 
 #include <netinet/in.h>
 #include <inttypes.h>

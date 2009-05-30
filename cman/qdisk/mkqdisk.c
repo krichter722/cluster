@@ -2,7 +2,7 @@
   @file Quorum disk utility
  */
 
-#include "config.h"
+#include "clusterautoconfig.h"
 
 #include <stdio.h>
 #include <stdlib.h>

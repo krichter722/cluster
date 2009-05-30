@@ -1,4 +1,4 @@
-#include "config.h"
+#include "clusterautoconfig.h"
 
 #include <inttypes.h>
 #include <unistd.h>

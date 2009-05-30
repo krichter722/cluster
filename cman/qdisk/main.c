@@ -2,7 +2,7 @@
   @file Main loop / functions for disk-based quorum daemon.
  */
 
-#include "config.h"
+#include "clusterautoconfig.h"
 
 #define SYSLOG_NAMES
 #include <stdio.h>

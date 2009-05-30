@@ -1,7 +1,7 @@
 /** @file
  * Bitmap and membership mask handling routines.
  */
-#include "config.h"
+#include "clusterautoconfig.h"
 
 #include <stdint.h>
 

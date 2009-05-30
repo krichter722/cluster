@@ -1,4 +1,4 @@
-#include "config.h"
+#include "clusterautoconfig.h"
 
 #ifndef COROSYNC_BSD
 #include <alloca.h>

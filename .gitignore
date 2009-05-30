@@ -6,7 +6,7 @@
 *.pc
 *.la
 *.lo
-make/config.h*
+make/clusterautoconfig.h*
 make/stamp-h1
 Makefile.in
 Makefile

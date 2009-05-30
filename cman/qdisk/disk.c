@@ -12,7 +12,7 @@
  * copy is performed along with the IO operation itself.
  */
 
-#include "config.h"
+#include "clusterautoconfig.h"
 
 #include <stdio.h>
 #include <stdlib.h>

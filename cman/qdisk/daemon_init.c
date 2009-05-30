@@ -11,7 +11,7 @@
  *       Also need to add file locking for the pid file.
  */
 
-#include "config.h"
+#include "clusterautoconfig.h"
 
 #include <stdio.h>
 #include <stdlib.h>

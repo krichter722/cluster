@@ -1,4 +1,4 @@
-#include "config.h"
+#include "clusterautoconfig.h"
 
 /* "sysman" client */
 #include <sys/types.h>

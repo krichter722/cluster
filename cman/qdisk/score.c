@@ -2,7 +2,7 @@
   @file Quorum daemon scoring functions + thread.
  */
 
-#include "config.h"
+#include "clusterautoconfig.h"
 
 #include <stdio.h>
 #include <stdlib.h>

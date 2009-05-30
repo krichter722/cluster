@@ -11,7 +11,7 @@
    Any command passed to it will be run as root!
 
 */
-#include "config.h"
+#include "clusterautoconfig.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>

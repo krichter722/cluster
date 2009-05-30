@@ -2,7 +2,7 @@
   @file Quorum disk /proc/partition scanning functions
  */
 
-#include "config.h"
+#include "clusterautoconfig.h"
 
 #include <stdio.h>
 #include <stdlib.h>
