@@ -12,6 +12,7 @@ AC_CONFIG_SRCDIR([config/plugins/xml/config.c])
 AC_CONFIG_HEADERS([make/clusterautoconfig.h])
 
 AC_CANONICAL_HOST
+AC_PROG_LIBTOOL
 
 AC_LANG([C])
 
