@@ -31,7 +31,7 @@ if test "$prefix" = "NONE"; then
 			libdir="/usr/lib64"
 		else
 			libdir="/usr/lib"
-		fi	
+		fi
 	fi
 fi
 
