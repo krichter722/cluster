@@ -182,7 +182,6 @@ cman_handle_t cman_init (
 
 	cman_inst->privdata = privdata;
 	cman_inst->magic = CMAN_MAGIC;
-	cman_inst->handle = handle;
 	cman_inst->cfg_handle = (corosync_cfg_handle_t)NULL;
 	cman_inst->voteq_handle = (votequorum_handle_t)NULL;
 
