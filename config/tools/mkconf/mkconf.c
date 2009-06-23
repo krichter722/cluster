@@ -161,9 +161,9 @@ int main(int argc, char *argv[])
 	int use_ip_addrs=0;
 	int config_version = 0;
 	char *cluster_name = NULL;
-	char *fence_type = "default";
-	char *fence_param = "ipaddr";
-	char *fence_agent = "fence_manual";
+	const char *fence_type = "default";
+	const char *fence_param = "ipaddr";
+	const char *fence_agent = "fence_manual";
 
 	/* Parse options... */
 	do {
