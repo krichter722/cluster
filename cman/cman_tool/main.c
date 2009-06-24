@@ -321,6 +321,8 @@ static void print_node(commandline_t *comline, cman_handle_t h, int *format, str
 {
 	char member_type;
 	int i,j,k;
+	int numaddrs;
+	struct cman_node_address addrs[MAX_INTERFACES];
 
 	if (comline->num_nodenames > 0) {
 		if (node_filter(comline, node->cn_name) == 0) {
@@ -348,8 +350,6 @@ static void print_node(commandline_t *comline, cman_handle_t h, int *format, str
 		       node->cn_nodeid, member_type,
 		       node->cn_name);
 	}
-	int numaddrs;
-	struct cman_node_address addrs[MAX_INTERFACES];
 
 	if (comline->addresses_opt || comline->format_opts) {
 		if (!cman_get_node_addrs(h, node->cn_nodeid, MAX_INTERFACES, &numaddrs, addrs) &&

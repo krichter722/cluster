@@ -220,24 +220,24 @@ int main(int argc, char *argv[])
 		    case LOCAL_RENDEZVOUS:
 		    {
 			struct sockaddr_un socka;
-			struct read_fd *newfd;
+			struct read_fd *rendfd;
 			socklen_t sl = sizeof(socka);
 			int client_fd = accept(local_sock, (struct sockaddr *)&socka, &sl);
 
 			if (client_fd >= 0)
 			{
-			    newfd = malloc(sizeof(struct read_fd));
-			    if (!newfd)
+			    rendfd = malloc(sizeof(struct read_fd));
+			    if (!rendfd)
 			    {
 				close(client_fd);
 				break;
 			    }
-			    newfd->fd    = client_fd;
-			    newfd->type  = LOCAL_SOCK;
-			    newfd->next  = thisfd->next;
-			    newfd->nodes_done = 0;
-			    newfd->start_time = time(NULL);
-			    thisfd->next = newfd;
+			    rendfd->fd    = client_fd;
+			    rendfd->type  = LOCAL_SOCK;
+			    rendfd->next  = thisfd->next;
+			    rendfd->nodes_done = 0;
+			    rendfd->start_time = time(NULL);
+			    thisfd->next = rendfd;
 			}
 		    }
 		    break;
@@ -442,7 +442,7 @@ static void remove_sock(struct read_fd *deadfd)
 
 static int exec_command(char *cmd, char *reply, int *len)
 {
-    FILE *pipe;
+    FILE *exec_pipe;
     int readlen;
     int avail = PIPE_BUF-sizeof(struct sysman_header)-1;
     char realcmd[strlen(cmd)+25];
@@ -451,12 +451,12 @@ static int exec_command(char *cmd, char *reply, int *len)
     snprintf(realcmd, sizeof(realcmd), "%s </dev/null 2>&1", cmd);
 
     *len = 0;
-    pipe = popen(realcmd, "r");
+    exec_pipe = popen(realcmd, "r");
 
     /* Fill the buffer as full as possible */
     do
     {
-	readlen = fread(reply + *len, 1, avail, pipe);
+	readlen = fread(reply + *len, 1, avail, exec_pipe);
 	if (readlen > 0)
 	{
 	    *len += readlen;
@@ -468,5 +468,5 @@ static int exec_command(char *cmd, char *reply, int *len)
     reply[*len] ='\0';
 
     /* Return completion status of command */
-    return pclose(pipe);
+    return pclose(exec_pipe);
 }

@@ -377,12 +377,12 @@ static void cman_confchg_fn(enum totem_configuration_type configuration_type,
 }
 
 
-static void cman_deliver_fn(unsigned int nodeid, const void *buf, unsigned int buf_len,
+static void cman_deliver_fn(unsigned int nodeid, const void *msg, unsigned int buf_len,
 			    int endian_conversion_required)
 {
-	const struct cman_protheader *inheader = buf;
+	const struct cman_protheader *inheader = msg;
 	struct cman_protheader header;
-	const char *charbuf = buf;
+	const char *buf = msg;
 
 	if (endian_conversion_required) {
 		header.srcid = swab32(inheader->srcid);
@@ -414,14 +414,14 @@ static void cman_deliver_fn(unsigned int nodeid, const void *buf, unsigned int b
 		buf += sizeof(struct cman_protheader);
 		node = find_node(header.tgtid, 1);
 
-		switch (*charbuf) {
+		switch (*buf) {
 		case CLUSTER_MSG_PORTOPENED:
 			if (node) {
 				if (!(node->flags & NODE_FLAG_PORTS_VALID)) {
 					char reqmsg = CLUSTER_MSG_PORTENQ;
 					cman_send_message(0,0, nodeid, &reqmsg, 1);
 				}
-				set_port_bit(node, charbuf[2]);
+				set_port_bit(node, buf[2]);
 			}
 			break;
 		case CLUSTER_MSG_PORTCLOSED:
@@ -430,7 +430,7 @@ static void cman_deliver_fn(unsigned int nodeid, const void *buf, unsigned int b
 					char reqmsg = CLUSTER_MSG_PORTENQ;
 					cman_send_message(0,0, nodeid, &reqmsg, 1);
 				}
-				clear_port_bit(node, charbuf[2]);
+				clear_port_bit(node, buf[2]);
 			}
 			break;
 		case CLUSTER_MSG_PORTENQ:

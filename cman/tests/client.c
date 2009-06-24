@@ -20,13 +20,13 @@
 static cman_handle_t handle;
 static void get_members(void);
 
-static void event_callback(cman_handle_t handle, void *private, int reason, int arg)
+static void event_callback(cman_handle_t callback_handle, void *private, int reason, int arg)
 {
 	get_members();
 }
 
 
-static void data_callback(cman_handle_t handle, void *private,
+static void data_callback(cman_handle_t callback_handle, void *private,
 			  char *buf, int len, uint8_t port, int nodeid)
 {
 	printf("Received from node %d port %d: '%s'\n", nodeid, port, buf);
