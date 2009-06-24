@@ -757,7 +757,8 @@ int cman_dispatch (
 		dispatch_types != CS_DISPATCH_ALL &&
 		dispatch_types != CS_DISPATCH_BLOCKING) {
 
-		return (CS_ERR_INVALID_PARAM);
+		errno = EINVAL;
+		return -1;
 	}
 
 	cman_inst = (struct cman_inst *)handle;
@@ -787,9 +788,10 @@ int cman_dispatch (
 		}
 		if (dispatch_avail == -1) {
 			if (cman_inst->finalize == 1) {
-				error = CS_OK;
+				error = 0;
 			} else {
-				error = CS_ERR_LIBRARY;
+				errno = EINVAL;
+				error = -1;
 			}
 			goto error_put;
 		}
@@ -814,7 +816,8 @@ int cman_dispatch (
 			break;
 
 		default:
-			error = CS_ERR_LIBRARY;
+			error = -1;
+			errno = EINVAL;
 			goto error_put;
 			break;
 		}
@@ -954,7 +957,8 @@ int cman_set_version(cman_handle_t handle, const cman_version_t *version)
 	}
 
 	if (confdb_reload(confdb_handle, 0, error, sizeof(error)) != CS_OK) {
-		ret = EINVAL;
+		errno = EINVAL;
+		ret = -1;
 	}
 
 	confdb_finalize(confdb_handle);
