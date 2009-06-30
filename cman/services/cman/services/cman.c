@@ -149,6 +149,7 @@ static struct corosync_service_engine cman_service_handler = {
 	.exec_init_fn				= cman_exec_init_fn,
 	.exec_engine				= NULL,
 	.exec_engine_count		        = 0,
+	.sync_mode				= CS_SYNC_V1,
 };
 
 /*
