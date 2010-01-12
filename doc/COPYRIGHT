@@ -1,23 +1,23 @@
 Unless specified otherwise in the "exceptions section" below:
 
 Copyright (C) 1997-2003 Sistina Software, Inc.  All rights reserved.
-Copyright (C) 2004-2009 Red Hat, Inc.  All rights reserved.
+Copyright (C) 2004-2010 Red Hat, Inc.  All rights reserved.
 
 Exceptions:
 
 cman/qdisk/crc32.c:
  Copyright (C) 2000 Bryan Call <bc at fodder.org>
  Modified by Lon H. Hohberger <lhh at redhat.com>
- Copyright (C) 2003-2009 Red Hat, Inc.  All rights reserved.
+ Copyright (C) 2003-2010 Red Hat, Inc.  All rights reserved.
 
 cman/qdisk/daemon_init.c:
  Copyright (C) 2000 Mission Critical Linux
- Copyright (C) 2002-2009 Red Hat, Inc.  All rights reserved.
+ Copyright (C) 2002-2010 Red Hat, Inc.  All rights reserved.
  Author: Jeff Moyer <jmoyer at redhat.com>
 
 cman/qdisk/disk.c:
  Copyright (C) 2000 Mission Critical Linux
- Copyright (C) 2002-2009 Red Hat, Inc.  All rights reserved.
+ Copyright (C) 2002-2010 Red Hat, Inc.  All rights reserved.
  Author: Tim Burke <tburke at redhat.com>
 
 cman/qdisk/scandisk.{c,h}:
