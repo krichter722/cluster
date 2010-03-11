@@ -13,11 +13,16 @@ cmannotifyd_SOURCES	= main.c
 cmannotifyd_CPPFLAGS	= -D_GNU_SOURCE \
 			  -I$(top_srcdir)/common/liblogthread/ \
 			  -I$(top_srcdir)/config/libs/libccsconfdb/ \
-			  -I$(top_srcdir)/cman/services/cman/lib/
+			  $(cfg_CFLAGS)	\
+			  $(quorum_CFLAGS)	\
+			  $(confdb_CFLAGS)
+
 
 cmannotifyd_LDADD	= $(top_builddir)/common/liblogthread/liblogthread.la \
 			  $(top_builddir)/config/libs/libccsconfdb/libccs.la \
-			  $(top_builddir)/cman/services/cman/lib/libcman.la
+			  $(cfg_LIBS) \
+			  $(quorum_LIBS) \
+			  $(confdb_LIBS)
 
 $(notifyscript): $(notifyscript).in
 	cat $^ | sed \
