@@ -51,12 +51,10 @@ static void quorum_notification_callback (
         uint32_t view_list_entries,
         uint32_t *view_list);
 
-static void confdb_object_create_callback (
+static void confdb_reload_callback (
         confdb_handle_t handle,
-        hdb_handle_t parent_object_handle,
-        hdb_handle_t object_handle,
-        const void *name_pt,
-        size_t name_len);
+	confdb_reload_type_t type);
+
 
 static corosync_cfg_callbacks_t cfg_callbacks =
 {
@@ -71,7 +69,7 @@ static quorum_callbacks_t quorum_callbacks =
 
 static confdb_callbacks_t confdb_callbacks =
 {
-	.confdb_object_create_change_notify_fn = confdb_object_create_callback
+	.confdb_reload_notify_fn = confdb_reload_callback
 };
 
 
@@ -256,7 +254,7 @@ static void init_logging(int reconf)
 		logt_conf("cmannotifyd", mode, syslog_facility, syslog_priority, logfile_priority, logfile);
 }
 
-static void dispatch_notification(const char *str, int *quorum)
+static void dispatch_notification(const char *str, uint32_t quorum)
 {
 	char *envp[MAX_ARGS];
 	char *argv[MAX_ARGS];
@@ -275,7 +273,7 @@ static void dispatch_notification(const char *str, int *quorum)
 	envp[envptr++] = strdup(scratch);
 
 	if (quorum) {
-		snprintf(scratch, sizeof(scratch), "CMAN_NOTIFICATION_QUORUM=%d", *quorum);
+		snprintf(scratch, sizeof(scratch), "CMAN_NOTIFICATION_QUORUM=%d", quorum);
 		envp[envptr++] = strdup(scratch);
 	}
 
@@ -347,15 +345,12 @@ static void quorum_notification_callback(quorum_handle_t handle,
 	dispatch_notification("CMAN_REASON_STATECHANGE", quorate);
 }
 
-static void confdb_object_create_callback(confdb_handle_t handle,
-					  hdb_handle_t parent_object_handle,
-					  hdb_handle_t object_handle,
-					  const void *name_pt,
-					  size_t name_len)
+static void confdb_reload_callback (
+        confdb_handle_t handle,
+	confdb_reload_type_t type)
 {
-	logt_print(LOG_DEBUG,
-		   "Received a config update notification\n");
-	init_logging(1);
+        logt_print(LOG_DEBUG,
+		   "Received a config reload notification, type=%d\n", type);
 	dispatch_notification("CMAN_REASON_CONFIG_UPDATE", 0);
 }
 
@@ -364,23 +359,23 @@ static void byebye_corosync(void)
 	if (cfg_handle)
 	{
 		corosync_cfg_finalize(cfg_handle);
-		cfg_handle = NULL;
+		cfg_handle = 0LL;
 	}
 	if (quorum_handle)
 	{
 		quorum_finalize(quorum_handle);
-		quorum_handle = NULL;
+		quorum_handle = 0LL;
 	}
 	if (confdb_handle)
 	{
 		confdb_finalize(confdb_handle);
-		confdb_handle = NULL;
+		confdb_handle = 0LL;
 	}
 }
 
 static void setup_corosync(int forever)
 {
-	int init = 0, active = 0;
+	int init = 0;
 	cs_error_t cs_err;
 
 retry_init:
@@ -402,7 +397,7 @@ retry_init:
 		cs_err = confdb_initialize(&confdb_handle, &confdb_callbacks);
 		if (cs_err != CS_OK)
 			goto init_fail;
-		// TODO track changes
+		cs_err = confdb_track_changes(confdb_handle, OBJECT_PARENT_HANDLE, CONFDB_TRACK_DEPTH_ONE);
 	}
 	goto out_ok;
 
@@ -420,7 +415,7 @@ init_fail:
 out:
 	byebye_corosync();
 out_ok:
-	exit(EXIT_SUCCESS);
+	return;
 }
 
 static void loop(void)
@@ -446,45 +441,38 @@ static void loop(void)
 			goto out;
 
 		if (select_result == -1) {
-			logt_print(LOG_CRIT, "Unable to select on cman_fd: %s\n", strerror(errno));
+			logt_print(LOG_CRIT, "Unable to select on corosync fds: %s\n", strerror(errno));
 			byebye_corosync();
-			exit(EXIT_FAILURE);
+			logt_print(LOG_DEBUG, "waiting for corosync to reappear..\n");
+			setup_corosync(1);
+			logt_print(LOG_DEBUG, "corosync is back..\n");
 		}
 
 		if (FD_ISSET(cfg_fd, &read_fds)) {
-			cs_result = CS_OK;
-			while (cs_result == CS_OK) {
-				cs_result = corosync_cfg_dispatch(cfg_handle, CS_DISPATCH_ONE);
-				if (cs_result != CS_OK) {
-					byebye_corosync();
-					logt_print(LOG_DEBUG, "waiting for corosync to reappear..\n");
-					setup_corosync(1);
-					logt_print(LOG_DEBUG, "corosync is back..\n");
-				}
+		        cs_result = corosync_cfg_dispatch(cfg_handle, CS_DISPATCH_ONE);
+			if (cs_result != CS_OK) {
+			        byebye_corosync();
+				logt_print(LOG_DEBUG, "waiting for corosync to reappear..\n");
+				setup_corosync(1);
+				logt_print(LOG_DEBUG, "corosync is back..\n");
 			}
 		}
 		if (FD_ISSET(confdb_fd, &read_fds)) {
-			cs_result = CS_OK;
-			while (cs_result == CS_OK) {
-				cs_result = confdb_dispatch(confdb_handle, CS_DISPATCH_ONE);
-				if (cs_result != CS_OK) {
-					byebye_corosync();
-					logt_print(LOG_DEBUG, "waiting for corosync to reappear..\n");
-					setup_corosync(1);
-					logt_print(LOG_DEBUG, "corosync is back..\n");
-				}
+		        cs_result = confdb_dispatch(confdb_handle, CS_DISPATCH_ONE);
+			if (cs_result != CS_OK) {
+			        byebye_corosync();
+				logt_print(LOG_DEBUG, "waiting for corosync to reappear..\n");
+				setup_corosync(1);
+				logt_print(LOG_DEBUG, "corosync is back..\n");
 			}
 		}
 		if (FD_ISSET(quorum_fd, &read_fds)) {
-			cs_result = CS_OK;
-			while (cs_result == CS_OK) {
-				cs_result = quorum_dispatch(quorum_handle, CS_DISPATCH_ONE);
-				if (cs_result != CS_OK) {
-					byebye_corosync();
-					logt_print(LOG_DEBUG, "waiting for corosync to reappear..\n");
-					setup_corosync(1);
-					logt_print(LOG_DEBUG, "corosync is back..\n");
-				}
+		        cs_result = quorum_dispatch(quorum_handle, CS_DISPATCH_ONE);
+			if (cs_result != CS_OK) {
+			        byebye_corosync();
+				logt_print(LOG_DEBUG, "waiting for corosync to reappear..\n");
+				setup_corosync(1);
+				logt_print(LOG_DEBUG, "corosync is back..\n");
 			}
 		}
 	} while (select_result && !daemon_quit);
