@@ -148,8 +148,16 @@ int name_to_nodeid(char *name)
 
 static void update_cluster(void)
 {
+	cman_cluster_t info;
 	int quorate = cluster_quorate;
 	int i, rv;
+
+	rv = cman_get_cluster(ch, &info);
+	if (rv < 0) {
+		log_error("cman_get_cluster error %d %d", rv, errno);
+		return;
+	}
+	cluster_ringid_seq = info.ci_generation;
 
 	cluster_quorate = cman_is_quorate(ch);
 
@@ -171,8 +179,8 @@ static void update_cluster(void)
 		if (old_nodes[i].cn_member &&
 		    !is_cluster_member(old_nodes[i].cn_nodeid)) {
 
-			log_debug("cluster node %d removed",
-				  old_nodes[i].cn_nodeid);
+			log_debug("cluster node %d removed seq %u",
+				  old_nodes[i].cn_nodeid, cluster_ringid_seq);
 
 			node_history_cluster_remove(old_nodes[i].cn_nodeid);
 		}
@@ -182,8 +190,8 @@ static void update_cluster(void)
 		if (cman_nodes[i].cn_member &&
 		    !is_old_member(cman_nodes[i].cn_nodeid)) {
 
-			log_debug("cluster node %d added",
-				  cman_nodes[i].cn_nodeid);
+			log_debug("cluster node %d added seq %u",
+				  cman_nodes[i].cn_nodeid, cluster_ringid_seq);
 
 			node_history_cluster_add(cman_nodes[i].cn_nodeid);
 		}
