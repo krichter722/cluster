@@ -1809,6 +1809,7 @@ handle_relocate_req(char *svcName, int orig_request, int preferred_target,
 	rg_state_t svcStatus;
 	int target = preferred_target, me = my_id();
 	int ret, x, request = orig_request;
+	int retries;
 	
 	get_rg_state_local(svcName, &svcStatus);
 	if (svcStatus.rs_state == RG_STATE_DISABLED ||
@@ -1941,6 +1942,8 @@ handle_relocate_req(char *svcName, int orig_request, int preferred_target,
 		if (target == me)
 			goto exhausted;
 
+		retries = 0;
+retry:
 		ret = svc_start_remote(svcName, request, target);
 		switch (ret) {
 		case RG_ERUN:
@@ -1950,6 +1953,22 @@ handle_relocate_req(char *svcName, int orig_request, int preferred_target,
 			*new_owner = svcStatus.rs_owner;
 			free_member_list(allowed_nodes);
 			return 0;
+		case RG_ENOSERVICE:
+			/*
+			 * Configuration update pending on remote node?  Give it
+			 * a few seconds to sync up.  rhbz#568126
+			 *
+			 * Configuration updates are synchronized in later releases
+			 * of rgmanager; this should not be needed.
+			 */
+			if (retries++ < 4) {
+				sleep(3);
+				goto retry;
+			}
+			logt_print(LOG_WARNING, "Member #%d has a different "
+				   "configuration than I do; trying next "
+				   "member.", target);
+			/* Deliberate */
 		case RG_EDEPEND:
 		case RG_EFAIL:
 			/* Uh oh - we failed to relocate to this node.
