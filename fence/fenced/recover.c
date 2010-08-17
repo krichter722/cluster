@@ -181,13 +181,16 @@ void delay_fencing(struct fd *fd, int node_join)
 	if (list_empty(&fd->victims))
 		return;
 
-	if (node_join) {
+	if (node_join || cluster_quorate_from_last_update) {
 		delay = cfgd_post_join_delay;
 		delay_type = "post_join_delay";
 	} else {
 		delay = cfgd_post_fail_delay;
 		delay_type = "post_fail_delay";
 	}
+
+	log_debug("delay %s %d quorate_from_last_update %d",
+		  delay_type, delay, cluster_quorate_from_last_update);
 
 	if (delay == 0)
 		goto out;

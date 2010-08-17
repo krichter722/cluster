@@ -64,6 +64,7 @@ extern int daemon_quit;
 extern int cluster_down;
 extern struct list_head domains;
 extern int cluster_quorate;
+extern int cluster_quorate_from_last_update;
 extern uint32_t cluster_ringid_seq;
 extern uint64_t quorate_time;
 extern int our_nodeid;

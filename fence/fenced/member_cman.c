@@ -150,6 +150,7 @@ static void update_cluster(void)
 {
 	cman_cluster_t info;
 	int quorate = cluster_quorate;
+	int removed = 0, added = 0;
 	int i, rv;
 
 	rv = cman_get_cluster(ch, &info);
@@ -183,6 +184,7 @@ static void update_cluster(void)
 				  old_nodes[i].cn_nodeid, cluster_ringid_seq);
 
 			node_history_cluster_remove(old_nodes[i].cn_nodeid);
+			removed++;
 		}
 	}
 
@@ -194,7 +196,17 @@ static void update_cluster(void)
 				  cman_nodes[i].cn_nodeid, cluster_ringid_seq);
 
 			node_history_cluster_add(cman_nodes[i].cn_nodeid);
+			added++;
 		}
+	}
+
+	if (removed) {
+		cluster_quorate_from_last_update = 0;
+	} else if (added) {
+		if (!quorate && cluster_quorate)
+			cluster_quorate_from_last_update = 1;
+		else
+			cluster_quorate_from_last_update = 0;
 	}
 }
 
