@@ -23,12 +23,6 @@ fenceprojecttar=$(fenceprojectver).tar
 fenceprojectgz=$(fenceprojecttar).gz
 fenceprojectbz=$(fenceprojecttar).bz2
 
-rasproject=resource-agents
-rasprojectver=$(rasproject)-$(version)
-rasprojecttar=$(rasprojectver).tar
-rasprojectgz=$(rasprojecttar).gz
-rasprojectbz=$(rasprojecttar).bz2
-
 rgmproject=rgmanager
 rgmprojectver=$(rgmproject)-$(version)
 rgmprojecttar=$(rgmprojectver).tar
@@ -87,9 +81,6 @@ tarballs: $(releasearea)/$(projectbz)
 tarballs: $(releasearea)/$(fenceprojecttar)
 tarballs: $(releasearea)/$(fenceprojectgz)
 tarballs: $(releasearea)/$(fenceprojectbz)
-tarballs: $(releasearea)/$(rasprojecttar)
-tarballs: $(releasearea)/$(rasprojectgz)
-tarballs: $(releasearea)/$(rasprojectbz)
 tarballs: $(releasearea)/$(rgmprojecttar)
 tarballs: $(releasearea)/$(rgmprojectgz)
 tarballs: $(releasearea)/$(rgmprojectbz)
@@ -122,23 +113,6 @@ $(releasearea)/$(fenceprojecttar): $(releasearea)/$(projecttar)
 	cd .. && \
 	tar cpf $(fenceprojecttar) $(fenceprojectver) && \
 	rm -rf $(fenceprojectver)
-
-$(releasearea)/$(rasprojecttar): $(releasearea)/$(projecttar)
-	@echo Creating $(rasproject) tarball
-	cd $(releasearea) && \
-	rm -rf $(projectver) $(rasprojectver) && \
-	tar xpf $(projecttar) && \
-	mv $(projectver) $(rasprojectver) && \
-	cd $(rasprojectver) && \
-	rm -rf bindings cman common config contrib dlm fence \
-		group rgmanager/ChangeLog rgmanager/errors.txt \
-		rgmanager/event-script.txt rgmanager/examples \
-		rgmanager/include rgmanager/init.d rgmanager/man \
-		rgmanager/README rgmanager/src/clulib \
-		rgmanager/src/daemons rgmanager/src/utils && \
-	cd .. && \
-	tar cpf $(rasprojecttar) $(rasprojectver) && \
-	rm -rf $(rasprojectver)
 
 $(releasearea)/$(rgmprojecttar): $(releasearea)/$(projecttar)
 	@echo Creating $(rgmproject) tarball
