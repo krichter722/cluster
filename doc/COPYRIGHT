@@ -60,25 +60,6 @@ fence/man/fence_ifmib.8:
  Copyright (C) 2008-2010 Ross Vandegrift.
  Written by Ross Vandegrift <ross at kallisti.us>
 
-gfs/man/gfs_mount.8:
- Portions copyright (C) 2001-2003 The OpenGFS Project
- Portions copyright (C) 2004 <ben.m.cahill at intel.com>
- Copyright (C) 2004-2010 Red Hat, Inc.  All rights reserved.
-
-gfs2/man/gfs2_mount.8:
- Portions copyright (C) 2001-2003 The OpenGFS2 Project
- Portions copyright (C) 2004 <ben.m.cahill at intel.com>
- Copyright (C) 2004-2010 Red Hat, Inc.  All rights reserved.
-
-gfs-kernel/src/gfs/fixed_div64.h:
- Copyright (c) 2000-2003 Silicon Graphics, Inc.  All Rights Reserved.
-  Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
-  Mountain View, CA  94043, or:
-  http://www.sgi.com
-  For further information regarding this notice, see:
-  http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
- Copyright (C) 2004-2010 Red Hat, Inc.  All rights reserved.
-
 From rgmanager/AUTHORS:
 
 Lon Hohberger           lhh at redhat.com

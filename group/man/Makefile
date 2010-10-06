@@ -1,9 +1,6 @@
 MANTARGET= \
 	dlm_controld.8 \
 	dlm_controld.pcmk.8 \
-	gfs_controld.8 \
-	gfs_controld.pcmk.8 \
-	gfs_control.8 \
 	group_tool.8 \
 	groupd.8
 

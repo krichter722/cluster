@@ -498,12 +498,10 @@ load_kernel_modules()
 {
 	errmsg=$( modprobe configfs 2>&1 ) || return 1
 	errmsg=$( modprobe dlm 2>&1 ) || return 1
-	errmsg=$( modprobe lock_dlm 2>&1 ) || true
 }
 
 unload_kernel_modules()
 {
-	modprobe -r lock_dlm > /dev/null 2>&1 || true
 	modprobe -r dlm > /dev/null 2>&1 || true
 }
 
@@ -667,16 +665,6 @@ stop_dlm_controld()
 	stop_daemon dlm_controld
 }
 
-start_gfs_controld()
-{
-	start_daemon gfs_controld
-}
-
-stop_gfs_controld()
-{
-	stop_daemon gfs_controld
-}
-
 start_ocfs2_controld()
 {
 	start_daemon ocfs2_controld.cman
@@ -805,10 +793,6 @@ start()
 		none \
 		"Starting dlm_controld"
 
-	runwrap start_gfs_controld \
-		none \
-		"Starting gfs_controld"
-
 	runwrap start_ocfs2_controld \
 		ocfs2_enabled \
 		"Starting ocfs2_controld"
@@ -853,10 +837,6 @@ stop()
 	runwrap leave_fence_domain \
 		fence_join_enabled \
 		"Leaving fence domain"
-
-	runwrap stop_gfs_controld \
-		none \
-		"Stopping gfs_controld"
 
 	runwrap stop_dlm_controld \
 		none \
@@ -927,7 +907,6 @@ cmanstatus()
 
 	errmsg=$( status fenced 2>&1 ) || return $?
 	errmsg=$( status dlm_controld 2>&1 ) || return $?
-	errmsg=$( status gfs_controld 2>&1 ) || return $?
 
 	if cmannotifyd_enabled; then
 		errmsg=$( status cmannotifyd 2>&1 ) || return $?

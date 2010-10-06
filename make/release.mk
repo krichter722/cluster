@@ -103,9 +103,6 @@ $(releasearea)/$(projecttar):
 		$(gitver) | \
 		(cd $(releasearea)/ && tar xf -)
 	cd $(releasearea) && \
-	sed -i -e \
-		's#<CVS>#$(version)#g' \
-		$(projectver)/gfs-kernel/src/gfs/gfs.h && \
 	echo "VERSION \"$(version)\"" \
 		>> $(projectver)/make/official_release_version && \
 	tar cpf $(projecttar) $(projectver) && \
@@ -118,7 +115,7 @@ $(releasearea)/$(fenceprojecttar): $(releasearea)/$(projecttar)
 	tar xpf $(projecttar) && \
 	mv $(projectver) $(fenceprojectver) && \
 	cd $(fenceprojectver) && \
-	rm -rf bindings cman common config contrib dlm gfs* group \
+	rm -rf bindings cman common config contrib dlm group \
 		rgmanager fence/fenced fence/fence_node \
 		fence/fence_tool fence/include fence/libfence \
 		fence/libfenced fence/man && \
@@ -133,7 +130,7 @@ $(releasearea)/$(rasprojecttar): $(releasearea)/$(projecttar)
 	tar xpf $(projecttar) && \
 	mv $(projectver) $(rasprojectver) && \
 	cd $(rasprojectver) && \
-	rm -rf bindings cman common config contrib dlm fence gfs* \
+	rm -rf bindings cman common config contrib dlm fence \
 		group rgmanager/ChangeLog rgmanager/errors.txt \
 		rgmanager/event-script.txt rgmanager/examples \
 		rgmanager/include rgmanager/init.d rgmanager/man \
@@ -150,7 +147,7 @@ $(releasearea)/$(rgmprojecttar): $(releasearea)/$(projecttar)
 	tar xpf $(projecttar) && \
 	mv $(projectver) $(rgmprojectver) && \
 	cd $(rgmprojectver) && \
-	rm -rf bindings cman common config contrib dlm fence gfs* group \
+	rm -rf bindings cman common config contrib dlm fence group \
 		rgmanager/src/resources && \
 	cd .. && \
 	tar cpf $(rgmprojecttar) $(rgmprojectver) && \
