@@ -47,10 +47,6 @@ ifdef UDEVT
 		install -m644 $(S)/$$i ${DESTDIR}/etc/udev/rules.d; \
 	done
 endif
-ifdef FENCEAGENTSLIB
-	install -d ${DESTDIR}/${fenceagentslibdir}
-	install -m644 ${FENCEAGENTSLIB} ${DESTDIR}/${fenceagentslibdir}
-endif
 ifdef DOCS
 	install -d ${docdir}
 	set -e; \
@@ -81,8 +77,4 @@ ifdef MANTARGET
 		install -d ${mandir}/man$$p; \
 		install -m644 $$i ${mandir}/man$$p; \
 	done
-endif
-ifdef EXTRACONFFILE
-	install -d ${DESTDIR}/${CONFDIR}
-	install -m644 ${EXTRACONFFILE} ${DESTDIR}/${CONFDIR}
 endif

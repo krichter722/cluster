@@ -57,7 +57,6 @@ uninstall:
 clean:
 	set -e && for i in ${REALSUBDIRS}; do \
 		contrib_code=1 \
-		legacy_code=1 \
 		${MAKE} -C $$i $@;\
 	done
 

@@ -17,12 +17,6 @@ projecttar=$(projectver).tar
 projectgz=$(projecttar).gz
 projectbz=$(projecttar).bz2
 
-fenceproject=fence-agents
-fenceprojectver=$(fenceproject)-$(version)
-fenceprojecttar=$(fenceprojectver).tar
-fenceprojectgz=$(fenceprojecttar).gz
-fenceprojectbz=$(fenceprojecttar).bz2
-
 rgmproject=rgmanager
 rgmprojectver=$(rgmproject)-$(version)
 rgmprojecttar=$(rgmprojectver).tar
@@ -78,9 +72,6 @@ tarballs: tag
 tarballs: $(releasearea)/$(projecttar)
 tarballs: $(releasearea)/$(projectgz)
 tarballs: $(releasearea)/$(projectbz)
-tarballs: $(releasearea)/$(fenceprojecttar)
-tarballs: $(releasearea)/$(fenceprojectgz)
-tarballs: $(releasearea)/$(fenceprojectbz)
 tarballs: $(releasearea)/$(rgmprojecttar)
 tarballs: $(releasearea)/$(rgmprojectgz)
 tarballs: $(releasearea)/$(rgmprojectbz)
@@ -98,21 +89,6 @@ $(releasearea)/$(projecttar):
 		>> $(projectver)/make/official_release_version && \
 	tar cpf $(projecttar) $(projectver) && \
 	rm -rf $(projectver)
-
-$(releasearea)/$(fenceprojecttar): $(releasearea)/$(projecttar)
-	@echo Creating $(fenceproject) tarball
-	cd $(releasearea) && \
-	rm -rf $(projectver) $(fenceprojectver) && \
-	tar xpf $(projecttar) && \
-	mv $(projectver) $(fenceprojectver) && \
-	cd $(fenceprojectver) && \
-	rm -rf bindings cman common config contrib dlm group \
-		rgmanager fence/fenced fence/fence_node \
-		fence/fence_tool fence/include fence/libfence \
-		fence/libfenced fence/man && \
-	cd .. && \
-	tar cpf $(fenceprojecttar) $(fenceprojectver) && \
-	rm -rf $(fenceprojectver)
 
 $(releasearea)/$(rgmprojecttar): $(releasearea)/$(projecttar)
 	@echo Creating $(rgmproject) tarball

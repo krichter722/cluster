@@ -26,9 +26,6 @@ endif
 ifdef UDEVT
 	${UNINSTALL} ${UDEVT} ${DESTDIR}/etc/udev/rules.d
 endif
-ifdef FENCEAGENTSLIB
-	${UNINSTALL} ${FENCEAGENTSLIB}* ${DESTDIR}/${fenceagentslibdir}
-endif
 ifdef DOCS
 	${UNINSTALL} ${DOCS} ${docdir}
 endif
@@ -50,7 +47,4 @@ ifdef MANTARGET
 		p=`echo $$i | sed -e 's#.*\.##g'`; \
 		${UNINSTALL} $$i ${mandir}/man$$p; \
 	done
-endif
-ifdef EXTRACONFFILE
-	${UNINSTALL} ${EXTRACONFFILE} ${DESTDIR}/${CONFDIR}
 endif
