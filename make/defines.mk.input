@@ -75,7 +75,6 @@ without_dlm ?= @DISABLE_DLM@
 without_group ?= @DISABLE_GROUP@
 without_fence ?= @DISABLE_FENCE@
 without_rgmanager ?= @DISABLE_RGMANAGER@
-without_resource_agents ?= @DISABLE_RESOURCE_AGENTS@
 without_bindings ?= @DISABLE_BINDINGS@
 
 THISDIR = $(shell echo $(CURDIR) | sed -e 's|$(OBJDIR)/||g')
