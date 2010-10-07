@@ -29,6 +29,13 @@
 
 #define MAX_PATH_LEN PATH_MAX
 
+enum tx_mech {
+	TX_MECH_UDP,
+	TX_MECH_UDPB,
+	TX_MECH_UDPU,
+	TX_MECH_RDMA,
+};
+
 static unsigned int debug;
 static int cmanpre_readconfig(struct objdb_iface_ver0 *objdb, const char **error_string);
 static int cmanpre_reloadconfig(struct objdb_iface_ver0 *objdb, int flush, const char **error_string);
@@ -219,8 +226,57 @@ static hdb_handle_t find_cman_logger(struct objdb_iface_ver0 *objdb, hdb_handle_
 
 }
 
+static int add_udpu_members(struct objdb_iface_ver0 *objdb, hdb_handle_t interface_object_handle)
+{
+	char *cur_nodename;
+	hdb_handle_t altname_handle;
+	hdb_handle_t find_handle = 0;
+	hdb_handle_t find_handle2 = 0;
+	hdb_handle_t member_object_handle;
+	hdb_handle_t nodes_handle;
+	int cur_altname_depth;
 
-static int add_ifaddr(struct objdb_iface_ver0 *objdb, char *mcast, char *ifaddr, int port, int broadcast)
+	nodes_handle = nodeslist_init(objdb, cluster_parent_handle, &find_handle);
+	while (nodes_handle) {
+		if (num_interfaces == 0) {
+			if (objdb_get_string(objdb, nodes_handle, "name", &cur_nodename)) {
+				nodes_handle = nodeslist_next(objdb, find_handle);
+				continue;
+			}
+		} else {
+			objdb->object_find_create(nodes_handle, "altname", strlen("altname"), &find_handle2);
+
+			cur_altname_depth = 0;
+			while (objdb->object_find_next(find_handle2, &altname_handle) == 0 &&
+			   cur_altname_depth < num_interfaces)
+				cur_altname_depth++;
+
+			if (cur_altname_depth == num_interfaces) {
+				if (objdb_get_string(objdb, altname_handle, "name", &cur_nodename)) {
+					nodes_handle = nodeslist_next(objdb, find_handle);
+					continue;
+				}
+			} else {
+				nodes_handle = nodeslist_next(objdb, find_handle);
+				continue;
+			}
+			objdb->object_find_destroy(find_handle2);
+		}
+
+		if (objdb->object_create(interface_object_handle, &member_object_handle,
+					 "member", strlen("member")) == 0) {
+			objdb->object_key_create_typed(member_object_handle, "memberaddr",
+						       cur_nodename, strlen(cur_nodename)+1, OBJDB_VALUETYPE_STRING);
+		}
+
+		nodes_handle = nodeslist_next(objdb, find_handle);
+	}
+	objdb->object_find_destroy(find_handle);
+
+	return 0;
+}
+
+static int add_ifaddr(struct objdb_iface_ver0 *objdb, char *mcast, char *ifaddr, int port, enum tx_mech transport)
 {
 	hdb_handle_t totem_object_handle;
 	hdb_handle_t find_handle;
@@ -228,6 +284,12 @@ static int add_ifaddr(struct objdb_iface_ver0 *objdb, char *mcast, char *ifaddr,
 	struct sockaddr_storage if_addr, localhost, mcast_addr;
 	char tmp[132];
 	int ret = 0;
+	const char *tx_mech_to_str[] = {
+		[TX_MECH_UDP] = "udp",
+		[TX_MECH_UDPB] = "udp",
+		[TX_MECH_UDPU] = "udpu",
+		[TX_MECH_RDMA] = "iba",
+	};
 
 	/* Check the families match */
 	if (address_family(mcast, &mcast_addr, 0) !=
@@ -245,9 +307,10 @@ static int add_ifaddr(struct objdb_iface_ver0 *objdb, char *mcast, char *ifaddr,
 
 	objdb->object_find_create(OBJECT_PARENT_HANDLE, "totem", strlen("totem"), &find_handle);
 	if (objdb->object_find_next(find_handle, &totem_object_handle)) {
-
 		objdb->object_create(OBJECT_PARENT_HANDLE, &totem_object_handle,
 				     "totem", strlen("totem"));
+		objdb->object_key_create_typed(totem_object_handle, "transport",
+			tx_mech_to_str[transport], strlen(tx_mech_to_str[transport]) + 1, OBJDB_VALUETYPE_STRING);
         }
 	objdb->object_find_destroy(find_handle);
 
@@ -269,12 +332,22 @@ static int add_ifaddr(struct objdb_iface_ver0 *objdb, char *mcast, char *ifaddr,
 		objdb->object_key_create_typed(interface_object_handle, "bindnetaddr",
 					       tmp, strlen(tmp)+1, OBJDB_VALUETYPE_STRING);
 
-		if (broadcast)
+		switch (transport) {
+		case TX_MECH_UDPB:
 			objdb->object_key_create_typed(interface_object_handle, "broadcast",
 						       "yes", strlen("yes")+1, OBJDB_VALUETYPE_STRING);
-		else
+			break;
+		case TX_MECH_UDP:
+		case TX_MECH_RDMA:
 		        objdb->object_key_create_typed(interface_object_handle, "mcastaddr",
 						       mcast, strlen(mcast)+1, OBJDB_VALUETYPE_STRING);
+			break;
+		case TX_MECH_UDPU:
+		        objdb->object_key_create_typed(interface_object_handle, "mcastaddr",
+						       mcast, strlen(mcast)+1, OBJDB_VALUETYPE_STRING);
+			add_udpu_members(objdb, interface_object_handle);
+			break;
+		}
 
 		sprintf(tmp, "%d", port);
 		objdb->object_key_create_typed(interface_object_handle, "mcastport",
@@ -516,7 +589,7 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 	hdb_handle_t find_handle;
 	hdb_handle_t node_object_handle;
 	hdb_handle_t alt_object;
-	int broadcast = 0;
+	enum tx_mech transport = TX_MECH_UDP;
 	char *str;
 	int error;
 
@@ -621,12 +694,43 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 			mcast_name = strdup("255.255.255.255");
 			if (!mcast_name)
 				return -1;
-			broadcast = 1;
+			transport = TX_MECH_UDPB;
 		}
 		free(str);
 	}
 
-	if (add_ifaddr(objdb, mcast_name, nodename, portnum, broadcast)) {
+	/* Check for transport */
+	if (!objdb_get_string(objdb, object_handle, "transport", &str)) {
+		if (strcmp(str, "udp") == 0) {
+			if (transport != TX_MECH_UDPB) {
+				transport = TX_MECH_UDP;
+			}
+		} else if (strcmp(str, "udpb") == 0) {
+			transport = TX_MECH_UDPB;
+		} else if (strcmp(str, "udpu") == 0) {
+			if (transport != TX_MECH_UDPB) {
+				transport = TX_MECH_UDPU;
+			} else {
+				sprintf(error_reason, "Transport and broadcast option are mutually exclusive");
+				write_cman_pipe("Transport and broadcast option are mutually exclusive");
+				return -1;
+			}
+		} else if (strcmp(str, "rdma") == 0) {
+			if (transport != TX_MECH_UDPB) {
+				transport = TX_MECH_RDMA;
+			} else {
+				sprintf(error_reason, "Transport and broadcast option are mutually exclusive");
+				write_cman_pipe("Transport and broadcast option are mutually exclusive");
+				return -1;
+			}
+		} else {
+			sprintf(error_reason, "Transport option value can be one of udp, udpb, udpu, rdma");
+			write_cman_pipe("Transport option value can be one of udp, udpb, udpu, rdma");
+			return -1;
+		}
+	}
+
+	if (add_ifaddr(objdb, mcast_name, nodename, portnum, transport)) {
 		write_cman_pipe(error_reason);
 		return -1;
 	}
@@ -649,7 +753,7 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 			mcast = mcast_name;
 		}
 
-		if (add_ifaddr(objdb, mcast, node, portnum, broadcast)) {
+		if (add_ifaddr(objdb, mcast, node, portnum, transport)) {
 			write_cman_pipe(error_reason);
 			return -1;
 		}
