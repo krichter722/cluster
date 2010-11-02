@@ -58,7 +58,6 @@ ldaplibdir ?= @LDAPLIBDIR@
 zlibincdir ?= @ZLIBINCDIR@
 zliblibdir ?= @ZLIBLIBDIR@
 contrib_code ?= @ENABLE_CONTRIB@
-enable_pacemaker ?= @ENABLE_PACEMAKER@
 without_common ?= @DISABLE_COMMON@
 without_config ?= @DISABLE_CONFIG@
 without_cman ?= @DISABLE_CMAN@
