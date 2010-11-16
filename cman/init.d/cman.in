@@ -19,7 +19,7 @@
 # set secure PATH
 PATH="/bin:/usr/bin:/sbin:/usr/sbin:@SBINDIR@"
 
-local_chkconfig()
+chkconfig2()
 {
 	case "$1" in
 	--levels)
@@ -61,14 +61,15 @@ if [ -d /etc/sysconfig ]; then
 	[ -f /etc/sysconfig/cluster ] && . /etc/sysconfig/cluster
 	[ -f /etc/sysconfig/cman ] && . /etc/sysconfig/cman
 	[ -z "$LOCK_FILE" ] && LOCK_FILE="/var/lock/subsys/cman"
+	netmanager=NetworkManager
 fi
 
 # deb based distros
-if [ -d /etc/default ]; then
+if [ ! -d /etc/sysconfig ]; then
 	[ -f /etc/default/cluster ] && . /etc/default/cluster
 	[ -f /etc/default/cman ] && . /etc/default/cman
 	[ -z "$LOCK_FILE" ] && LOCK_FILE="/var/lock/cman"
-	type chkconfig > /dev/null 2>&1 || alias chkconfig=local_chkconfig
+	netmanager=network-manager
 fi
 
 # CMAN_CLUSTER_TIMEOUT -- amount of time to wait for joinging a cluster
@@ -299,7 +300,7 @@ sshd_enabled()
 network_manager_enabled()
 {
 	if status NetworkManager > /dev/null 2>&1 || \
-	   chkconfig NetworkManager; then
+	   chkconfig2 $netmanager; then
 		errmsg="\nNetwork Manager is either running or configured to run. Please disable it in the cluster."
 		return 1
 	fi
@@ -368,7 +369,7 @@ xend_bridged_net_enabled() {
 	[ -z "$current_runlevel" ] && return 1
 
 	# xend doesn't start at this runlevel.
-	! chkconfig --levels "$current_runlevel" xend 2>/dev/null && return 1
+	! chkconfig2 --levels "$current_runlevel" xend 2>/dev/null && return 1
 
 	# xend isn't configured to use bridged networking.
 	[ ! -f /etc/xen/xend-config.sxp ] && return 1
