@@ -297,6 +297,14 @@ sshd_enabled()
 	return 1
 }
 
+gfs_controld_enabled()
+{
+	if [ -f @INITDDIR@/gfs2-cluster ] && ! chkconfig2 gfs2-cluster; then
+		return 0
+	fi
+	return 1
+}
+
 network_manager_enabled()
 {
 	if status NetworkManager > /dev/null 2>&1 || \
@@ -794,6 +802,8 @@ start()
 		none \
 		"Starting dlm_controld"
 
+	gfs_controld_enabled && service gfs2-cluster start
+
 	runwrap start_ocfs2_controld \
 		ocfs2_enabled \
 		"Starting ocfs2_controld"
@@ -838,6 +848,8 @@ stop()
 	runwrap leave_fence_domain \
 		fence_join_enabled \
 		"Leaving fence domain"
+
+	gfs_controld_enabled && service gfs2-cluster stop
 
 	runwrap stop_dlm_controld \
 		none \
