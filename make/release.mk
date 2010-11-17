@@ -16,12 +16,14 @@ projectver=$(project)-$(version)
 projecttar=$(projectver).tar
 projectgz=$(projecttar).gz
 projectbz=$(projecttar).bz2
+projectxz=$(projecttar).xz
 
 rgmproject=rgmanager
 rgmprojectver=$(rgmproject)-$(version)
 rgmprojecttar=$(rgmprojectver).tar
 rgmprojectgz=$(rgmprojecttar).gz
 rgmprojectbz=$(rgmprojecttar).bz2
+rgmprojectxz=$(rgmprojecttar).xz
 
 # temp dirs
 
@@ -72,9 +74,11 @@ tarballs: tag
 tarballs: $(releasearea)/$(projecttar)
 tarballs: $(releasearea)/$(projectgz)
 tarballs: $(releasearea)/$(projectbz)
+tarballs: $(releasearea)/$(projectxz)
 tarballs: $(releasearea)/$(rgmprojecttar)
 tarballs: $(releasearea)/$(rgmprojectgz)
 tarballs: $(releasearea)/$(rgmprojectbz)
+tarballs: $(releasearea)/$(rgmprojectxz)
 
 $(releasearea)/$(projecttar):
 	@echo Creating $(project) tarball
@@ -111,6 +115,10 @@ $(releasearea)/%.bz2: $(releasearea)/%
 	@echo Creating $@
 	cat $< | bzip2 -c > $@
 
+$(releasearea)/%.xz: $(releasearea)/%
+	@echo Creating $@
+	cat $< | xz -z -9 > $@
+
 changelog: checks setup $(releasearea)/Changelog-$(version)
 
 $(releasearea)/Changelog-$(version): $(releasearea)/$(projecttar)
@@ -122,7 +130,7 @@ sha256: changelog tarballs $(releasearea)/$(projectver).sha256
 
 $(releasearea)/$(projectver).sha256: $(releasearea)/Changelog-$(version)
 	cd $(releasearea) && \
-	sha256sum Changelog-$(version) *.gz *.bz2 | sort -k2 > $@
+	sha256sum Changelog-$(version) *.gz *.bz2 *.xz | sort -k2 > $@
 
 sign: sha256 $(releasearea)/$(projectver).sha256.asc
 
