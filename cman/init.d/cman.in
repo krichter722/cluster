@@ -446,29 +446,6 @@ check_fence_opt()
 	return 1
 }
 
-fence_xvmd_standalone()
-{
-	check_fence_opt L
-}
-
-fence_xvmd_enabled()
-{
-	fence_join_enabled || return 1
-
-	#
-	# Check for presence of /cluster/fence_xvmd in cluster.conf
-	# (If -X is specified, it doesn't matter if it's in cluster.conf;
-	#  we'll start it anyway since ccsd is not required)
-	#
-	if cman_running && \
-		! check_fence_opt X; then
-			ccs_tool query /cluster/fence_xvmd \
-				> /dev/null 2>&1 || return 1
-	else
-		return 1
-	fi
-}
-
 ### the real stuff starts here
 
 start_global()
@@ -724,16 +701,6 @@ leave_fence_domain()
 	fi
 }
 
-start_fence_xvmd()
-{
-	start_daemon fence_xvmd "$FENCE_XVMD_OPTS"
-}
-
-stop_fence_xvmd()
-{
-	stop_daemon fence_xvmd
-}
-
 start()
 {
 	breakpoint="$1"
@@ -749,12 +716,6 @@ start()
 	runwrap network_manager_enabled \
 		none \
 		"Checking Network Manager"
-
-	runwrap start_fence_xvmd \
-		fence_xvmd_standalone \
-		"Starting virtual machine fencing host (standalone)"
-
-	fence_xvmd_standalone && exit 0
 
 	runwrap start_global \
 		none \
@@ -821,10 +782,6 @@ start()
 	runwrap join_fence_domain \
 		fence_join_enabled \
 		"Joining fence domain"
-
-	runwrap start_fence_xvmd \
-		fence_xvmd_enabled \
-		"Starting virtual machine fencing host"
 }
 
 stop()
@@ -834,16 +791,6 @@ stop()
 	fi
 
 	echo $echoarg "Stopping cluster: "
-
-	runwrap stop_fence_xvmd \
-		fence_xvmd_standalone \
-		"Stopping virtual machine fencing host (standalone)"
-
-	fence_xvmd_standalone && exit 0
-
-	runwrap stop_fence_xvmd \
-		fence_xvmd_enabled \
-		"Stopping virtual machine fencing host"
 
 	runwrap leave_fence_domain \
 		fence_join_enabled \
@@ -886,11 +833,6 @@ stop()
 
 cmanstatus()
 {
-	if fence_xvmd_standalone; then
-		errmsg=$( status fence_xvmd 2>&1 )
-		return $?
-	fi
-
 	errmsg=$( status corosync 2>&1 )
 	ret=$?
 	if [ "$ret" != "0" ]; then
@@ -923,10 +865,6 @@ cmanstatus()
 
 	if cmannotifyd_enabled; then
 		errmsg=$( status cmannotifyd 2>&1 ) || return $?
-	fi
-
-	if fence_xvmd_enabled; then
-		errmsg=$( status fence_xvmd 2>&1 ) || return $?
 	fi
 }
 
@@ -973,11 +911,7 @@ status)
 	cmanstatus
 	rtrn=$?
 	if [ "$rtrn" = 0 ]; then
-		if fence_xvmd_standalone; then
-			echo "fence_xvmd standalone is running."
-		else
-			echo "cluster is running."
-		fi
+		echo "cluster is running."
 	else
 		echo -e "$errmsg"
 	fi
