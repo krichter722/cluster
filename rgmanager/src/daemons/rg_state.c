@@ -618,6 +618,7 @@ svc_advise_start(rg_state_t *svcStatus, const char *svcName, int req)
 		/*
 		 * Service is running but owner is down -> RG_EFAILOVER
 		 */
+		svcStatus->rs_last_owner = svcStatus->rs_owner;
 		logt_print(LOG_NOTICE,
 		       "Taking over service %s from down member %s\n",
 		       svcName, memb_id_to_name(membership,
