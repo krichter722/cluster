@@ -65,15 +65,12 @@ you need to get it running again in a hurry.
 .I version
 Used alone this will report the major, minor, patch and config versions
 used by CMAN (also displayed in 'cman_tool status'). It can also be used
-with -r to tell cluster members to update. 
+with -r to tell cluster members to update the cluster configuration.
 .br
-The argument to -r is the version number that cman should look for. If 
-that version is not currently available then cman will poll for it. If
-a version of 0 is specified then cman will read the configuration file,
-validate it, distribute it around the cluster (if necessary) and
-activate it.
-.br
-The -D flag can disable the validation stage. This is NOT recommended.
+If -r is specified, cman will read the configuration file,
+validate it, distribute it around the cluster (if necessary) an
+activate it.  See the VERSION OPTIONS section below for additional
+options to the \fBversion\fP command.
 
 .TP
 .I wait 
