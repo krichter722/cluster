@@ -305,6 +305,15 @@ To validate your cluster.conf against this schema, run:
     <attribute name="priority" rha:description="Scheduler priority. qdisk(5)." rha:sample=""/>
    </optional>
    <optional>
+    <attribute name="tko_up" rha:description="Amount of positive changes before a host is considered online. qdisk(5)." rha:sample=""/>
+   </optional>
+   <optional>
+    <attribute name="upgrade_wait" rha:description="Amount of cycles wait for conflicts for a bid for master status. qdisk(5)." rha:sample=""/>
+   </optional>
+   <optional>
+    <attribute name="use_uptime" rha:description="Use /proc/uptime instead of gettimeofday(). qdisk(5)." rha:sample=""/>
+   </optional>
+   <optional>
     <attribute name="stop_cman" rha:description="Stop cman if the quorum disk cannot be found during startup. qdisk(5)." rha:sample=""/>
    </optional>
    <optional>
