@@ -147,7 +147,7 @@ ifeq (,$(release))
 else
 	git push --tags origin
 	cd $(releasearea) && \
-	scp *.gz *.bz2 Changelog-* *sha256* \
+	scp *.gz *.bz2 *.xz Changelog-* *sha256* \
 		fedorahosted.org:$(project)
 	@echo Hey you!.. yeah you looking somewhere else!
 	@echo remember to update the wiki and send the email to cluster-devel and linux-cluster
