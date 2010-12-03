@@ -705,7 +705,7 @@ start()
 {
 	breakpoint="$1"
 
-	sshd_enabled && service sshd start
+	sshd_enabled && cd @INITDDIR@ && ./sshd start
 
 	if [ "$INITLOGLEVEL" = "quiet" ]; then
 		echoarg="-n"
@@ -763,7 +763,7 @@ start()
 		none \
 		"Starting dlm_controld"
 
-	gfs_controld_enabled && service gfs2-cluster start
+	gfs_controld_enabled && cd @INITDDIR@ && ./gfs2-cluster start
 
 	runwrap start_ocfs2_controld \
 		ocfs2_enabled \
@@ -796,7 +796,7 @@ stop()
 		fence_join_enabled \
 		"Leaving fence domain"
 
-	gfs_controld_enabled && service gfs2-cluster stop
+	gfs_controld_enabled && cd @INITDDIR@ && ./gfs2-cluster stop
 
 	runwrap stop_dlm_controld \
 		none \
