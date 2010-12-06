@@ -2246,9 +2246,12 @@ void add_ais_node(int nodeid, uint64_t incar, int total_members)
 	if (node->state == NODESTATE_DEAD || node->state == NODESTATE_LEAVING) {
 		gettimeofday(&node->join_time, NULL);
 		node->incarnation = incar;
-		node->state = NODESTATE_MEMBER;
 		node->leave_reason = 0;
-		cluster_members++;
+		/* If a node rejoins before it completes a leave,
+		 * we should not increment cluster_members */
+		if (node->state != NODESTATE_LEAVING)
+			cluster_members++;
+		node->state = NODESTATE_MEMBER;
 		recalculate_quorum(0, 0);
 	}
 }
