@@ -257,6 +257,14 @@ static int tool_main(int argc, char *argv[])
 	    del_node(argc-1, argv+1);
 	    exit(EXIT_SUCCESS);
     }
+    else if(!strcmp(argv[optind], "addfdomain")){
+	    add_fdomain(argc-1, argv+1);
+	    exit(EXIT_SUCCESS);
+    }
+    else if(!strcmp(argv[optind], "delfdomain")){
+	    del_node(argc-1, argv+1);
+	    exit(EXIT_SUCCESS);
+    }
     else if(!strcmp(argv[optind], "addfence")){
 	    add_fence(argc-1, argv+1);
 	    exit(EXIT_SUCCESS);
@@ -287,6 +295,10 @@ static int tool_main(int argc, char *argv[])
     }
     else if(!strcmp(argv[optind], "lsfs")){
 	    list_fs(argc-1, argv+1);
+	    exit(EXIT_SUCCESS);
+    }
+    else if(!strcmp(argv[optind], "lsfdomains")){
+	    list_fdomains(argc-1, argv+1);
 	    exit(EXIT_SUCCESS);
     }
     else if(!strcmp(argv[optind], "create")){
@@ -339,9 +351,12 @@ static void tool_print_usage(FILE *stream){
 	  "  addip <name>        Add an IP address resource\n"
 	  "  delip <name>        Delete an IP address resource\n"
 	  "  lsip                List IP address resources\n"
-	  "  addfs <name>        Add an IP address resource\n"
-	  "  delfs <name>        Delete an IP address resource\n"
-	  "  lsfs                List IP address resources\n"
+	  "  addfs <name>        Add an filesystem resource\n"
+	  "  delfs <name>        Delete an filesystem resource\n"
+	  "  lsfs                List filesystem resources\n"
+	  "  addfdomain <name>   Add an failover domain\n"
+	  "  delfdomain <name>   Delete an failover domain\n"
+	  "  lsfdomains          List failover domains\n"
 	  "  create              Create a skeleton config file\n"
 	  "  addnodeids          Assign node ID numbers to all nodes\n"
 	  "\n");

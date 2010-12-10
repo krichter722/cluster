@@ -25,6 +25,12 @@ do { \
 } while (0)
 
 
+#define INT_TO_CHAR(x, str) \
+	if (str && atoi((const char *)str)) \
+		x = '*'; \
+	else \
+		x = ' ';
+
 struct option_info
 {
 	const char *name;
@@ -45,10 +51,13 @@ struct option_info
 	const char *options;
 	const char *configfile;
 	const char *outputfile;
+	const char **failover_nodes;
 	int  do_delete;
 	int  force_fsck;
 	int  force_unmount;
 	int  self_fence;
+	int  ordered;
+	int  restricted;
 };
 
 static void config_usage(int rw)
@@ -164,6 +173,20 @@ static void addfs_usage(const char *name)
 	fprintf(stderr, " -k --force_fsck    Force fsck before mount\n");
 	fprintf(stderr, " -u --force_unmount Call umount with force flag\n");
 	fprintf(stderr, " -s --self_fence    Use 'self_fence' feature\n");
+	config_usage(1);
+	help_usage();
+
+	exit(0);
+}
+
+static void addfdomain_usage(const char *name)
+{
+	fprintf(stderr, "Usage: %s %s [options] <name> <node1> ... <nodeN>\n",
+			prog_name, name);
+	fprintf(stderr, " -p --ordered       Allows you to specify a preference order\n");
+	fprintf(stderr, "                    among the members of a failover domain\n");
+	fprintf(stderr, " -r --restricted    Allows you to restrict the members that can\n");
+	fprintf(stderr, "                    run a particular cluster service.\n");
 	config_usage(1);
 	help_usage();
 
@@ -454,7 +477,7 @@ static xmlNode *do_find_node(xmlNode *root, const char *nodename,
 			strcmp((char *)cur_node->name, elem_name) == 0)
 		{
 			xmlChar *name = xmlGetProp(cur_node, BAD_CAST attrib_name);
-			if (strcmp((char *)name, nodename) == 0)
+			if (name && strcmp((char *)name, nodename) == 0)
 				return cur_node;
 		}
 	}
@@ -496,6 +519,11 @@ static xmlNode *find_fs_resource(xmlNode *root, const char *name)
 	return do_find_node(root, name, "fs", "name");
 }
 
+static xmlNode *find_fdomain_resource(xmlNode *root, const char *name)
+{
+	return do_find_node(root, name, "failoverdomain", "name");
+}
+
 static xmlNode *find_script_resource(xmlNode *root, const char *name)
 {
 	return do_find_node(root, name, "script", "name");
@@ -519,6 +547,24 @@ static xmlNode *find_ip_ref(xmlNode *root, const char *name)
 static xmlNode *find_fs_ref(xmlNode *root, const char *name)
 {
 	return do_find_resource_ref(root, name, "fs");
+}
+
+static xmlNode *find_fdomain_ref(xmlNode *root, const char *name)
+{
+	xmlNode *cur_node;
+
+	for (cur_node = root->children; cur_node; cur_node = cur_node->next)
+	{
+		if (cur_node->type == XML_ELEMENT_NODE &&
+			strcmp((char *)cur_node->name, "service") == 0)
+		{
+			xmlChar *domain = xmlGetProp(cur_node, BAD_CAST "domain");
+			if (domain && strcmp(name, (char *)domain) == 0)
+				return cur_node;
+		}
+	}
+
+	return NULL;
 }
 
 /* Print name=value pairs for a (n XML) node.
@@ -751,6 +797,56 @@ static void add_clusterfs(xmlNode *root_element, struct option_info *ninfo,
 	xmlAddChild(rs, node);
 }
 
+static void add_clusterfdomain(xmlNode *root_element, struct option_info *ninfo,
+			    int argc, char **argv, int optindex)
+{
+	xmlNode *rm;
+	xmlNode *fdomains;
+	xmlNode *node;
+	xmlNode *cn;
+	int i = 0;
+
+	rm = findnode(root_element, "rm");
+	if (!rm)
+		die("Can't find \"rm\" in %s\n", ninfo->configfile);
+
+	fdomains = findnode(rm, "failoverdomains");
+	if (!fdomains)
+		die("Can't find \"failoverdomains\" %s\n", ninfo->configfile);
+
+	cn = findnode(root_element, "clusternodes");
+	if (!cn)
+		die("Can't find \"clusternodes\" in %s\n", ninfo->configfile);
+
+	/* Check it doesn't already exist */
+	if (find_fdomain_resource(fdomains, ninfo->name))
+		die("failover domain %s already exists\n", ninfo->name);
+
+	/* Check that nodes are defined */
+	while (ninfo->failover_nodes[i]) {
+		if (!find_node(cn, ninfo->failover_nodes[i]))
+			die("Can't find node %s in %s.\n",
+				ninfo->failover_nodes[i], ninfo->configfile);
+		i++;
+	}
+
+	/* Add the new failover domain */
+	node = xmlNewNode(NULL, BAD_CAST "failoverdomain");
+	xmlSetProp(node, BAD_CAST "name", BAD_CAST ninfo->name);
+	_xmlSetIntProp(node, "ordered", ninfo->ordered);
+	_xmlSetIntProp(node, "restricted", ninfo->restricted);
+
+	i = 0;
+	while (ninfo->failover_nodes[i]) {
+		xmlNode *fnode = xmlNewNode(NULL, BAD_CAST "failoverdomainnode");
+		xmlSetProp(fnode, BAD_CAST "name", BAD_CAST ninfo->failover_nodes[i]);
+		_xmlSetIntProp(fnode, "priority", i + 1);
+		xmlAddChild(node, fnode);
+		i++;
+	}
+	xmlAddChild(fdomains, node);
+}
+
 static xmlDoc *open_configfile(struct option_info *ninfo)
 {
 	xmlDoc *doc;
@@ -934,6 +1030,45 @@ static void del_clusterfs(xmlNode *root_element, struct option_info *ninfo)
 	xmlUnlinkNode(node);
 }
 
+static void del_clusterfdomain(xmlNode *root_element, struct option_info *ninfo)
+{
+	xmlNode *rm, *fdomains;
+	xmlNode *node;
+
+	rm = findnode(root_element, "rm");
+	if (!rm)
+	{
+		fprintf(stderr, "Can't find \"rm\" in %s\n", ninfo->configfile);
+		exit(1);
+	}
+
+	fdomains = findnode(rm, "failoverdomains");
+	if (!fdomains)
+	{
+		fprintf(stderr, "Can't find \"failoverdomains\" in %s\n", ninfo->configfile);
+		exit(1);
+	}
+
+	/* Check that not used */
+	node = find_fdomain_ref(rm, ninfo->name);
+	if (node)
+	{
+		fprintf(stderr, "failover domain %s is referenced in service in %s,"
+			" please remove reference first.\n", ninfo->name,
+			ninfo->configfile);
+		exit(1);
+	}
+
+	node = find_fdomain_resource(fdomains, ninfo->name);
+	if (!node)
+	{
+		fprintf(stderr, "failover domain %s does not exist in %s\n", ninfo->name, ninfo->configfile);
+		exit(1);
+	}
+
+	xmlUnlinkNode(node);
+}
+
 struct option addnode_options[] =
 {
       { "votes", required_argument, NULL, 'v'},
@@ -954,6 +1089,15 @@ struct option addfs_options[] =
       { "force_fsck", no_argument, NULL, 'k'},
       { "force_unmount", no_argument, NULL, 'u'},
       { "self_fence", no_argument, NULL, 's'},
+      { NULL, 0, NULL, 0 },
+};
+
+struct option addfdomain_options[] =
+{
+      { "outputfile", required_argument, NULL, 'o'},
+      { "configfile", required_argument, NULL, 'c'},
+      { "ordered", no_argument, NULL, 'p'},
+      { "restricted", no_argument, NULL, 'r'},
       { NULL, 0, NULL, 0 },
 };
 
@@ -1287,6 +1431,8 @@ void del_node(int argc, char **argv)
 		del_clusterip(root_element, &ninfo);
 	else if (!strcmp(argv[0], "delfs"))
 		del_clusterfs(root_element, &ninfo);
+	else if (!strcmp(argv[0], "delfdomain"))
+		del_clusterfdomain(root_element, &ninfo);
 
 	/* Write it out */
 	save_file(doc, &ninfo);
@@ -1683,6 +1829,64 @@ void add_fs(int argc, char **argv)
 	xmlCleanupParser();
 }
 
+void add_fdomain(int argc, char **argv)
+{
+	struct option_info ninfo;
+	xmlDoc *doc;
+	xmlNode *root_element;
+	int opt, i;
+
+	memset(&ninfo, 0, sizeof(ninfo));
+
+	while ( (opt = getopt_long(argc, argv, "pro:c:CFh?", addfdomain_options, NULL)) != EOF)
+	{
+		switch(opt)
+		{
+		case 'p':
+			ninfo.ordered = 1;
+			break;
+
+		case 'r':
+			ninfo.restricted = 1;
+			break;
+
+		case 'c':
+			ninfo.configfile = strdup(optarg);
+			break;
+
+		case 'o':
+			ninfo.outputfile = strdup(optarg);
+			break;
+
+		case '?':
+		default:
+			addfdomain_usage(argv[0]);
+		}
+	}
+
+	if (optind < argc - 1) {
+		ninfo.name = strdup(argv[optind]);
+		ninfo.failover_nodes = (const char **)malloc(sizeof(char *) * (argc - optind));
+		for (i = 0; i < argc - optind - 1; i++)
+			ninfo.failover_nodes[i] = strdup(argv[i + optind + 1]);
+		ninfo.failover_nodes[i] = NULL;
+	} else
+		addfdomain_usage(argv[0]);
+
+	doc = open_configfile(&ninfo);
+
+	root_element = xmlDocGetRootElement(doc);
+
+	increment_version(root_element);
+
+	add_clusterfdomain(root_element, &ninfo, argc, argv, optind);
+
+	/* Write it out */
+	save_file(doc, &ninfo);
+	/* Shutdown libxml */
+	xmlCleanupParser();
+}
+
 void create_skeleton(int argc, char **argv)
 {
 	char *fencename = NULL;
@@ -2066,17 +2270,80 @@ void list_fs(int argc, char **argv)
 						BAD_CAST "mountpoint");
 
 			char f, u, s;
-#define INT_TO_CHAR(x, str) \
-	if (str && atoi((const char *)str)) \
-		x = '*'; \
-	else \
-		x = ' ';
 			INT_TO_CHAR(f, force_fsck)
 			INT_TO_CHAR(u, force_unmount)
 			INT_TO_CHAR(s, self_fence)
-#undef INT_TO_CHAR
 			printf("%-16.16s %-5.5s %c%c%c %-19.19s %s\n", name, type, f, u,
 					s, device, mnt);
+		}
+	}
+}
+
+void list_fdomains(int argc, char **argv)
+{
+	xmlNode *cur_node, *fnode;
+	xmlNode *root_element;
+	xmlNode *rm, *fdomains;
+	xmlDocPtr doc;
+	struct option_info ninfo;
+	int opt;
+	int verbose=0;
+
+	memset(&ninfo, 0, sizeof(ninfo));
+
+	while ( (opt = getopt_long(argc, argv, "c:hv?", list_options, NULL)) != EOF)
+	{
+		switch(opt)
+		{
+		case 'c':
+			ninfo.configfile = strdup(optarg);
+			break;
+		case 'v':
+			verbose++;
+			break;
+		case '?':
+		default:
+			list_usage(argv[0]);
+		}
+	}
+	doc = open_configfile(&ninfo);
+	root_element = xmlDocGetRootElement(doc);
+
+	rm = findnode(root_element, "rm");
+	if (!rm)
+		die("Can't find \"rm\" in %s\n", ninfo.configfile);
+
+	fdomains = findnode(rm, "failoverdomains");
+	if (!fdomains)
+		die("Can't find \"failoverdomains\" in %s\n", ninfo.configfile);
+
+	printf("Name             OR Nodes\n");
+	for (cur_node = fdomains->children; cur_node; cur_node = cur_node->next)
+	{
+		if (cur_node->type == XML_ELEMENT_NODE &&
+			strcmp((char *)cur_node->name, "failoverdomain") == 0)
+		{
+			xmlChar *name  = xmlGetProp(cur_node, BAD_CAST "name");
+			xmlChar *ordered  = xmlGetProp(cur_node, BAD_CAST "ordered");
+			xmlChar *restricted = xmlGetProp(cur_node, BAD_CAST "restricted");
+			char o, r;
+			int first_node = 1;
+
+			INT_TO_CHAR(o, ordered)
+			INT_TO_CHAR(r, restricted)
+			printf("%-16.16s %c%c ", name, o, r);
+			for (fnode = cur_node->children; fnode; fnode = fnode->next)
+				if (fnode->type == XML_ELEMENT_NODE &&
+					strcmp((char *)fnode->name, "failoverdomainnode") == 0)
+				{
+					xmlChar *fname  = xmlGetProp(fnode, BAD_CAST "name");
+					if (first_node) {
+						printf("%s", fname);
+						first_node = 0;
+					} else
+						printf(",%s", fname);
+				}
+			printf("\n");
 		}
 	}
 }
