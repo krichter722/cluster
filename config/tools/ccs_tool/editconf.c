@@ -128,15 +128,6 @@ static void delnode_usage(const char *name)
 	exit(0);
 }
 
-static void delservice_usage(const char *name)
-{
-	fprintf(stderr, "Usage: %s %s [options] <name>\n", prog_name, name);
-	config_usage(1);
-	help_usage();
-
-	exit(0);
-}
-
 static void addnodeid_usage(const char *name)
 {
 	fprintf(stderr, "Add node IDs to all nodes in the config file that don't have them.\n");
@@ -1045,7 +1036,10 @@ void del_node(int argc, char **argv)
 
 	increment_version(root_element);
 
-	del_clusternode(root_element, &ninfo);
+	if (!strcmp(argv[0], "delnode"))
+		del_clusternode(root_element, &ninfo);
+	else if (!strcmp(argv[0], "delservice"))
+		del_clusterservice(root_element, &ninfo);
 
 	/* Write it out */
 	save_file(doc, &ninfo);
@@ -1207,51 +1201,6 @@ void add_service(int argc, char **argv)
 	/* Shutdown libxml */
 	xmlCleanupParser();
 
-}
-
-void del_service(int argc, char **argv)
-{
-	struct option_info ninfo;
-	int opt;
-	xmlDoc *doc;
-	xmlNode *root_element;
-
-	memset(&ninfo, 0, sizeof(ninfo));
-
-	while ( (opt = getopt_long(argc, argv, "o:c:CFh?", delservice_options, NULL)) != EOF)
-	{
-		switch(opt)
-		{
-		case 'c':
-			ninfo.configfile = strdup(optarg);
-			break;
-
-		case 'o':
-			ninfo.outputfile = strdup(optarg);
-			break;
-
-		case '?':
-		default:
-			delservice_usage(argv[0]);
-		}
-	}
-
-	/* Get service name parameter */
-	if (optind < argc)
-		ninfo.name = strdup(argv[optind]);
-	else
-		delservice_usage(argv[0]);
-
-	doc = open_configfile(&ninfo);
-
-	root_element = xmlDocGetRootElement(doc);
-
-	increment_version(root_element);
-
-	del_clusterservice(root_element, &ninfo);
-
-	/* Write it out */
-	save_file(doc, &ninfo);
 }
 
 void list_services(int argc, char **argv)

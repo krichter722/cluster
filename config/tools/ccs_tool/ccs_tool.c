@@ -230,7 +230,7 @@ static int tool_main(int argc, char *argv[])
 	    exit(EXIT_SUCCESS);
     }
     else if(!strcmp(argv[optind], "delservice")){
-	    del_service(argc-1, argv+1);
+	    del_node(argc-1, argv+1);
 	    exit(EXIT_SUCCESS);
     }
     else if(!strcmp(argv[optind], "addfence")){
