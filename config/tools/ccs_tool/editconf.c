@@ -44,6 +44,7 @@ struct option_info
 	const char *exclusive;
 	const char *recovery;
 	const char *fs;
+	const char *domain;
 	const char *script;
 	const char *mountpoint;
 	const char *type;
@@ -696,6 +697,7 @@ static void add_clusterservice(xmlNode *root_element, struct option_info *ninfo,
 {
 	xmlNode *rm;
 	xmlNode *rs;
+	xmlNode *fdomains;
 	xmlNode *newnode;
 
 	xmlNode *newfs = NULL;
@@ -712,6 +714,7 @@ static void add_clusterservice(xmlNode *root_element, struct option_info *ninfo,
 				ninfo->configfile);
 
 	rs = findnode(rm, "resources");
+	fdomains = findnode(rm, "failoverdomains");
 	if (ninfo->fs && (!rs || !find_fs_resource(rs, ninfo->fs)))
 		die("fs resource %s doesn't exist in %s\n", ninfo->fs,
 				ninfo->configfile);
@@ -721,11 +724,16 @@ static void add_clusterservice(xmlNode *root_element, struct option_info *ninfo,
 	if (ninfo->ip_addr && (!rs || !find_ip_resource(rs, ninfo->ip_addr)))
 		die("ip resource %s doesn't exist in %s\n", ninfo->ip_addr,
 				ninfo->configfile);
+	if (ninfo->domain && (!fdomains || !find_fdomain_resource(fdomains, ninfo->domain)))
+		die("failover domain %s doesn't exist in %s\n", ninfo->domain,
+				ninfo->configfile);
 
 	/* Add the new service */
 	newnode = xmlNewNode(NULL, BAD_CAST "service");
 	xmlSetProp(newnode, BAD_CAST "name", BAD_CAST ninfo->name);
 	xmlSetProp(newnode, BAD_CAST "autostart", BAD_CAST ninfo->autostart);
+	if (ninfo->domain)
+		xmlSetProp(newnode, BAD_CAST "domain", BAD_CAST ninfo->domain);
 	if (ninfo->exclusive)
 		xmlSetProp(newnode, BAD_CAST "exclusive",
 				BAD_CAST ninfo->exclusive);
@@ -1137,6 +1145,7 @@ struct option create_options[] =
 struct option addservice_options[] =
 {
       { "autostart", required_argument, NULL, 'a'},
+      { "domain", required_argument, NULL, 'd'},
       { "exclusive", required_argument, NULL, 'x'},
       { "recovery", required_argument, NULL, 'r'},
       { "fs", required_argument, NULL, 'f'},
@@ -1530,13 +1539,17 @@ void add_service(int argc, char **argv)
 	ninfo.autostart = "1";
 	ninfo.recovery = "relocate";
 
-	while ( (opt = getopt_long(argc, argv, "a:x:r:f:o:c:s:i:CFh?", addservice_options, NULL)) != EOF)
+	while ( (opt = getopt_long(argc, argv, "a:d:x:r:f:o:c:s:i:CFh?", addservice_options, NULL)) != EOF)
 	{
 		switch(opt)
 		{
 		case 'a':
 			validate_int_arg(opt, optarg);
 			ninfo.autostart = optarg;
+			break;
+
+		case 'd':
+			ninfo.domain = strdup(optarg);
 			break;
 
 		case 'x':
