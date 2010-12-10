@@ -233,6 +233,14 @@ static int tool_main(int argc, char *argv[])
 	    del_node(argc-1, argv+1);
 	    exit(EXIT_SUCCESS);
     }
+    else if(!strcmp(argv[optind], "addscript")){
+	    add_script(argc-1, argv+1);
+	    exit(EXIT_SUCCESS);
+    }
+    else if(!strcmp(argv[optind], "delscript")){
+	    del_node(argc-1, argv+1);
+	    exit(EXIT_SUCCESS);
+    }
     else if(!strcmp(argv[optind], "addfence")){
 	    add_fence(argc-1, argv+1);
 	    exit(EXIT_SUCCESS);
@@ -251,6 +259,10 @@ static int tool_main(int argc, char *argv[])
     }
     else if(!strcmp(argv[optind], "lsfence")){
 	    list_fences(argc-1, argv+1);
+	    exit(EXIT_SUCCESS);
+    }
+    else if(!strcmp(argv[optind], "lsscript")){
+	    list_scripts(argc-1, argv+1);
 	    exit(EXIT_SUCCESS);
     }
     else if(!strcmp(argv[optind], "create")){
@@ -297,6 +309,9 @@ static void tool_print_usage(FILE *stream){
           "  lsfence             List fence devices\n"
 	  "  addfence <fencedev> Add a new fence device\n"
 	  "  delfence <fencedev> Delete a fence device\n"
+	  "  addscript <name>    Add a script resource\n"
+	  "  delscript <name>    Delete a script resource\n"
+          "  lsscript            List script resources\n"
 	  "  create              Create a skeleton config file\n"
 	  "  addnodeids          Assign node ID numbers to all nodes\n"
 	  "\n");

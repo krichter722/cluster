@@ -128,6 +128,16 @@ static void delnode_usage(const char *name)
 	exit(0);
 }
 
+static void addscript_usage(const char *name)
+{
+	fprintf(stderr, "Usage: %s %s [options] <name> <path_to_script>\n",
+			prog_name, name);
+	config_usage(1);
+	help_usage();
+
+	exit(0);
+}
+
 static void addnodeid_usage(const char *name)
 {
 	fprintf(stderr, "Add node IDs to all nodes in the config file that don't have them.\n");
@@ -412,6 +422,26 @@ static xmlNode *do_find_node(xmlNode *root, const char *nodename,
 	return NULL;
 }
 
+static xmlNode *do_find_resource_ref(xmlNode *root, const char *name,
+		const char *res_type)
+{
+	xmlNode *cur_node;
+	xmlNode *res = NULL;
+
+	for (cur_node = root->children; cur_node; cur_node = cur_node->next)
+	{
+		if (cur_node->type == XML_ELEMENT_NODE &&
+			strcmp((char *)cur_node->name, "service") == 0)
+		{
+			res = do_find_node(cur_node, name, res_type, "ref");
+			if (res)
+				break;
+		}
+	}
+
+	return res;
+}
+
 static xmlNode *find_node(xmlNode *clusternodes, const char *nodename)
 {
 	return do_find_node(clusternodes, nodename, "clusternode", "name");
@@ -430,6 +460,11 @@ static xmlNode *find_fs_resource(xmlNode *root, const char *name)
 static xmlNode *find_script_resource(xmlNode *root, const char *name)
 {
 	return do_find_node(root, name, "script", "name");
+}
+
+static xmlNode *find_script_ref(xmlNode *root, const char *name)
+{
+	return do_find_resource_ref(root, name, "script");
 }
 
 static xmlNode *find_ip_resource(xmlNode *root, const char *name)
@@ -698,6 +733,45 @@ static void del_clusterservice(xmlNode *root_element, struct option_info *ninfo)
 	}
 
 	xmlUnlinkNode(oldnode);
+}
+
+static void del_clusterscript(xmlNode *root_element, struct option_info *ninfo)
+{
+	xmlNode *rm, *rs;
+	xmlNode *node;
+
+	rm = findnode(root_element, "rm");
+	if (!rm)
+	{
+		fprintf(stderr, "Can't find \"rm\" in %s\n", ninfo->configfile);
+		exit(1);
+	}
+
+	rs = findnode(rm, "resources");
+	if (!rs)
+	{
+		fprintf(stderr, "Can't find \"resources\" in %s\n", ninfo->configfile);
+		exit(1);
+	}
+
+	/* Check that not used */
+	node = find_script_ref(rm, ninfo->name);
+	if (node)
+	{
+		fprintf(stderr, "Script %s is referenced in service in %s,"
+			" please remove reference first.\n", ninfo->name,
+			ninfo->configfile);
+		exit(1);
+	}
+
+	node = find_script_resource(rs, ninfo->name);
+	if (!node)
+	{
+		fprintf(stderr, "Script %s does not exist in %s\n", ninfo->name, ninfo->configfile);
+		exit(1);
+	}
+
+	xmlUnlinkNode(node);
 }
 
 struct option addnode_options[] =
@@ -1040,6 +1114,8 @@ void del_node(int argc, char **argv)
 		del_clusternode(root_element, &ninfo);
 	else if (!strcmp(argv[0], "delservice"))
 		del_clusterservice(root_element, &ninfo);
+	else if (!strcmp(argv[0], "delscript"))
+		del_clusterscript(root_element, &ninfo);
 
 	/* Write it out */
 	save_file(doc, &ninfo);
@@ -1269,6 +1345,72 @@ void list_services(int argc, char **argv)
 			atoi((char *)autostart), atoi((char *)exclusive),
 			(char *)recovery);
 	}
+}
+
+void add_script(int argc, char **argv)
+{
+	struct option_info ninfo;
+	int opt;
+	xmlDoc *doc;
+	xmlNode *root_element;
+	xmlNode *rm, *rs, *node;
+	char *name;
+	char *sc_file;
+
+	memset(&ninfo, 0, sizeof(ninfo));
+
+	while ( (opt = getopt_long(argc, argv, "o:c:CFh?", addfence_options, NULL)) != EOF)
+	{
+		switch(opt)
+		{
+		case 'c':
+			ninfo.configfile = strdup(optarg);
+			break;
+
+		case 'o':
+			ninfo.outputfile = strdup(optarg);
+			break;
+
+		case '?':
+		default:
+			addscript_usage(argv[0]);
+		}
+	}
+
+	if (argc - optind < 2)
+		addscript_usage(argv[0]);
+
+	doc = open_configfile(&ninfo);
+
+	root_element = xmlDocGetRootElement(doc);
+
+	increment_version(root_element);
+
+	rm = findnode(root_element, "rm");
+	if (!rm)
+		die("Can't find \"rm\" %s\n", ninfo.configfile);
+
+	rs = findnode(rm, "resources");
+	if (!rs)
+		die("Can't find \"resources\" %s\n", ninfo.configfile);
+
+	/* First param is the script name - check it doesn't already exist */
+	name = argv[optind++];
+	if (find_script_resource(rs, name))
+		die("Script %s already exists\n", name);
+	sc_file = argv[optind++];
+
+	/* Add it */
+	node = xmlNewNode(NULL, BAD_CAST "script");
+	xmlSetProp(node, BAD_CAST "file", BAD_CAST sc_file);
+	xmlSetProp(node, BAD_CAST "name", BAD_CAST name);
+	xmlAddChild(rs, node);
+
+	/* Write it out */
+	save_file(doc, &ninfo);
+
+	/* Shutdown libxml */
+	xmlCleanupParser();
 }
 
 void create_skeleton(int argc, char **argv)
@@ -1528,3 +1670,53 @@ void list_fences(int argc, char **argv)
 	}
 }
 
+void list_scripts(int argc, char **argv)
+{
+	xmlNode *cur_node;
+	xmlNode *root_element;
+	xmlNode *rm, *rs;
+	xmlDocPtr doc;
+	struct option_info ninfo;
+	int opt;
+	int verbose=0;
+
+	memset(&ninfo, 0, sizeof(ninfo));
+
+	while ( (opt = getopt_long(argc, argv, "c:hv?", list_options, NULL)) != EOF)
+	{
+		switch(opt)
+		{
+		case 'c':
+			ninfo.configfile = strdup(optarg);
+			break;
+		case 'v':
+			verbose++;
+			break;
+		case '?':
+		default:
+			list_usage(argv[0]);
+		}
+	}
+	doc = open_configfile(&ninfo);
+	root_element = xmlDocGetRootElement(doc);
+
+	rm = findnode(root_element, "rm");
+	if (!rm)
+		die("Can't find \"rm\" in %s\n", ninfo.configfile);
+
+	rs = findnode(rm, "resources");
+	if (!rs)
+		die("Can't find \"resources\" in %s\n", ninfo.configfile);
+
+	printf("Name             Path\n");
+	for (cur_node = rs->children; cur_node; cur_node = cur_node->next)
+	{
+		if (cur_node->type == XML_ELEMENT_NODE && strcmp((char *)cur_node->name, "script") == 0)
+		{
+			xmlChar *name  = xmlGetProp(cur_node, BAD_CAST "name");
+			xmlChar *path = xmlGetProp(cur_node, BAD_CAST "file");
+
+			printf("%-16s %s\n", name, path);
+		}
+	}
+}
