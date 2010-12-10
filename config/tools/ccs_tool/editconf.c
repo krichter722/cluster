@@ -138,6 +138,16 @@ static void addscript_usage(const char *name)
 	exit(0);
 }
 
+static void addip_usage(const char *name)
+{
+	fprintf(stderr, "Usage: %s %s [options] <IP_address>\n",
+			prog_name, name);
+	config_usage(1);
+	help_usage();
+
+	exit(0);
+}
+
 static void addnodeid_usage(const char *name)
 {
 	fprintf(stderr, "Add node IDs to all nodes in the config file that don't have them.\n");
@@ -469,7 +479,12 @@ static xmlNode *find_script_ref(xmlNode *root, const char *name)
 
 static xmlNode *find_ip_resource(xmlNode *root, const char *name)
 {
-	return do_find_node(root, name, "ip", "name");
+	return do_find_node(root, name, "ip", "address");
+}
+
+static xmlNode *find_ip_ref(xmlNode *root, const char *name)
+{
+	return do_find_resource_ref(root, name, "ip");
 }
 
 /* Print name=value pairs for a (n XML) node.
@@ -768,6 +783,45 @@ static void del_clusterscript(xmlNode *root_element, struct option_info *ninfo)
 	if (!node)
 	{
 		fprintf(stderr, "Script %s does not exist in %s\n", ninfo->name, ninfo->configfile);
+		exit(1);
+	}
+
+	xmlUnlinkNode(node);
+}
+
+static void del_clusterip(xmlNode *root_element, struct option_info *ninfo)
+{
+	xmlNode *rm, *rs;
+	xmlNode *node;
+
+	rm = findnode(root_element, "rm");
+	if (!rm)
+	{
+		fprintf(stderr, "Can't find \"rm\" in %s\n", ninfo->configfile);
+		exit(1);
+	}
+
+	rs = findnode(rm, "resources");
+	if (!rs)
+	{
+		fprintf(stderr, "Can't find \"resources\" in %s\n", ninfo->configfile);
+		exit(1);
+	}
+
+	/* Check that not used */
+	node = find_ip_ref(rm, ninfo->name);
+	if (node)
+	{
+		fprintf(stderr, "IP %s is referenced in service in %s,"
+			" please remove reference first.\n", ninfo->name,
+			ninfo->configfile);
+		exit(1);
+	}
+
+	node = find_ip_resource(rs, ninfo->name);
+	if (!node)
+	{
+		fprintf(stderr, "IP %s does not exist in %s\n", ninfo->name, ninfo->configfile);
 		exit(1);
 	}
 
@@ -1111,6 +1165,8 @@ void del_node(int argc, char **argv)
 		del_clusterservice(root_element, &ninfo);
 	else if (!strcmp(argv[0], "delscript"))
 		del_clusterscript(root_element, &ninfo);
+	else if (!strcmp(argv[0], "delip"))
+		del_clusterip(root_element, &ninfo);
 
 	/* Write it out */
 	save_file(doc, &ninfo);
@@ -1390,6 +1446,52 @@ void add_script(int argc, char **argv)
 	xmlCleanupParser();
 }
 
+void add_ip(int argc, char **argv)
+{
+	struct option_info ninfo;
+	xmlDoc *doc;
+	xmlNode *root_element;
+	xmlNode *rm, *rs, *node;
+
+	if (parse_commonw_options(argc, argv, &ninfo))
+		addip_usage(argv[0]);
+
+	if (optind < argc)
+		ninfo.ip_addr = strdup(argv[optind]);
+	else
+		addip_usage(argv[0]);
+
+	doc = open_configfile(&ninfo);
+
+	root_element = xmlDocGetRootElement(doc);
+
+	increment_version(root_element);
+
+	rm = findnode(root_element, "rm");
+	if (!rm)
+		die("Can't find \"rm\" %s\n", ninfo.configfile);
+
+	rs = findnode(rm, "resources");
+	if (!rs)
+		die("Can't find \"resources\" %s\n", ninfo.configfile);
+
+	/* Check it doesn't already exist */
+	if (find_ip_resource(rs, ninfo.ip_addr))
+		die("IP %s already exists\n", ninfo.ip_addr);
+
+	/* Add it */
+	node = xmlNewNode(NULL, BAD_CAST "ip");
+	xmlSetProp(node, BAD_CAST "address", BAD_CAST ninfo.ip_addr);
+	xmlSetProp(node, BAD_CAST "monitor_link", BAD_CAST "1");
+	xmlAddChild(rs, node);
+
+	/* Write it out */
+	save_file(doc, &ninfo);
+
+	/* Shutdown libxml */
+	xmlCleanupParser();
+}
+
 void create_skeleton(int argc, char **argv)
 {
 	char *fencename = NULL;
@@ -1660,6 +1762,57 @@ void list_scripts(int argc, char **argv)
 			xmlChar *path = xmlGetProp(cur_node, BAD_CAST "file");
 
 			printf("%-16s %s\n", name, path);
+		}
+	}
+}
+
+void list_ips(int argc, char **argv)
+{
+	xmlNode *cur_node;
+	xmlNode *root_element;
+	xmlNode *rm, *rs;
+	xmlDocPtr doc;
+	struct option_info ninfo;
+	int opt;
+	int verbose=0;
+
+	memset(&ninfo, 0, sizeof(ninfo));
+
+	while ( (opt = getopt_long(argc, argv, "c:hv?", list_options, NULL)) != EOF)
+	{
+		switch(opt)
+		{
+		case 'c':
+			ninfo.configfile = strdup(optarg);
+			break;
+		case 'v':
+			verbose++;
+			break;
+		case '?':
+		default:
+			list_usage(argv[0]);
+		}
+	}
+	doc = open_configfile(&ninfo);
+	root_element = xmlDocGetRootElement(doc);
+
+	rm = findnode(root_element, "rm");
+	if (!rm)
+		die("Can't find \"rm\" in %s\n", ninfo.configfile);
+
+	rs = findnode(rm, "resources");
+	if (!rs)
+		die("Can't find \"resources\" in %s\n", ninfo.configfile);
+
+	printf("IP\n");
+	for (cur_node = rs->children; cur_node; cur_node = cur_node->next)
+	{
+		if (cur_node->type == XML_ELEMENT_NODE &&
+			strcmp((char *)cur_node->name, "ip") == 0)
+		{
+			xmlChar *ip  = xmlGetProp(cur_node, BAD_CAST "address");
+
+			printf("%s\n", ip);
 		}
 	}
 }
