@@ -40,9 +40,15 @@ struct option_info
 	const char *fs;
 	const char *script;
 	const char *mountpoint;
+	const char *type;
+	const char *device;
+	const char *options;
 	const char *configfile;
 	const char *outputfile;
 	int  do_delete;
+	int  force_fsck;
+	int  force_unmount;
+	int  self_fence;
 };
 
 static void config_usage(int rw)
@@ -142,6 +148,22 @@ static void addip_usage(const char *name)
 {
 	fprintf(stderr, "Usage: %s %s [options] <IP_address>\n",
 			prog_name, name);
+	config_usage(1);
+	help_usage();
+
+	exit(0);
+}
+
+static void addfs_usage(const char *name)
+{
+	fprintf(stderr, "Usage: %s %s [options] <name> <device> <mountpoint>\n",
+			prog_name, name);
+	fprintf(stderr, " -t --type          Type of the filesystem (ext3, ext4, etc.)\n");
+	fprintf(stderr, "                    Default type is ext3.\n");
+	fprintf(stderr, " -p --options       Mount options\n");
+	fprintf(stderr, " -k --force_fsck    Force fsck before mount\n");
+	fprintf(stderr, " -u --force_unmount Call umount with force flag\n");
+	fprintf(stderr, " -s --self_fence    Use 'self_fence' feature\n");
 	config_usage(1);
 	help_usage();
 
@@ -323,6 +345,13 @@ static void increment_version(xmlNode *root_element)
 	xmlSetProp(root_element, BAD_CAST "config_version", BAD_CAST newver);
 }
 
+static void _xmlSetIntProp(xmlNode *element, const char *property, const int value)
+{
+	char buf[32];
+	snprintf(buf, sizeof(buf), "%d", value);
+	xmlSetProp(element, BAD_CAST property, BAD_CAST buf);
+}
+
 static xmlNode *findnode(xmlNode *root, const char *name)
 {
 	xmlNode *cur_node;
@@ -485,6 +514,11 @@ static xmlNode *find_ip_resource(xmlNode *root, const char *name)
 static xmlNode *find_ip_ref(xmlNode *root, const char *name)
 {
 	return do_find_resource_ref(root, name, "ip");
+}
+
+static xmlNode *find_fs_ref(xmlNode *root, const char *name)
+{
+	return do_find_resource_ref(root, name, "fs");
 }
 
 /* Print name=value pairs for a (n XML) node.
@@ -684,6 +718,39 @@ static void add_clusterservice(xmlNode *root_element, struct option_info *ninfo,
 	}
 }
 
+static void add_clusterfs(xmlNode *root_element, struct option_info *ninfo,
+			    int argc, char **argv, int optindex)
+{
+	xmlNode *rm;
+	xmlNode *rs;
+	xmlNode *node;
+
+	rm = findnode(root_element, "rm");
+	if (!rm)
+		die("Can't find \"rm\" in %s\n", ninfo->configfile);
+
+	rs = findnode(rm, "resources");
+	if (!rs)
+		die("Can't find \"resources\" %s\n", ninfo->configfile);
+
+	/* Check it doesn't already exist */
+	if (find_fs_resource(rs, ninfo->name))
+		die("fs %s already exists\n", ninfo->name);
+
+	/* Add the new fs resource */
+	node = xmlNewNode(NULL, BAD_CAST "fs");
+	xmlSetProp(node, BAD_CAST "device", BAD_CAST ninfo->device);
+	_xmlSetIntProp(node, "force_fsck", ninfo->force_fsck);
+	_xmlSetIntProp(node, "force_unmount", ninfo->force_unmount);
+	xmlSetProp(node, BAD_CAST "fstype", BAD_CAST ninfo->type);
+	xmlSetProp(node, BAD_CAST "mountpoint", BAD_CAST ninfo->mountpoint);
+	xmlSetProp(node, BAD_CAST "name", BAD_CAST ninfo->name);
+	xmlSetProp(node, BAD_CAST "options", (ninfo->options) ?
+					BAD_CAST ninfo->options : BAD_CAST "");
+	_xmlSetIntProp(node, "self_fence", ninfo->self_fence);
+	xmlAddChild(rs, node);
+}
+
 static xmlDoc *open_configfile(struct option_info *ninfo)
 {
 	xmlDoc *doc;
@@ -828,6 +895,45 @@ static void del_clusterip(xmlNode *root_element, struct option_info *ninfo)
 	xmlUnlinkNode(node);
 }
 
+static void del_clusterfs(xmlNode *root_element, struct option_info *ninfo)
+{
+	xmlNode *rm, *rs;
+	xmlNode *node;
+
+	rm = findnode(root_element, "rm");
+	if (!rm)
+	{
+		fprintf(stderr, "Can't find \"rm\" in %s\n", ninfo->configfile);
+		exit(1);
+	}
+
+	rs = findnode(rm, "resources");
+	if (!rs)
+	{
+		fprintf(stderr, "Can't find \"resources\" in %s\n", ninfo->configfile);
+		exit(1);
+	}
+
+	/* Check that not used */
+	node = find_fs_ref(rm, ninfo->name);
+	if (node)
+	{
+		fprintf(stderr, "fs %s is referenced in service in %s,"
+			" please remove reference first.\n", ninfo->name,
+			ninfo->configfile);
+		exit(1);
+	}
+
+	node = find_fs_resource(rs, ninfo->name);
+	if (!node)
+	{
+		fprintf(stderr, "fs %s does not exist in %s\n", ninfo->name, ninfo->configfile);
+		exit(1);
+	}
+
+	xmlUnlinkNode(node);
+}
+
 struct option addnode_options[] =
 {
       { "votes", required_argument, NULL, 'v'},
@@ -836,6 +942,18 @@ struct option addnode_options[] =
       { "fence_type", required_argument, NULL, 'f'},
       { "outputfile", required_argument, NULL, 'o'},
       { "configfile", required_argument, NULL, 'c'},
+      { NULL, 0, NULL, 0 },
+};
+
+struct option addfs_options[] =
+{
+      { "type", required_argument, NULL, 't'},
+      { "options", required_argument, NULL, 'p'},
+      { "outputfile", required_argument, NULL, 'o'},
+      { "configfile", required_argument, NULL, 'c'},
+      { "force_fsck", no_argument, NULL, 'k'},
+      { "force_unmount", no_argument, NULL, 'u'},
+      { "self_fence", no_argument, NULL, 's'},
       { NULL, 0, NULL, 0 },
 };
 
@@ -1167,6 +1285,8 @@ void del_node(int argc, char **argv)
 		del_clusterscript(root_element, &ninfo);
 	else if (!strcmp(argv[0], "delip"))
 		del_clusterip(root_element, &ninfo);
+	else if (!strcmp(argv[0], "delfs"))
+		del_clusterfs(root_element, &ninfo);
 
 	/* Write it out */
 	save_file(doc, &ninfo);
@@ -1492,6 +1612,77 @@ void add_ip(int argc, char **argv)
 	xmlCleanupParser();
 }
 
+void add_fs(int argc, char **argv)
+{
+	struct option_info ninfo;
+	xmlDoc *doc;
+	xmlNode *root_element;
+	int opt;
+
+	memset(&ninfo, 0, sizeof(ninfo));
+
+	while ( (opt = getopt_long(argc, argv, "t:p:o:c:CFh?kus", addfs_options, NULL)) != EOF)
+	{
+		switch(opt)
+		{
+		case 't':
+			ninfo.type = strdup(optarg);
+			break;
+
+		case 'p':
+			ninfo.options = strdup(optarg);
+			break;
+
+		case 'c':
+			ninfo.configfile = strdup(optarg);
+			break;
+
+		case 'o':
+			ninfo.outputfile = strdup(optarg);
+			break;
+
+		case 'k':
+			ninfo.force_fsck = 1;
+			break;
+
+		case 'u':
+			ninfo.force_unmount = 1;
+			break;
+
+		case 's':
+			ninfo.self_fence = 1;
+			break;
+
+		case '?':
+		default:
+			addfs_usage(argv[0]);
+		}
+	}
+
+	if (optind < argc - 2) {
+		ninfo.name = strdup(argv[optind]);
+		ninfo.device = strdup(argv[optind + 1]);
+		ninfo.mountpoint = strdup(argv[optind + 2]);
+	} else
+		addfs_usage(argv[0]);
+
+	if (!ninfo.type)
+		ninfo.type = "ext3";
+
+	doc = open_configfile(&ninfo);
+
+	root_element = xmlDocGetRootElement(doc);
+
+	increment_version(root_element);
+
+	add_clusterfs(root_element, &ninfo, argc, argv, optind);
+
+	/* Write it out */
+	save_file(doc, &ninfo);
+	/* Shutdown libxml */
+	xmlCleanupParser();
+}
+
 void create_skeleton(int argc, char **argv)
 {
 	char *fencename = NULL;
@@ -1813,6 +2004,79 @@ void list_ips(int argc, char **argv)
 			xmlChar *ip  = xmlGetProp(cur_node, BAD_CAST "address");
 
 			printf("%s\n", ip);
+		}
+	}
+}
+
+void list_fs(int argc, char **argv)
+{
+	xmlNode *cur_node;
+	xmlNode *root_element;
+	xmlNode *rm, *rs;
+	xmlDocPtr doc;
+	struct option_info ninfo;
+	int opt;
+	int verbose=0;
+
+	memset(&ninfo, 0, sizeof(ninfo));
+
+	while ( (opt = getopt_long(argc, argv, "c:hv?", list_options, NULL)) != EOF)
+	{
+		switch(opt)
+		{
+		case 'c':
+			ninfo.configfile = strdup(optarg);
+			break;
+		case 'v':
+			verbose++;
+			break;
+		case '?':
+		default:
+			list_usage(argv[0]);
+		}
+	}
+	doc = open_configfile(&ninfo);
+	root_element = xmlDocGetRootElement(doc);
+
+	rm = findnode(root_element, "rm");
+	if (!rm)
+		die("Can't find \"rm\" in %s\n", ninfo.configfile);
+
+	rs = findnode(rm, "resources");
+	if (!rs)
+		die("Can't find \"resources\" in %s\n", ninfo.configfile);
+
+	printf("Name             Type  FUS Device              Mountpoint\n");
+	for (cur_node = rs->children; cur_node; cur_node = cur_node->next)
+	{
+		if (cur_node->type == XML_ELEMENT_NODE &&
+			strcmp((char *)cur_node->name, "fs") == 0)
+		{
+			xmlChar *name  = xmlGetProp(cur_node, BAD_CAST "name");
+			xmlChar *type  = xmlGetProp(cur_node, BAD_CAST "fstype");
+			xmlChar *force_fsck  = xmlGetProp(cur_node,
+						BAD_CAST "force_fsck");
+			xmlChar *force_unmount  = xmlGetProp(cur_node,
+						BAD_CAST "force_unmount");
+			xmlChar *self_fence  = xmlGetProp(cur_node,
+						BAD_CAST "self_fence");
+			xmlChar *device  = xmlGetProp(cur_node,
+						BAD_CAST "device");
+			xmlChar *mnt  = xmlGetProp(cur_node,
+						BAD_CAST "mountpoint");
+
+			char f, u, s;
+#define INT_TO_CHAR(x, str) \
+	if (str && atoi((const char *)str)) \
+		x = '*'; \
+	else \
+		x = ' ';
+			INT_TO_CHAR(f, force_fsck)
+			INT_TO_CHAR(u, force_unmount)
+			INT_TO_CHAR(s, self_fence)
+#undef INT_TO_CHAR
+			printf("%-16.16s %-5.5s %c%c%c %-19.19s %s\n", name, type, f, u,
+					s, device, mnt);
 		}
 	}
 }

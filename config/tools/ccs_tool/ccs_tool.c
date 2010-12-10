@@ -249,6 +249,14 @@ static int tool_main(int argc, char *argv[])
 	    del_node(argc-1, argv+1);
 	    exit(EXIT_SUCCESS);
     }
+    else if(!strcmp(argv[optind], "addfs")){
+	    add_fs(argc-1, argv+1);
+	    exit(EXIT_SUCCESS);
+    }
+    else if(!strcmp(argv[optind], "delfs")){
+	    del_node(argc-1, argv+1);
+	    exit(EXIT_SUCCESS);
+    }
     else if(!strcmp(argv[optind], "addfence")){
 	    add_fence(argc-1, argv+1);
 	    exit(EXIT_SUCCESS);
@@ -275,6 +283,10 @@ static int tool_main(int argc, char *argv[])
     }
     else if(!strcmp(argv[optind], "lsip")){
 	    list_ips(argc-1, argv+1);
+	    exit(EXIT_SUCCESS);
+    }
+    else if(!strcmp(argv[optind], "lsfs")){
+	    list_fs(argc-1, argv+1);
 	    exit(EXIT_SUCCESS);
     }
     else if(!strcmp(argv[optind], "create")){
@@ -327,6 +339,9 @@ static void tool_print_usage(FILE *stream){
 	  "  addip <name>        Add an IP address resource\n"
 	  "  delip <name>        Delete an IP address resource\n"
 	  "  lsip                List IP address resources\n"
+	  "  addfs <name>        Add an IP address resource\n"
+	  "  delfs <name>        Delete an IP address resource\n"
+	  "  lsfs                List IP address resources\n"
 	  "  create              Create a skeleton config file\n"
 	  "  addnodeids          Assign node ID numbers to all nodes\n"
 	  "\n");
