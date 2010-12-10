@@ -225,6 +225,14 @@ static int tool_main(int argc, char *argv[])
 	    del_node(argc-1, argv+1);
 	    exit(EXIT_SUCCESS);
     }
+    else if(!strcmp(argv[optind], "addservice")){
+	    add_service(argc-1, argv+1);
+	    exit(EXIT_SUCCESS);
+    }
+    else if(!strcmp(argv[optind], "delservice")){
+	    del_service(argc-1, argv+1);
+	    exit(EXIT_SUCCESS);
+    }
     else if(!strcmp(argv[optind], "addfence")){
 	    add_fence(argc-1, argv+1);
 	    exit(EXIT_SUCCESS);
@@ -235,6 +243,10 @@ static int tool_main(int argc, char *argv[])
     }
     else if(!strcmp(argv[optind], "lsnode")){
 	    list_nodes(argc-1, argv+1);
+	    exit(EXIT_SUCCESS);
+    }
+    else if(!strcmp(argv[optind], "lsservice")){
+	    list_services(argc-1, argv+1);
 	    exit(EXIT_SUCCESS);
     }
     else if(!strcmp(argv[optind], "lsfence")){
@@ -279,6 +291,9 @@ static void tool_print_usage(FILE *stream){
 	  "  addnode <node>      Add a node\n"
           "  delnode <node>      Delete a node\n"
           "  lsnode              List nodes\n"
+	  "  addservice <name>   Add a service\n"
+          "  delservice <name>   Delete a service\n"
+          "  lsservice           List services\n"
           "  lsfence             List fence devices\n"
 	  "  addfence <fencedev> Add a new fence device\n"
 	  "  delfence <fencedev> Delete a fence device\n"
