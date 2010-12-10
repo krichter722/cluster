@@ -785,14 +785,7 @@ struct option addnode_options[] =
       { NULL, 0, NULL, 0 },
 };
 
-struct option delnode_options[] =
-{
-      { "outputfile", required_argument, NULL, 'o'},
-      { "configfile", required_argument, NULL, 'c'},
-      { NULL, 0, NULL, 0 },
-};
-
-struct option addfence_options[] =
+struct option commonw_options[] =
 {
       { "outputfile", required_argument, NULL, 'o'},
       { "configfile", required_argument, NULL, 'c'},
@@ -838,12 +831,32 @@ struct option addservice_options[] =
       { NULL, 0, NULL, 0 },
 };
 
-struct option delservice_options[] =
+static int parse_commonw_options(int argc, char **argv,
+	struct option_info *ninfo)
 {
-      { "outputfile", required_argument, NULL, 'o'},
-      { "configfile", required_argument, NULL, 'c'},
-      { NULL, 0, NULL, 0 },
-};
+	int opt;
+
+	memset(ninfo, 0, sizeof(*ninfo));
+
+	while ( (opt = getopt_long(argc, argv, "o:c:CFh?", commonw_options, NULL)) != EOF)
+	{
+		switch(opt)
+		{
+		case 'c':
+			ninfo->configfile = strdup(optarg);
+			break;
+
+		case 'o':
+			ninfo->outputfile = strdup(optarg);
+			break;
+
+		case '?':
+		default:
+			return 1;
+		}
+	}
+	return 0;
+}
 
 static int next_nodeid(int startid, int *nodeids, int nodecount)
 {
@@ -1074,29 +1087,11 @@ void add_node(int argc, char **argv)
 void del_node(int argc, char **argv)
 {
 	struct option_info ninfo;
-	int opt;
 	xmlDoc *doc;
 	xmlNode *root_element;
 
-	memset(&ninfo, 0, sizeof(ninfo));
-
-	while ( (opt = getopt_long(argc, argv, "o:c:CFh?", delnode_options, NULL)) != EOF)
-	{
-		switch(opt)
-		{
-		case 'c':
-			ninfo.configfile = strdup(optarg);
-			break;
-
-		case 'o':
-			ninfo.outputfile = strdup(optarg);
-			break;
-
-		case '?':
-		default:
-			delnode_usage(argv[0]);
-		}
-	}
+	if (parse_commonw_options(argc, argv, &ninfo))
+		delnode_usage(argv[0]);
 
 	/* Get node name parameter */
 	if (optind < argc)
@@ -1350,32 +1345,14 @@ void list_services(int argc, char **argv)
 void add_script(int argc, char **argv)
 {
 	struct option_info ninfo;
-	int opt;
 	xmlDoc *doc;
 	xmlNode *root_element;
 	xmlNode *rm, *rs, *node;
 	char *name;
 	char *sc_file;
 
-	memset(&ninfo, 0, sizeof(ninfo));
-
-	while ( (opt = getopt_long(argc, argv, "o:c:CFh?", addfence_options, NULL)) != EOF)
-	{
-		switch(opt)
-		{
-		case 'c':
-			ninfo.configfile = strdup(optarg);
-			break;
-
-		case 'o':
-			ninfo.outputfile = strdup(optarg);
-			break;
-
-		case '?':
-		default:
-			addscript_usage(argv[0]);
-		}
-	}
+	if (parse_commonw_options(argc, argv, &ninfo))
+		addscript_usage(argv[0]);
 
 	if (argc - optind < 2)
 		addscript_usage(argv[0]);
@@ -1515,26 +1492,9 @@ void add_fence(int argc, char **argv)
 	char *fencename;
 	char *agentname;
 	struct option_info ninfo;
-	int opt;
 
-	memset(&ninfo, 0, sizeof(ninfo));
-
-	while ( (opt = getopt_long(argc, argv, "c:o:CFh?", list_options, NULL)) != EOF)
-	{
-		switch(opt)
-		{
-		case 'c':
-			ninfo.configfile = strdup(optarg);
-			break;
-		case 'o':
-			ninfo.outputfile = strdup(optarg);
-			break;
-
-		case '?':
-		default:
-			addfence_usage(argv[0]);
-		}
-	}
+	if (parse_commonw_options(argc, argv, &ninfo))
+		addfence_usage(argv[0]);
 
 	if (argc - optind < 2)
 		addfence_usage(argv[0]);
@@ -1577,26 +1537,9 @@ void del_fence(int argc, char **argv)
 	xmlDocPtr doc;
 	char *fencename;
 	struct option_info ninfo;
-	int opt;
 
-	memset(&ninfo, 0, sizeof(ninfo));
-
-	while ( (opt = getopt_long(argc, argv, "c:o:CFhv?", list_options, NULL)) != EOF)
-	{
-		switch(opt)
-		{
-		case 'c':
-			ninfo.configfile = strdup(optarg);
-			break;
-		case 'o':
-			ninfo.outputfile = strdup(optarg);
-			break;
-
-		case '?':
-		default:
-			delfence_usage(argv[0]);
-		}
-	}
+	if (parse_commonw_options(argc, argv, &ninfo))
+		delfence_usage(argv[0]);
 
 	if (argc - optind < 1)
 		delfence_usage(argv[0]);
