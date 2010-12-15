@@ -1386,10 +1386,11 @@ auto_qdisk_votes(int desc)
 			"/cluster/clusternodes/clusternode[%d]/@votes", ret);
 
 		name = NULL;
-		if (ccs_get(desc, buf, &name) != 0)
-			break;
+		if (ccs_get(desc, buf, &name) == 0)
+			votes = atoi(name);
+		else
+			votes = 1;
 
-		votes=atoi(name);
 		if (votes != 1) {
 			free(name);
 
