@@ -236,6 +236,13 @@ static void addnode_usage(const char *name)
 static void addservice_usage(const char *name)
 {
 	fprintf(stderr, "Usage: %s %s [options] <servicename>\n", prog_name, name);
+	fprintf(stderr, " -a --autostart       Start the service on boot\n");
+	fprintf(stderr, " -d --domain          Failover domain for the service\n");
+	fprintf(stderr, " -x --exclusive       Do not run other services on the same server\n");
+	fprintf(stderr, " -r --recovery        Recovery policy\n");
+	fprintf(stderr, " -f --fs              Filesystem resource for the service\n");
+	fprintf(stderr, " -s --script          Script resource for the service\n");
+	fprintf(stderr, " -i --ip              IP address resource for the service\n");
 	config_usage(1);
 	help_usage();
 
