@@ -286,7 +286,7 @@ static int add_ifaddr(struct objdb_iface_ver0 *objdb, char *mcast, char *ifaddr,
 	int ret = 0;
 	const char *tx_mech_to_str[] = {
 		[TX_MECH_UDP] = "udp",
-		[TX_MECH_UDPB] = "udp",
+		[TX_MECH_UDPB] = "udpb",
 		[TX_MECH_UDPU] = "udpu",
 		[TX_MECH_RDMA] = "iba",
 	};
