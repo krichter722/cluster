@@ -1008,18 +1008,6 @@ static void read_arguments(int argc, char **argv)
 	}
 }
 
-static void set_oom_adj(int val)
-{
-	FILE *fp;
-
-	fp = fopen("/proc/self/oom_adj", "w");
-	if (!fp)
-		return;
-
-	fprintf(fp, "%i", val);
-	fclose(fp);
-}
-
 int main(int argc, char **argv)
 {
 	INIT_LIST_HEAD(&domains);
@@ -1040,7 +1028,6 @@ int main(int argc, char **argv)
 	init_logging();
 	log_level(LOG_INFO, "fenced %s started", RELEASE_VERSION);
 	signal(SIGTERM, sigterm_handler);
-	set_oom_adj(-16);
 
 	loop();
 
