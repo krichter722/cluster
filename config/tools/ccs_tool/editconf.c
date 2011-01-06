@@ -1170,7 +1170,7 @@ static int parse_commonw_options(int argc, char **argv,
 
 	memset(ninfo, 0, sizeof(*ninfo));
 
-	while ( (opt = getopt_long(argc, argv, "o:c:CFh?", commonw_options, NULL)) != EOF)
+	while ( (opt = getopt_long(argc, argv, "o:c:h?", commonw_options, NULL)) != EOF)
 	{
 		switch(opt)
 		{
@@ -1359,7 +1359,7 @@ void add_node(int argc, char **argv)
 	memset(&ninfo, 0, sizeof(ninfo));
 	ninfo.votes = "1";
 
-	while ( (opt = getopt_long(argc, argv, "v:n:a:f:o:c:CFh?", addnode_options, NULL)) != EOF)
+	while ( (opt = getopt_long(argc, argv, "v:n:a:f:o:c:h?", addnode_options, NULL)) != EOF)
 	{
 		switch(opt)
 		{
@@ -1546,7 +1546,7 @@ void add_service(int argc, char **argv)
 	ninfo.autostart = "1";
 	ninfo.recovery = "relocate";
 
-	while ( (opt = getopt_long(argc, argv, "a:d:x:r:f:o:c:s:i:CFh?", addservice_options, NULL)) != EOF)
+	while ( (opt = getopt_long(argc, argv, "a:d:x:r:f:o:c:s:i:h?", addservice_options, NULL)) != EOF)
 	{
 		switch(opt)
 		{
@@ -1787,7 +1787,7 @@ void add_fs(int argc, char **argv)
 
 	memset(&ninfo, 0, sizeof(ninfo));
 
-	while ( (opt = getopt_long(argc, argv, "t:p:o:c:CFh?kus", addfs_options, NULL)) != EOF)
+	while ( (opt = getopt_long(argc, argv, "t:p:o:c:h?kus", addfs_options, NULL)) != EOF)
 	{
 		switch(opt)
 		{
@@ -1858,7 +1858,7 @@ void add_fdomain(int argc, char **argv)
 
 	memset(&ninfo, 0, sizeof(ninfo));
 
-	while ( (opt = getopt_long(argc, argv, "pro:c:CFh?", addfdomain_options, NULL)) != EOF)
+	while ( (opt = getopt_long(argc, argv, "pro:c:h?", addfdomain_options, NULL)) != EOF)
 	{
 		switch(opt)
 		{
