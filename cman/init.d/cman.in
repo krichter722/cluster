@@ -305,6 +305,16 @@ gfs_controld_enabled()
 	return 1
 }
 
+cluster_disabled_at_boot()
+{
+	if grep -q nocluster /proc/cmdline && \
+	   [ "$(tty)" = "/dev/console" ]; then
+		errmsg="not configured to run at boot"
+		return 1
+	fi
+	return 0
+}
+
 network_manager_enabled()
 {
 	if status NetworkManager > /dev/null 2>&1 || \
@@ -712,6 +722,10 @@ start()
 	fi
 
 	echo $echoarg "Starting cluster: "
+
+	runwrap cluster_disabled_at_boot \
+		none \
+		"Checking if cluster has been disabled at boot"
 
 	runwrap network_manager_enabled \
 		none \
