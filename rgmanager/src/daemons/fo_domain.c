@@ -529,7 +529,7 @@ node_should_start(int nodeid, cluster_member_list_t *membership,
 		 * Check to see if the service is started and if we are the owner in case of
 		 * restricted+owner+no failback
 		 */
-		if (svc_state.rs_state == RG_STATE_STARTED)
+		if (svc_state.rs_state == RG_STATE_STARTED || svc_state.rs_state == RG_STATE_STARTING)
 			started = 1;
 		if (svc_state.rs_owner == (uint32_t)nodeid)
 			owned_by_node = 1;
