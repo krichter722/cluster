@@ -1031,11 +1031,11 @@ usage(char *arg0)
 "    -I                 Display local node ID and exit\n"
 "    -m <member>        Display status of <member> and exit\n"
 "    -s <service>       Display status of <service> and exit\n"
-"    -v                 Display version & cluster plugin and exit\n"
+"    -v                 Display version and exit\n"
 "    -x                 Dump information as XML\n"
-"    -Q			Return 0 if quorate, 1 if not (no output)\n"
-"    -f			Enable fast clustat reports\n"
-"    -l			Use long format for services\n"
+"    -Q                 Return 0 if quorate, 1 if not (no output)\n"
+"    -f                 Enable fast clustat reports\n"
+"    -l                 Use long format for services\n"
 "\n", basename(arg0));
 }
 
@@ -1130,7 +1130,7 @@ main(int argc, char **argv)
 
 	/* Connect & grab all our info */
 	ch = cman_init(NULL);
-	if (!ch) {
+	if (!ch && (runtype != VERSION_ONLY)) {
 		perror("Could not connect to CMAN");
 		return 1;
 	}
@@ -1144,8 +1144,6 @@ main(int argc, char **argv)
 	case VERSION_ONLY:
 		printf("%s version %s\n", basename(argv[0]),
 		       RELEASE_VERSION);
-		if (!ch)
-		       break;
 		goto cleanup;
 	case NODEID_ONLY:
 		if (!ch)
