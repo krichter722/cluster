@@ -26,14 +26,14 @@ if (($#ARGV != -1) && ($ARGV[0] eq "repair")) {
 
 if (!quorum()) {
   if (has_quorum_already_been_formed()) {
-    debug("Quorum has already existed, node can be self fenced!\n");
+    debug("Quorum has already existed, node can be rebooted!\n");
     if (-e $timerfile) {
        $tf = open (FILE, "$timerfile");
        $time = <FILE>;
        close (FILE);
        $timediff = time() - $time;
        if ($timediff >= $wait_time) {
-	 self_fence()
+	 reboot()
        } else {
          $remaining = $wait_time - $timediff;
          debug("Time has not exceeded wait time ($remaining seconds remaining).\n");
@@ -45,16 +45,16 @@ if (!quorum()) {
        close (FILE);
     }
   } else {
-    debug("This is a new startup no self-fencing will occur.\n");
+    debug("This is a new startup no reboot will occur.\n");
     `rm -f $timerfile`;
   }
 } else {
-  debug("Quorum exists, no self-fencing should occur.\n");
+  debug("Quorum exists, no reboot should occur.\n");
   `rm -f $timerfile`;
 }
 
 sub has_quorum_already_been_formed {
-   $oe = `/usr/sbin/corosync-objctl 2>&1 | grep -E "runtime.totem.pg.mrp.srp.operational_entered|Could not initialize objdb library|Cannot connect to quorum service" `;
+   $oe = `corosync-objctl 2>&1 | grep -E "runtime.totem.pg.mrp.srp.operational_entered|Could not initialize objdb library|Cannot connect to quorum service" `;
    if ($oe =~ /^Could not/ || $oe =~ /^Cannot/) {
 	debug("corosync is not running\n");
 	exit 0;
@@ -79,8 +79,8 @@ sub quorum {
   return 0;
 }
 
-sub self_fence {
-  debug("Self fencing commencing...\n");
+sub reboot {
+  debug("Reboot commencing...\n");
   `rm -f $timerfile`;
   if ($hardreboot == 1) {
     `echo 1 > /proc/sys/kernel/sysrq`;
