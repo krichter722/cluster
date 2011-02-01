@@ -1746,6 +1746,11 @@ get_static_config_data(qd_ctx *ctx, int ccsfd)
 	snprintf(query, sizeof(query), "/cluster/quorumd/@label");
 	if (ccs_get(ccsfd, query, &val) == 0) {
 		ctx->qc_label = val;
+		/* courtesy info message */
+		if (ctx->qc_device)
+			logt_print(LOG_INFO, "Quorum Label (%s) will be used to "
+				   "locate quorum partition, overriding Quorum Device\n",
+				   ctx->qc_label);
 	}
 
 	if (!ctx->qc_device && !ctx->qc_label) {
