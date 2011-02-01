@@ -23,6 +23,7 @@
 #include <members.h>
 #include <daemon_init.h>
 #include <groups.h>
+#include <rg_dbus.h>
 
 #ifdef WRAP_THREADS
 void dump_thread_states(FILE *);
@@ -42,7 +43,9 @@ static int signalled = 0;
 static uint8_t ALIGNED port = RG_PORT;
 static char *rgmanager_lsname = (char *)"rgmanager"; /* XXX default */
 static int status_poll_interval = DEFAULT_CHECK_INTERVAL;
-
+#ifdef DBUS
+static int state_notify = 1;
+#endif
 
 static void
 segfault(int __attribute__ ((unused)) sig)
@@ -935,6 +938,68 @@ shutdown_thread(void __attribute__ ((unused)) *arg)
 }
 
 
+#ifdef DBUS
+static int32_t
+svc_update(char *key, uint64_t view, void *data, uint32_t size)
+{
+	char flags[64];
+	rg_state_t *st;
+	cluster_member_list_t *m;
+	const char *owner;
+	const char *last;
+	int ret = 0;
+
+	if (!state_notify)
+		goto out_free;
+	if (view == 1)
+		goto out_free;
+	if (size != (sizeof(*st)))
+		goto out_free;
+
+	st = (rg_state_t *)data;
+	swab_rg_state_t(st);
+
+	/* Don't send transitional states */
+	if (st->rs_state == RG_STATE_STARTING ||
+	    st->rs_state == RG_STATE_STOPPING)
+		goto out_free;
+
+	m = member_list();
+	if (!m)
+		goto out_free;
+
+	owner = memb_id_to_name(m, st->rs_owner);
+	last = memb_id_to_name(m, st->rs_last_owner);
+
+	if (!owner)
+		owner = "(none)";
+	if (!last)
+		last = "(none)";
+
+	rg_flags_str(flags, sizeof(flags), st->rs_flags, (char *)" ");
+	if (flags[0] == 0)
+		snprintf(flags, sizeof(flags), "(none)");
+
+	ret = rgm_dbus_notify(st->rs_name,
+			      rg_state_str(st->rs_state),
+			      (char *)flags, owner, last);
+
+	if (ret < 0) {
+		logt_print(LOG_ERR, "Error sending update for %s; "
+			   "notifications disabled\n", key);
+		rgm_dbus_release();
+		state_notify = 0;
+	}
+
+out_free:
+	if (m)
+		free_member_list(m);
+	free(data);
+	return 0;
+}
+#endif
+
+
 #ifdef WRAP_THREADS
 void dump_thread_states(FILE *);
 #endif
@@ -949,7 +1014,7 @@ main(int argc, char **argv)
 	pthread_t th;
 	cman_handle_t clu = NULL;
 
-	while ((rv = getopt(argc, argv, "wfdN")) != EOF) {
+	while ((rv = getopt(argc, argv, "wfdND")) != EOF) {
 		switch (rv) {
 		case 'w':
 			wd = 0;
@@ -962,6 +1027,11 @@ main(int argc, char **argv)
 			break;
 		case 'f':
 			foreground = 1;
+			break;
+		case 'D':
+#ifdef DBUS
+			state_notify = 0;
+#endif
 			break;
 		default:
 			return 1;
@@ -1032,6 +1102,11 @@ main(int argc, char **argv)
 	configure_rgmanager(-1, debug, &cluster_timeout);
 	logt_print(LOG_NOTICE, "Resource Group Manager Starting\n");
 
+#ifdef DBUS
+	if (state_notify && rgm_dbus_init() != 0) 
+		logt_print(LOG_NOTICE, "Failed to initialize DBus\n");
+#endif
+
 	if (init_resource_groups(0, do_init) != 0) {
 		logt_print(LOG_CRIT, "#8: Couldn't initialize services\n");
 		goto out_ls;
@@ -1074,7 +1149,11 @@ main(int argc, char **argv)
 
 	ds_key_init("rg_lockdown", 32, 10);
 #else
-	if (vf_init(me.cn_nodeid, port, NULL, NULL, cluster_timeout) != 0) {
+	if (vf_init(me.cn_nodeid, port, NULL, 
+#ifdef DBUS /* Ugly */
+		    state_notify ? svc_update :
+#endif
+		    NULL, cluster_timeout) != 0) {
 		logt_print(LOG_CRIT, "#11: Couldn't set up VF listen socket\n");
 		goto out_ls;
 	}
@@ -1106,6 +1185,9 @@ out_ls:
 	clu_lock_finished(rgmanager_lsname);
 
 out:
+#ifdef DBUS
+	rgm_dbus_release();
+#endif
 	logt_print(LOG_NOTICE, "Shutdown complete, exiting\n");
 	cman_finish(clu);
 	
