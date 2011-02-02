@@ -951,7 +951,7 @@ main(int argc, char **argv)
 	pthread_t th;
 	cman_handle_t clu = NULL;
 
-	while ((rv = getopt(argc, argv, "wfdND")) != EOF) {
+	while ((rv = getopt(argc, argv, "wfdNq")) != EOF) {
 		switch (rv) {
 		case 'w':
 			wd = 0;
@@ -965,7 +965,7 @@ main(int argc, char **argv)
 		case 'f':
 			foreground = 1;
 			break;
-		case 'D':
+		case 'q':
 			rgm_dbus_notify = 0;
 			break;
 		default:
