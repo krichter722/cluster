@@ -684,6 +684,8 @@ event_loop(msgctx_t *localctx, msgctx_t *clusterctx)
 		dump_internal_state("/var/lib/cluster/rgmanager-dump");
 	}
 
+	rgm_dbus_init();
+
 	while (running && (tv.tv_sec || tv.tv_usec)) {
 		FD_ZERO(&rfds);
 		max = -1;
@@ -1035,8 +1037,11 @@ main(int argc, char **argv)
 	configure_rgmanager(-1, debug, &cluster_timeout);
 	logt_print(LOG_NOTICE, "Resource Group Manager Starting\n");
 
-	if (rgm_dbus_notify && rgm_dbus_init() != 0) 
-		logt_print(LOG_NOTICE, "Failed to initialize DBus\n");
+	if (rgm_dbus_notify && rgm_dbus_init() != 0) {
+		rgm_dbus_notify = 0;
+		logt_print(LOG_NOTICE, "Failed to initialize DBus; "
+			   "notifications disabled\n");
+	}
 
 	if (init_resource_groups(0, do_init) != 0) {
 		logt_print(LOG_CRIT, "#8: Couldn't initialize services\n");

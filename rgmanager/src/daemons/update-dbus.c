@@ -21,8 +21,6 @@
 static DBusConnection *db = NULL;
 static pthread_mutex_t mu = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t th = 0;
-static char _err[512];
-static int err_set = 0;
 #endif
 
 /* Set this to the desired value prior to calling rgm_dbus_init() */
@@ -39,20 +37,29 @@ rgm_dbus_init(void)
 	if (!rgm_dbus_notify)
 		return 0;
 
+	pthread_mutex_lock(&mu);
+	if (db) {
+		pthread_mutex_unlock(&mu);
+		return 0;
+	}
+
 	dbus_error_init(&err);
 
-	dbc = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
+	dbc = dbus_bus_get_private(DBUS_BUS_SYSTEM, &err);
 	if (!dbc) {
-		snprintf(_err, sizeof(_err),
-			 "dbus_bus_get: %s", err.message);
-		err_set = 1;
+		logt_print(LOG_ERR,
+			   "DBus Failed to initialize: dbus_bus_get: %s\n",
+			   err.message);
 		dbus_error_free(&err);
+		pthread_mutex_unlock(&mu);
 		return -1;
 	}
 
 	dbus_connection_set_exit_on_disconnect(dbc, FALSE);
 
 	db = dbc;
+	pthread_mutex_unlock(&mu);
+	logt_print(LOG_DEBUG, "DBus Notifications Initialized\n");
 	return 0;
 }
 #else
@@ -63,9 +70,9 @@ rgm_dbus_init(void)
 #endif
 
 
-int
-rgm_dbus_release(void)
 #ifdef DBUS
+static int
+_rgm_dbus_release(int err)
 {
 	pthread_t t;
 
@@ -74,16 +81,38 @@ rgm_dbus_release(void)
 
 	/* tell thread to exit - not sure how to tell dbus
 	 * to wake up, so just have it poll XXX */
+
+	/* if the thread left because the dbus connection died,
+	   this block is avoided since the thread exits */
 	if (th) {
 		t = th;
 		th = 0;
 		pthread_join(t, NULL);
 	}
 
+	dbus_connection_close(db);
 	dbus_connection_unref(db);
 	db = NULL;
 
+	if (err)
+		logt_print(LOG_ERR, "DBus Connection Lost\n");
+	else
+		logt_print(LOG_DEBUG, "DBus Released\n");
 	return 0;
+}
+#endif
+
+
+int
+rgm_dbus_release(void)
+#ifdef DBUS
+{
+	int ret;
+
+	pthread_mutex_lock(&mu);
+	ret = _rgm_dbus_release(0);
+	pthread_mutex_unlock(&mu);
+	return ret;
 }
 #else
 {
@@ -98,14 +127,12 @@ _dbus_auto_flush(void *arg)
 {
 	/* DBus connection functions are thread safe */
 	dbus_connection_ref(db);
-
 	while (dbus_connection_read_write(db, 500)) {
 		if (!th)
 			break;	
 	}
 
 	dbus_connection_unref(db);
-
 	th = 0;
 	return NULL;
 }
@@ -121,11 +148,6 @@ _rgm_dbus_notify(const char *svcname,
 	DBusMessage *msg = NULL;
 	int ret = -1;
 
-	if (err_set) {
-		fprintf(stderr, "%s\n", _err);
-		err_set = 0;
-	}
-
 	if (!db) {
 		goto out_free;
 	}
@@ -133,9 +155,7 @@ _rgm_dbus_notify(const char *svcname,
 	pthread_mutex_lock(&mu);
 
 	if (dbus_connection_get_is_connected(db) != TRUE) {
-		err_set = 1;
-		snprintf(_err, sizeof(_err), "DBus connection lost");
-		rgm_dbus_release();
+		_rgm_dbus_release(1);
 		goto out_unlock;
 	}
 
@@ -184,6 +204,8 @@ rgm_dbus_update(char *key, uint64_t view, void *data, uint32_t size)
 
 	if (!rgm_dbus_notify)
 		goto out_free;
+	if (!db)
+		goto out_free;
 	if (view == 1)
 		goto out_free;
 	if (size != (sizeof(*st)))
@@ -209,6 +231,7 @@ rgm_dbus_update(char *key, uint64_t view, void *data, uint32_t size)
 	if (!last)
 		last = "(none)";
 
+	flags[0] = 0;
 	rg_flags_str(flags, sizeof(flags), st->rs_flags, (char *)" ");
 	if (flags[0] == 0)
 		snprintf(flags, sizeof(flags), "(none)");
@@ -221,7 +244,6 @@ rgm_dbus_update(char *key, uint64_t view, void *data, uint32_t size)
 		logt_print(LOG_ERR, "Error sending update for %s; "
 			   "notifications disabled\n", key);
 		rgm_dbus_release();
-		rgm_dbus_notify = 0;
 	}
 
 out_free:
