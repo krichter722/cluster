@@ -47,7 +47,7 @@ rgm_dbus_init(void)
 
 	dbc = dbus_bus_get_private(DBUS_BUS_SYSTEM, &err);
 	if (!dbc) {
-		logt_print(LOG_ERR,
+		logt_print(LOG_DEBUG,
 			   "DBus Failed to initialize: dbus_bus_get: %s\n",
 			   err.message);
 		dbus_error_free(&err);
@@ -72,7 +72,7 @@ rgm_dbus_init(void)
 
 #ifdef DBUS
 static int
-_rgm_dbus_release(int err)
+_rgm_dbus_release(void)
 {
 	pthread_t t;
 
@@ -83,7 +83,7 @@ _rgm_dbus_release(int err)
 	 * to wake up, so just have it poll XXX */
 
 	/* if the thread left because the dbus connection died,
-	   this block is avoided since the thread exits */
+	   this block is avoided */
 	if (th) {
 		t = th;
 		th = 0;
@@ -94,15 +94,13 @@ _rgm_dbus_release(int err)
 	dbus_connection_unref(db);
 	db = NULL;
 
-	if (err)
-		logt_print(LOG_ERR, "DBus Connection Lost\n");
-	else
-		logt_print(LOG_DEBUG, "DBus Released\n");
+	logt_print(LOG_DEBUG, "DBus Released\n");
 	return 0;
 }
 #endif
 
 
+/* Clean shutdown (e.g. when exiting */
 int
 rgm_dbus_release(void)
 #ifdef DBUS
@@ -110,7 +108,7 @@ rgm_dbus_release(void)
 	int ret;
 
 	pthread_mutex_lock(&mu);
-	ret = _rgm_dbus_release(0);
+	ret = _rgm_dbus_release();
 	pthread_mutex_unlock(&mu);
 	return ret;
 }
@@ -122,6 +120,9 @@ rgm_dbus_release(void)
 
 
 #ifdef DBUS
+/* Auto-flush thread.  Since sending only guarantees queueing,
+ * we need this thread to push things out over dbus in the
+ * background */
 static void *
 _dbus_auto_flush(void *arg)
 {
@@ -154,8 +155,15 @@ _rgm_dbus_notify(const char *svcname,
 
 	pthread_mutex_lock(&mu);
 
+	/* Check to ensure the connection is still valid. If it
+	 * isn't, clean up and shut down the dbus connection.
+	 *
+	 * The main rgmanager thread will periodically try to
+	 * reinitialize the dbus notification subsystem unless
+	 * the administrator ran rgmanager with the -D command
+	 * line option.
+	 */
 	if (dbus_connection_get_is_connected(db) != TRUE) {
-		_rgm_dbus_release(1);
 		goto out_unlock;
 	}
 
@@ -192,6 +200,9 @@ out_free:
 }
 
 
+/*
+ * view-formation callback function
+ */
 int32_t
 rgm_dbus_update(char *key, uint64_t view, void *data, uint32_t size)
 {
@@ -242,7 +253,7 @@ rgm_dbus_update(char *key, uint64_t view, void *data, uint32_t size)
 
 	if (ret < 0) {
 		logt_print(LOG_ERR, "Error sending update for %s; "
-			   "notifications disabled\n", key);
+			   "DBus notifications disabled\n", key);
 		rgm_dbus_release();
 	}
 
