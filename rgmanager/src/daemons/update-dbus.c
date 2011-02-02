@@ -1,11 +1,18 @@
 /* DBus notifications */
+#include <stdint.h>
+#include <rg_dbus.h>
+#include <errno.h>
+
+#ifdef DBUS
+
 #include <stdio.h>
 #include <stdint.h>
 #include <resgroup.h>
 #include <poll.h>
 #include <dbus/dbus.h>
-#include <rg_dbus.h>
-#ifdef DBUS
+#include <liblogthread.h>
+#include <members.h>
+
 
 #define DBUS_RGM_NAME	"com.redhat.cluster.rgmanager"
 #define DBUS_RGM_IFACE	"com.redhat.cluster.rgmanager"
@@ -16,12 +23,21 @@ static pthread_mutex_t mu = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t th = 0;
 static char _err[512];
 static int err_set = 0;
+#endif
+
+/* Set this to the desired value prior to calling rgm_dbus_init() */
+int rgm_dbus_notify = RGM_DBUS_DEFAULT;
+
 
 int 
 rgm_dbus_init(void)
+#ifdef DBUS
 {
 	DBusConnection *dbc = NULL;
 	DBusError err;
+
+	if (!rgm_dbus_notify)
+		return 0;
 
 	dbus_error_init(&err);
 
@@ -39,10 +55,17 @@ rgm_dbus_init(void)
 	db = dbc;
 	return 0;
 }
+#else
+{
+	errno = ENOSYS;
+	return -1;
+}
+#endif
 
 
 int
 rgm_dbus_release(void)
+#ifdef DBUS
 {
 	pthread_t t;
 
@@ -62,8 +85,14 @@ rgm_dbus_release(void)
 
 	return 0;
 }
+#else
+{
+	return 0;
+}
+#endif
 
 
+#ifdef DBUS
 static void *
 _dbus_auto_flush(void *arg)
 {
@@ -82,12 +111,12 @@ _dbus_auto_flush(void *arg)
 }
 
 
-int
-rgm_dbus_notify(const char *svcname,
-		const char *svcstatus,
-		const char *svcflags,
-		const char *svcowner,
-		const char *svclast)
+static int
+_rgm_dbus_notify(const char *svcname,
+		 const char *svcstatus,
+		 const char *svcflags,
+		 const char *svcowner,
+		 const char *svclast)
 {
 	DBusMessage *msg = NULL;
 	int ret = -1;
@@ -140,5 +169,65 @@ out_unlock:
 		dbus_message_unref(msg);
 out_free:
 	return ret;
+}
+
+
+int32_t
+rgm_dbus_update(char *key, uint64_t view, void *data, uint32_t size)
+{
+	char flags[64];
+	rg_state_t *st;
+	cluster_member_list_t *m = NULL;
+	const char *owner;
+	const char *last;
+	int ret = 0;
+
+	if (!rgm_dbus_notify)
+		goto out_free;
+	if (view == 1)
+		goto out_free;
+	if (size != (sizeof(*st)))
+		goto out_free;
+
+	st = (rg_state_t *)data;
+	swab_rg_state_t(st);
+
+	/* Don't send transitional states */
+	if (st->rs_state == RG_STATE_STARTING ||
+	    st->rs_state == RG_STATE_STOPPING)
+		goto out_free;
+
+	m = member_list();
+	if (!m)
+		goto out_free;
+
+	owner = memb_id_to_name(m, st->rs_owner);
+	last = memb_id_to_name(m, st->rs_last_owner);
+
+	if (!owner)
+		owner = "(none)";
+	if (!last)
+		last = "(none)";
+
+	rg_flags_str(flags, sizeof(flags), st->rs_flags, (char *)" ");
+	if (flags[0] == 0)
+		snprintf(flags, sizeof(flags), "(none)");
+
+	ret = _rgm_dbus_notify(st->rs_name,
+			       rg_state_str(st->rs_state),
+			       (char *)flags, owner, last);
+
+	if (ret < 0) {
+		logt_print(LOG_ERR, "Error sending update for %s; "
+			   "notifications disabled\n", key);
+		rgm_dbus_release();
+		rgm_dbus_notify = 0;
+	}
+
+out_free:
+	if (m)
+		free_member_list(m);
+	free(data);
+	return 0;
 }
 #endif
