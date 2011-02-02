@@ -73,6 +73,7 @@ my %options = (
 	confdir => \$confdir,
 	conffile => \$conffile,
 	enable_contrib => \$enable_contrib,
+	disable_dbus => \$disable_dbus,
 	somajor => \$somajor,
 	sominor => \$sominor,
 	release_version => \$release_version,
@@ -144,6 +145,7 @@ my $err = &GetOptions (\%options,
 		    'sominor=s',
 		    'release_version=s',
 		    'enable_contrib',
+		    'disable_dbus',
 		    'without_common',
 		    'without_config',
 		    'without_cman',
@@ -219,6 +221,7 @@ if ($help || !$err) {
   print "--ldapincdir=\tthe base directory for ldap include files.  (Default: {incdir})\n";
   print "--ldaplibdir=\tthe base directory for ldap libraries.  (Default: {libdir})\n";
   print "--enable_contrib\tEnable build of community contributed code/tools.  (Default: no)\n";
+  print "--disable_dbus\tDisable built-in support for dbus notifications.  (Default: no)\n";
   print "--without_common\tDisable common building  (Default: enabled)\n";
   print "--without_config\tDisable config building  (Default: enabled)\n";
   print "--without_cman\tDisable cman building  (Default: enabled)\n";
@@ -504,6 +507,9 @@ if (!$conffile) {
 if (!$enable_contrib) {
   $enable_contrib="";
 }
+if (!$disable_dbus) {
+  $disable_dbus="";
+}
 if (!$without_common) {
   $without_common="";
 }
@@ -598,6 +604,7 @@ while (<IFILE>) {
   $_ =~ s/\@CONFDIR\@/$confdir/;
   $_ =~ s/\@CONFFILE\@/$conffile/;
   $_ =~ s/\@ENABLE_CONTRIB\@/$enable_contrib/;
+  $_ =~ s/\@DISABLE_DBUS\@/$disable_dbus/;
   $_ =~ s/\@DISABLE_COMMON\@/$without_common/;
   $_ =~ s/\@DISABLE_CONFIG\@/$without_config/;
   $_ =~ s/\@DISABLE_CMAN\@/$without_cman/;

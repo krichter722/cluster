@@ -47,7 +47,6 @@ CFLAGS += -I${ccsincdir} -I${cmanincdir} -I${dlmincdir} -I${logtincdir}
 CFLAGS += `xml2-config --cflags` -I${slangincdir}
 CFLAGS += -I$(S)/../../include
 CFLAGS += -I${incdir}
-CFLAGS += `pkg-config --cflags dbus-1`
 
 NOCCS_CFLAGS += -DNO_CCS
 
@@ -61,7 +60,12 @@ DLM_LDFLAGS += -L${dlmlibdir} -ldlm
 XML2_LDFLAGS += `xml2-config --libs`
 SLANG_LDFLAGS += -L${slanglibdir} -lslang
 EXTRA_LDFLAGS += -lpthread
+
+# dbus support for notifications
+ifndef disable_dbus
+CFLAGS += -DDBUS `pkg-config --cflags dbus-1`
 DBUS_LDFLAGS += `pkg-config --libs dbus-1`
+endif
 
 LDDEPS += ../clulib/libclulib.a
 
