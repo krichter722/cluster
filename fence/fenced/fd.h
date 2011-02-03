@@ -286,5 +286,11 @@ void init_logging(void);
 void setup_logging(void);
 void close_logging(void);
 
+/* dbus.c */
+
+void fd_dbus_init(void);
+void fd_dbus_exit(void);
+void fd_dbus_send(const char *nodename, int nodeid, int result);
+
 #endif				/*  __FD_DOT_H__  */
 

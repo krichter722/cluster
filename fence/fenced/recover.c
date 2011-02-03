@@ -384,6 +384,10 @@ void fence_victims(struct fd *fd)
 		log_error("fence %s %s", node->name,
 			  error ? "failed" : "success");
 
+		if (!cfgd_disable_dbus) {
+			fd_dbus_send(node->name, node->nodeid, error);
+		}
+
  skip_log_message:
 		if (!error) {
 			node->local_victim_done = 1;
