@@ -24,6 +24,7 @@
 #include <platform.h>
 #include <unistd.h>
 #include <time.h>
+#include <linux/types.h>
 #include <linux/fs.h>
 #include <liblogthread.h>
 #include <zlib.h>

@@ -1377,32 +1377,33 @@ auto_qdisk_votes(int desc)
 {
 	int ret = 1;
 	char buf[PATH_MAX];
-	char *name;
+	char *v = NULL, *name = NULL;
 
 	while (1) {
 		int votes=0;
 
+		name = NULL;
+		snprintf(buf, sizeof(buf)-1,
+			"/cluster/clusternodes/clusternode[%d]/@name", ret);
+		if (ccs_get(desc, buf, &name) != 0)
+			break;
+
 		snprintf(buf, sizeof(buf)-1,
 			"/cluster/clusternodes/clusternode[%d]/@votes", ret);
 
-		name = NULL;
-		if (ccs_get(desc, buf, &name) == 0)
-			votes = atoi(name);
-		else
+		if (ccs_get(desc, buf, &v) == 0) {
+			votes = atoi(v);
+			free(v);
+			v = NULL;
+		} else {
 			votes = 1;
+		}
 
 		if (votes != 1) {
+
+			logt_print(LOG_ERR, "%s's vote count is %d\n",
+				   name, votes);
 			free(name);
-
-			snprintf(buf, sizeof(buf)-1,
-			    "/cluster/clusternodes/clusternode[%d]/@name",
-			    ret);
-
-			if (ccs_get(desc, buf, &name) == 0) {
-				logt_print(LOG_ERR, "%s's vote count is %d\n",
-					   name, votes);
-				free(name);
-			}
 
 			logt_print(LOG_ERR, "Set all node vote counts to 1 "
 				   "or specify qdiskd's votes\n");
