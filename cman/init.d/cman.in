@@ -317,7 +317,7 @@ cluster_disabled_at_boot()
 
 network_manager_enabled()
 {
-	if status NetworkManager > /dev/null 2>&1 || \
+	if status $netmanager > /dev/null 2>&1 || \
 	   chkconfig2 $netmanager; then
 		errmsg="\nNetwork Manager is either running or configured to run. Please disable it in the cluster."
 		return 1
