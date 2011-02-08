@@ -24,7 +24,7 @@ ifdef INITDT
 	${UNINSTALL} ${INITDT} ${initddir}
 endif
 ifdef UDEVT
-	${UNINSTALL} ${UDEVT} ${DESTDIR}/etc/udev/rules.d
+	${UNINSTALL} ${UDEVT} ${DESTDIR}/lib/udev/rules.d
 endif
 ifdef DOCS
 	${UNINSTALL} ${DOCS} ${docdir}

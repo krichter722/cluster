@@ -41,10 +41,10 @@ ifdef INITDT
 	done
 endif
 ifdef UDEVT
-	install -d ${DESTDIR}/etc/udev/rules.d
+	install -d ${DESTDIR}/lib/udev/rules.d
 	set -e; \
 	for i in ${UDEVT}; do \
-		install -m644 $(S)/$$i ${DESTDIR}/etc/udev/rules.d; \
+		install -m644 $(S)/$$i ${DESTDIR}/lib/udev/rules.d; \
 	done
 endif
 ifdef DOCS
