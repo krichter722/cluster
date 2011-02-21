@@ -448,14 +448,6 @@ fence_join_enabled()
 	fi
 }
 
-check_fence_opt()
-{
-	for i in $(getopt dfi:a:p:I:C:U:c:k:u?hLXV $FENCE_XVMD_OPTS); do
-		[ -$1 = $i ] && return 0
-	done
-	return 1
-}
-
 ### the real stuff starts here
 
 start_global()
