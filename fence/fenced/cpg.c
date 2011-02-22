@@ -652,9 +652,9 @@ static void receive_victim_done(struct fd *fd, struct fd_header *hd, int len)
 
 	node = get_node_victim(fd, id->nodeid);
 	if (!node) {
+		/* see comment below about no node */
 		log_debug("receive_victim_done %d:%u no victim nodeid %d",
 			  hd->nodeid, seq, id->nodeid);
-		return;
 	}
 
 	log_debug("receive_victim_done %d:%u remove victim %d time %llu how %d",
@@ -670,9 +670,11 @@ static void receive_victim_done(struct fd *fd, struct fd_header *hd, int len)
 	if (hd->nodeid == our_nodeid) {
 		/* sanity check, I don't think this should happen;
 		   see comment in fence_victims() */
-		if (!node->local_victim_done)
-			log_error("expect local_victim_done");
-		node->local_victim_done = 0;
+		if (node) {
+			if (!node->local_victim_done)
+				log_error("expect local_victim_done");
+			node->local_victim_done = 0;
+		}
 	} else {
 		/* save details of fencing operation from master, which
 		   master saves at the time it completes it */
@@ -680,8 +682,12 @@ static void receive_victim_done(struct fd *fd, struct fd_header *hd, int len)
 				   id->fence_how, id->fence_time);
 	}
 
-	list_del(&node->list);
-	free(node);
+	/* we can have no node when reduce_victims() removes it, bz 678704 */
+
+	if (node) {
+		list_del(&node->list);
+		free(node);
+	}
 }
 
 /* we know that the quorum value here is consistent with the cpg events
