@@ -86,7 +86,8 @@ fork_heuristic(struct h_data *h, struct timespec *now)
 	}
 
 	if (now->tv_sec < h->nextrun.tv_sec ||
-	    now->tv_nsec < h->nextrun.tv_nsec)
+	    ((now->tv_sec == h->nextrun.tv_sec) &&
+	     (now->tv_nsec < h->nextrun.tv_nsec)))
 		return 0;
 
 	h->nextrun.tv_sec = now->tv_sec + h->interval;
