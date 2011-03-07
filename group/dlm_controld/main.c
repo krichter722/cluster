@@ -19,6 +19,7 @@ static pthread_t query_thread;
 static pthread_mutex_t query_mutex;
 static struct list_head fs_register_list;
 static int kernel_monitor_fd;
+static int daemon_ready;
 
 struct client {
 	int fd;
@@ -587,6 +588,12 @@ static void query_lockspaces(int fd, int max)
 		goto out;
 	}
 
+	/* return error if daemon is not even ready to create lockspaces */
+	if (!daemon_ready) {
+		result = -1;
+		goto out;
+	}
+
 	if (ls_count > max) {
 		result = -E2BIG;
 		ls_count = max;
@@ -994,6 +1001,10 @@ static void loop(void)
 		plock_fd = rv;
 		plock_ci = client_add(rv, process_plocks, NULL);
 	}
+
+	query_lock();
+	daemon_ready = 1;
+	query_unlock();
 
 	for (;;) {
 		rv = poll(pollfd, client_maxi + 1, poll_timeout);
