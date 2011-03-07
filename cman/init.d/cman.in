@@ -645,7 +645,23 @@ stop_fenced()
 
 start_dlm_controld()
 {
-	start_daemon dlm_controld
+	start_daemon dlm_controld || return 1
+
+	if [ "$INITLOGLEVEL" = "full" ]; then
+		ok
+		echo -n "   Waiting dlm_controld to complete initialization: "
+	fi
+
+	retries=0
+	while ! dlm_tool ls >/dev/null 2>&1 && [ $retries -lt 10 ]; do
+		sleep 1
+		if [ "$INITLOGLEVEL" = "full" ]; then
+			echo -n "$retries "
+		fi
+		((retries++))
+	done
+
+	return 0
 }
 
 stop_dlm_controld()
