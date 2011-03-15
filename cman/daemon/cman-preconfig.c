@@ -276,7 +276,7 @@ static int add_udpu_members(struct objdb_iface_ver0 *objdb, hdb_handle_t interfa
 	return 0;
 }
 
-static int add_ifaddr(struct objdb_iface_ver0 *objdb, char *mcast, char *ifaddr, int port, enum tx_mech transport)
+static int add_ifaddr(struct objdb_iface_ver0 *objdb, char *mcast, char *ifaddr, int port, int ttl, enum tx_mech transport)
 {
 	hdb_handle_t totem_object_handle;
 	hdb_handle_t find_handle;
@@ -352,6 +352,19 @@ static int add_ifaddr(struct objdb_iface_ver0 *objdb, char *mcast, char *ifaddr,
 		sprintf(tmp, "%d", port);
 		objdb->object_key_create_typed(interface_object_handle, "mcastport",
 					       tmp, strlen(tmp)+1, OBJDB_VALUETYPE_STRING);
+
+		/* paranoia check. corosync already does it */
+		if ((ttl < 0) || (ttl > 255)) {
+			sprintf(error_reason, "TTL value (%u) out of range (0 - 255)", ttl);
+			return -1;
+		}
+
+		/* add the key to the objdb only if value is not default */
+		if (ttl != 1) {
+			sprintf(tmp, "%d", ttl);
+			objdb->object_key_create_typed(interface_object_handle, "ttl",
+						       tmp, strlen(tmp)+1, OBJDB_VALUETYPE_STRING);
+		}
 
 		num_interfaces++;
 	}
@@ -592,6 +605,7 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 	enum tx_mech transport = TX_MECH_UDP;
 	char *str;
 	int error;
+	unsigned int ttl = 1;
 
 	if (!getenv("CMAN_NOCONFIG")) {
 		/* our nodename */
@@ -661,6 +675,7 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 			if (objdb->object_find_next(find_handle2, &mcast_handle) == 0) {
 
 				objdb_get_string(objdb, mcast_handle, "addr", &mcast_name);
+				objdb_get_int(objdb, mcast_handle, "ttl", &ttl, 0);
 			}
 			objdb->object_find_destroy(find_handle2);
 		}
@@ -730,7 +745,7 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 		}
 	}
 
-	if (add_ifaddr(objdb, mcast_name, nodename, portnum, transport)) {
+	if (add_ifaddr(objdb, mcast_name, nodename, portnum, ttl, transport)) {
 		write_cman_pipe(error_reason);
 		return -1;
 	}
@@ -740,6 +755,7 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 	objdb->object_find_create(node_object_handle,"altname", strlen("altname"), &find_handle);
 	while (objdb->object_find_next(find_handle, &alt_object) == 0) {
 		unsigned int port;
+		unsigned int altttl = 1;
 		char *node;
 		char *mcast;
 
@@ -749,11 +765,13 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 
 		objdb_get_int(objdb, alt_object, "port", &port, portnum);
 
+		objdb_get_int(objdb, alt_object, "ttl", &altttl, ttl);
+
 		if (objdb_get_string(objdb, alt_object, "mcast", &mcast)) {
 			mcast = mcast_name;
 		}
 
-		if (add_ifaddr(objdb, mcast, node, portnum, transport)) {
+		if (add_ifaddr(objdb, mcast, node, portnum, altttl, transport)) {
 			write_cman_pipe(error_reason);
 			return -1;
 		}
