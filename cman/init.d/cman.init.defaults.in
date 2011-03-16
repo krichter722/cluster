@@ -10,7 +10,7 @@
 #     startup quorum is needed by many other applications, so we may as
 #     well wait here.  If CMAN_QUORUM_TIMEOUT is zero, quorum will
 #     be ignored.
-#CMAN_QUORUM_TIMEOUT=20
+#CMAN_QUORUM_TIMEOUT=45
 
 # CMAN_SHUTDOWN_TIMEOUT -- amount of time to wait for cman to become a
 #     cluster member before calling cman_tool leave during shutdown.
