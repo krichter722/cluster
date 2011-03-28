@@ -197,6 +197,36 @@ To validate your cluster.conf against this schema, run:
     <attribute name="fail_recv_const" />
    </optional>
    <optional>
+    <attribute name="seqno_unchanged_const"
+      rha:description="Specifies how many rotations of the token without
+      any multicast traffic should occur before the merge detection timeout
+      is started." rha:default="30" rha:sample="5000"/>
+   </optional>
+   <optional>
+    <attribute name="netmtu"
+      rha:description="Specifies the network maximum transmit unit. To set
+      this value beyond 1500, the regular frame MTU, requires ethernet
+      devices that support large, or also called jumbo, frames. If any
+      device in the network does not support large frames, the protocol will
+      not operate properly.  The hosts must also have their mtu size set
+      from 1500 to whatever frame size is specified here."
+      rha:default="1500" rha:sample="9174"/>
+   </optional>
+   <optional>
+    <attribute name="window_size"
+       rha:description="Specifies the maximum number of messages that may
+       be sent on one token rotation. window_size should be no larger then
+       256000 / netmtu to avoid overflow of the kernel receive buffers."
+       rha:default="50" rha:sample="300"/>
+   </optional>
+   <optional>
+    <attribute name="max_messages"
+      rha:description="Specifies the maximum number of messages that may
+      be sent by one processor on receipt of the token. This parameter is
+      limited to 256000 / netmtu to  prevent  overflow of the kernel
+      transmit buffers" rha:default="17" rha:sample="25"/>
+   </optional>
+   <optional>
     <attribute name="token_retransmits_before_loss_const"
       rha:description="This value identifies how many token retransmits
       should be attempted before forming a new configuration. If
