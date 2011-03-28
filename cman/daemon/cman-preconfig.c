@@ -1275,6 +1275,11 @@ static int get_cman_globals(struct objdb_iface_ver0 *objdb)
 
 	objdb_get_string(objdb, cluster_parent_handle, "name", &cluster_name);
 
+	if (!cluster_name) {
+		sprintf(error_reason, "Unable to determine cluster name.\n");
+		return -1;
+	}
+
 	/* Get the <cman> bits that override <totem> bits */
 	objdb->object_find_create(cluster_parent_handle, "cman", strlen("cman"), &find_handle);
 	if (objdb->object_find_next(find_handle, &object_handle) == 0) {
