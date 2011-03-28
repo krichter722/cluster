@@ -105,6 +105,14 @@ fi
 # no (default)          | cman will not start sshd
 [ -z "$CMAN_SSHD_START" ] && CMAN_SSHD_START=no
 
+# CMAN_DAEMONS_START -- Set to "no" to disable {dlm,gfs,ocfs2}-controld daemons
+# execution from within cman init script
+# (Can be useful for some pacemaker-based setups).
+# values:
+# no                                 | cman init will NOT start the daemons
+# empty or any other value (default) | cman init will start the daemons
+#CMAN_DAEMONS_START=
+
 # FENCE_JOIN_TIMEOUT -- seconds to wait for fence domain join to
 #     complete.  If the join hasn't completed in this time, fence_tool join
 #     exits with an error, and this script exits with an error.  To wait
@@ -297,8 +305,22 @@ sshd_enabled()
 	return 1
 }
 
+control_daemons_enabled()
+{
+	[ "$CMAN_DAEMONS_START" = "no" ] && return 1
+	return 0
+}
+
+dlm_controld_enabled()
+{
+	control_daemons_enabled
+	return $?
+}
+
 gfs_controld_enabled()
 {
+	! control_daemons_enabled && return 1
+
 	if [ -f @INITDDIR@/gfs2-cluster ] && ! chkconfig2 gfs2-cluster; then
 		return 0
 	fi
@@ -415,6 +437,7 @@ groupd_enabled()
 
 ocfs2_enabled()
 {
+	! control_daemons_enabled && return 1
 	ocfs2_cluster="$(cat /sys/fs/ocfs2/cluster_stack 2>/dev/null || true)"
 	[ "$ocfs2_cluster" != cman ] && return 1
 	return 0
@@ -782,7 +805,7 @@ start()
 		"Starting fenced"
 
 	runwrap start_dlm_controld \
-		none \
+		dlm_controld_enabled \
 		"Starting dlm_controld"
 
 	gfs_controld_enabled && cd @INITDDIR@ && ./gfs2-cluster start
@@ -821,7 +844,7 @@ stop()
 	gfs_controld_enabled && cd @INITDDIR@ && ./gfs2-cluster stop
 
 	runwrap stop_dlm_controld \
-		none \
+		dlm_controld_enabled \
 		"Stopping dlm_controld"
 
 	runwrap stop_fenced \
