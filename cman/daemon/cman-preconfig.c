@@ -343,8 +343,6 @@ static int add_ifaddr(struct objdb_iface_ver0 *objdb, char *mcast, char *ifaddr,
 						       mcast, strlen(mcast)+1, OBJDB_VALUETYPE_STRING);
 			break;
 		case TX_MECH_UDPU:
-		        objdb->object_key_create_typed(interface_object_handle, "mcastaddr",
-						       mcast, strlen(mcast)+1, OBJDB_VALUETYPE_STRING);
 			add_udpu_members(objdb, interface_object_handle);
 			break;
 		}
