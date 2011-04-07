@@ -58,6 +58,12 @@ version of "leave force" so only use if if you really know what you are doing.
 Tells CMAN a new value of expected votes and instructs it to recalculate
 quorum based on this value. 
 .br
+The recalculation takes into account the number of currently
+active nodes, so this option should not be used in an attempt to
+artificially lower the quorum value in advance of a planned shutdown of
+cluster nodes.  Instead, the 'cman_tool leave remove' command should be
+used (see the 'leave' subcommand above).
+.br
 Use this option if your cluster has lost quorum due to nodes failing and
 you need to get it running again in a hurry.
 
