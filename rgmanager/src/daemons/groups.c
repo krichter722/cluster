@@ -1276,13 +1276,21 @@ svc_exists(const char *svcname)
 }
 
 
-void
+/*
+ * Perform an operation on all resources groups.
+ *
+ * Returns the number of requests queued.  This value is
+ * only used during shutdown, where we queue RG_STOP_EXITING
+ * only for services we have running locally as an optimization.
+ */
+int
 rg_doall(int request, int block,
 	 const char __attribute__ ((unused)) *debugfmt)
 {
 	resource_node_t *curr;
 	rg_state_t svcblk;
 	char rg[64];
+	int queued = 0;
 
 	pthread_rwlock_rdlock(&resource_lock);
 	list_do(&_tree, curr) {
@@ -1307,6 +1315,7 @@ rg_doall(int request, int block,
 
 		rt_enqueue_request(rg, request, NULL, 0,
 				   0, 0, 0);
+		++queued;
 	} while (!list_done(&_tree, curr));
 
 	pthread_rwlock_unlock(&resource_lock);
@@ -1316,6 +1325,7 @@ rg_doall(int request, int block,
 	   other rgmanagers to complete. */
 	if (block) 
 		rg_wait_threads();
+	return queued;
 }
 
 

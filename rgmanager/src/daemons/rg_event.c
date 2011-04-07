@@ -56,6 +56,13 @@ set_transition_throttling(int nsecs)
 }
 
 
+int
+get_transition_throttling(void)
+{
+	return transition_throttling;
+}
+
+
 void
 set_central_events(int flag)
 {

@@ -29,7 +29,6 @@
 void dump_thread_states(FILE *);
 #endif
 static int configure_rgmanager(int ccsfd, int debug, int *cluster_timeout);
-void set_transition_throttling(int);
 
 void flag_shutdown(int sig);
 
@@ -43,6 +42,7 @@ static int signalled = 0;
 static uint8_t ALIGNED port = RG_PORT;
 static char *rgmanager_lsname = (char *)"rgmanager"; /* XXX default */
 static int status_poll_interval = DEFAULT_CHECK_INTERVAL;
+static int stops_queued = 0;
 
 static void
 segfault(int __attribute__ ((unused)) sig)
@@ -930,7 +930,7 @@ static void *
 shutdown_thread(void __attribute__ ((unused)) *arg)
 {
 	rg_lockall(L_SYS|L_SHUTDOWN);
-	rg_doall(RG_STOP_EXITING, 1, NULL);
+	stops_queued = rg_doall(RG_STOP_EXITING, 1, NULL);
 	running = 0;
 
 	pthread_exit(NULL);
@@ -1119,8 +1119,17 @@ out_ls:
 
 out:
 	rgm_dbus_release();
-	logt_print(LOG_NOTICE, "Shutdown complete, exiting\n");
+	logt_print(LOG_DEBUG, "Stopped %d services\n", stops_queued);
+	logt_print(LOG_NOTICE, "Disconnecting from CMAN\n");
 	cman_finish(clu);
+
+	if (stops_queued && !central_events_enabled()) {
+		logt_print(LOG_DEBUG, "Pausing to allow services to "
+			   "start on other node(s)\n");
+		sleep(get_transition_throttling() * 3);
+	}
+
+	logt_print(LOG_NOTICE, "Exiting\n");
 	
 	close_logging();
 	/*malloc_stats();*/
