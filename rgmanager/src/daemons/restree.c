@@ -402,6 +402,7 @@ res_exec(resource_node_t *node, int op, const char *arg, int depth)
 				 res->r_rule->rr_agent);
 
 		restore_signals();
+		setpgrp();
 
 		if (arg)
 			execle(fullpath, fullpath, op_str, arg, NULL, env);
