@@ -330,6 +330,7 @@ res_exec(resource_node_t *node, int op, const char *arg, int depth)
 	int childpid, pid;
 	int ret = 0;
 	int act_index;
+	int inc = node->rn_resource->r_incarnations;
 	time_t sleeptime = 0, timeout = 0;
 	char **env = NULL;
 	resource_t *res = node->rn_resource;
@@ -353,8 +354,15 @@ res_exec(resource_node_t *node, int op, const char *arg, int depth)
 	if (!(node->rn_flags & RF_ENFORCE_TIMEOUTS))
 		timeout = node->rn_actions[act_index].ra_timeout;
 
+	/* rgmanager ref counts are designed to track *other* incarnations
+	   on the host.  So, if we're started/failed, the RA should not count
+	   this incarnation */
+	if (inc && (node->rn_state == RES_STARTED ||
+		    node->rn_state == RES_FAILED))
+		--inc;
+
 #ifdef DEBUG
-	env = build_env(node, depth, node->rn_resource->r_incarnations, (int)timeout);
+	env = build_env(node, depth, inc, (int)timeout);
 	if (!env)
 		return -errno;
 #endif
@@ -380,7 +388,7 @@ res_exec(resource_node_t *node, int op, const char *arg, int depth)
 #endif
 
 #ifndef DEBUG
-		env = build_env(node, depth, node->rn_resource->r_incarnations, (int)timeout);
+		env = build_env(node, depth, inc, (int)timeout);
 #endif
 
 		if (!env)
