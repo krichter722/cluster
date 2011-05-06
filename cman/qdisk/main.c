@@ -904,7 +904,8 @@ cman_wait(cman_handle_t ch, struct timeval *_tv)
 static void
 process_cman_event(cman_handle_t handle, void *private, int reason, int arg)
 {
-	qd_ctx *ctx = (qd_ctx *)private;
+	qd_priv_t *qp = (qd_priv_t *)private;
+	qd_ctx *ctx = qp->ctx;
 
 	switch(reason) {
 	case CMAN_REASON_PORTOPENED:
@@ -1915,6 +1916,33 @@ check_stop_cman(qd_ctx *ctx)
 do { static int _logged=0; if (!_logged) { _logged=1; logt_print(level, fmt, ##args); } } while(0)
 
 
+static void
+qdisk_whine(cman_handle_t h, void *privdata, char *buf, int len,
+	    uint8_t port, int nodeid)
+{
+	int32_t dstate;
+	qd_priv_t *qp = (qd_priv_t *)privdata;
+	node_info_t *ni = qp->ni;
+
+	if (len != sizeof(dstate)) {
+		return;
+	}
+
+	dstate = *((int32_t*)buf);
+
+	if (nodeid == (qp->ctx->qc_my_id))
+		return;
+
+	swab32(dstate);
+
+	if (dstate) {
+		logt_print(LOG_NOTICE, "qdiskd on node %d reports hung %s()\n", nodeid,
+			   state_to_string(dstate));
+		ni[nodeid-1].ni_misses = 0;
+	}
+}
+
+
 int
 main(int argc, char **argv)
 {
@@ -1928,6 +1956,7 @@ main(int argc, char **argv)
 	char device[128];
 	pid_t pid;
 	quorum_header_t qh;
+	qd_priv_t qp;
 
 	if (check_process_running(argv[0], &pid) && pid !=getpid()) {
 		printf("QDisk services already running\n");
@@ -1990,8 +2019,18 @@ main(int argc, char **argv)
 
 	/* For cman notifications we need two sockets - one for events,
 	   one for config change callbacks */
-	ch_user = cman_init(&ctx);
+	qp.ctx = &ctx;
+	qp.ni = &ni[0];
+	qp.ni_len = MAX_NODES_DISK;
+
+	ch_user = cman_init(&qp);
         if (cman_start_notification(ch_user, process_cman_event) != 0) {
+		logt_print(LOG_CRIT, "Could not register with CMAN: %s\n",
+			   strerror(errno));
+		goto out;
+	}
+
+	if (cman_start_recv_data(ch_user, qdisk_whine, 178) != 0) {
 		logt_print(LOG_CRIT, "Could not register with CMAN: %s\n",
 			   strerror(errno));
 		goto out;
@@ -2084,7 +2123,7 @@ main(int argc, char **argv)
 	/* This registers the quorum device */
 	register_device(&ctx);
 
-	io_nanny_start(ctx.qc_tko * ctx.qc_interval);
+	io_nanny_start(ch_user, ctx.qc_tko * ctx.qc_interval);
 
 	if (quorum_loop(&ctx, ni, MAX_NODES_DISK) == 0) {
 		/* Only clean up if we're exiting w/o error) */
