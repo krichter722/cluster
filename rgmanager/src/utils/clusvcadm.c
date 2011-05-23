@@ -49,6 +49,8 @@ do_lock_req(int req)
 	int me;
 	generic_msg_hdr hdr;
 
+	ctx.type = -1;
+
 	ch = cman_init(NULL);
 	if (!ch) {
 		printf("Could not connect to cluster service\n");

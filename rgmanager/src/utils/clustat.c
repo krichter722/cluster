@@ -276,7 +276,7 @@ rg_state_list(int local_node_id, int fast)
 		free(rsl);
 		return NULL;
 	}
-
+	
 	qsort(rsl->rgl_states, rsl->rgl_count, sizeof(rg_state_t),
 	      rg_name_sort);
 
@@ -352,10 +352,12 @@ static cluster_member_list_t *ccs_member_list(void)
 	}
 
 	ccs_disconnect(desc);
-	ret->cml_members = nodes;
 
-	qsort(ret->cml_members, ret->cml_count, sizeof(cman_node_t),
-	      member_id_sort);
+	ret->cml_members = nodes;
+	if (nodes) {
+		qsort(ret->cml_members, ret->cml_count,
+		      sizeof(cman_node_t), member_id_sort);
+	}
 
 	return ret;
 }

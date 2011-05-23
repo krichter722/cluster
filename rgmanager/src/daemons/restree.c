@@ -497,10 +497,9 @@ assign_restart_policy(resource_t *curres, resource_node_t *parent,
 	time_t restart_expire_time = 0;
 	char tok[1024];
 
-	node->rn_restart_counter = NULL;
-
 	if (!curres || !node)
 		return;
+	node->rn_restart_counter = NULL;
 	if (parent &&
 	    !(node->rn_flags & RF_INDEPENDENT))
 		return;
@@ -1199,9 +1198,8 @@ mark_nodes(resource_node_t *node, int state, int setflags, int clearflags)
 	resource_node_t *child;
 
 	list_for(&node->rn_child, child, x) {
-		if (child)
-			mark_nodes(child, state, setflags,
-				   clearflags);
+		mark_nodes(child, state, setflags,
+			   clearflags);
 	}
 
 	if (state >= RES_STOPPED)

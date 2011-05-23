@@ -213,7 +213,7 @@ test_func(int argc, char **argv)
 		}
 		printf("Stop of %s complete\n", argv[3]);
 		goto out;
-	} else if (!strcmp(argv[1], "migrate")) {
+	} else if (!strcmp(argv[1], "migrate") && rn != NULL) {
 		printf("Migrating %s to %s...\n", argv[3], argv[4]);
 
 	#if 0

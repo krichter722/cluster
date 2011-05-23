@@ -523,10 +523,12 @@ resgroup_thread_main(void *arg)
 	/* reslist_mutex and my_queue_mutex held */
 	myself = find_resthread_byname(myname);
 
+	/* Not reached...
 	if (!myself) {
 		dbg_printf("I don't exist...\n");
 		raise(SIGSEGV);
 	}
+	 */
 
 	mystatus = pthread_mutex_destroy(&my_queue_mutex);
 	if (mystatus != 0)

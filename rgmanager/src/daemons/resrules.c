@@ -1048,8 +1048,10 @@ load_resource_rulefile(char *filename, resource_rule_t **rules)
 		}
 
 		rr = malloc(sizeof(*rr));
-		if (!rr)
+		if (!rr) {
+			free(type);
 			break;
+		}
 		memset(rr,0,sizeof(*rr));
 
 		rr->rr_flags = RF_INIT | RF_DESTROY;

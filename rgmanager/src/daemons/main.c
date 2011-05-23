@@ -654,7 +654,11 @@ static void
 dump_internal_state(const char *loc)
 {
 	FILE *fp;
+	if (!loc)
+		return;
 	fp=fopen(loc, "w+");
+	if (!fp)
+		return;
  	dump_config_version(fp);
  	dump_threads(fp);
  	dump_vf_states(fp);

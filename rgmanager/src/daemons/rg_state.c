@@ -265,9 +265,12 @@ get_rg_state(const char *name, rg_state_t *svcblk)
 	uint32_t datalen = 0;
 #endif
 
-	/* ... */
-	if (name)
-		strncpy(svcblk->rs_name, name, sizeof(svcblk->rs_name));
+	if (!name) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	strncpy(svcblk->rs_name, name, sizeof(svcblk->rs_name));
 
 	snprintf(res, sizeof(res),"rg=\"%s\"", svcblk->rs_name);
 
@@ -360,9 +363,11 @@ get_rg_state_local(const char *name, rg_state_t *svcblk)
 	uint32_t datalen;
 #endif
 
-	/* ... */
-	if (name)
-		strncpy(svcblk->rs_name, name, sizeof(svcblk->rs_name));
+	if (!name) {
+		errno = EINVAL;
+		return -1;
+	}
+	strncpy(svcblk->rs_name, name, sizeof(svcblk->rs_name));
 
 	snprintf(res, sizeof(res),"rg=\"%s\"", svcblk->rs_name);
 
@@ -422,6 +427,7 @@ svc_advise_stop(rg_state_t *svcStatus, const char *svcName, int req)
 	
 	if (svcStatus->rs_flags & RG_FLAG_FROZEN) {
 		logt_print(LOG_DEBUG, "Service %s frozen.\n", svcName);
+		free_member_list(membership);
 		return 5;
 	}
 
@@ -553,6 +559,7 @@ svc_advise_start(rg_state_t *svcStatus, const char *svcName, int req)
 	
 	if (svcStatus->rs_flags & RG_FLAG_FROZEN) {
 		logt_print(LOG_DEBUG, "Service %s frozen.\n", svcName);
+		free_member_list(membership);
 		return 5;
 	}
 
