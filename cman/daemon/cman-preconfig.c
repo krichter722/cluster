@@ -673,7 +673,7 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 			if (objdb->object_find_next(find_handle2, &mcast_handle) == 0) {
 
 				objdb_get_string(objdb, mcast_handle, "addr", &mcast_name);
-				objdb_get_int(objdb, mcast_handle, "ttl", &ttl, 0);
+				objdb_get_int(objdb, mcast_handle, "ttl", &ttl, ttl);
 			}
 			objdb->object_find_destroy(find_handle2);
 		}
