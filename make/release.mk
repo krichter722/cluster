@@ -102,7 +102,10 @@ $(releasearea)/$(rgmprojecttar): $(releasearea)/$(projecttar)
 	mv $(projectver) $(rgmprojectver) && \
 	cd $(rgmprojectver) && \
 	rm -rf bindings cman common config contrib dlm fence group \
-		rgmanager/src/resources && \
+		doc/cluster_conf.html && \
+	sed -i \
+		-e 's#cluster_conf.html##g' \
+		-e 's#README.licence.*#README.licence#g' doc/Makefile && \
 	cd .. && \
 	tar cpf $(rgmprojecttar) $(rgmprojectver) && \
 	rm -rf $(rgmprojectver)
