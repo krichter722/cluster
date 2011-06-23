@@ -1546,7 +1546,7 @@ _res_op_internal(resource_node_t __attribute__ ((unused)) **tree,
 		  and all our children as failed and return a flag stating
 		  that this section is recoverable apart from siblings in
 		  the resource tree. */
-		if (op == RS_STATUS && (rv & (SFL_FAILURE|SFL_RECOVERABLE)) &&
+		if (op == RS_STATUS && (rv & SFL_FAILURE) &&
 		    (node->rn_flags & RF_INDEPENDENT)) {
 
 			rte = restart_threshold_exceeded(node->rn_restart_counter);
