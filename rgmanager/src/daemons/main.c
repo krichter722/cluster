@@ -1038,6 +1038,7 @@ main(int argc, char **argv)
 	   We know we're quorate.  At this point, we need to
 	   read the resource group trees from ccsd.
 	 */
+	xmlInitParser();
 	configure_rgmanager(-1, debug, &cluster_timeout);
 	logt_print(LOG_NOTICE, "Resource Group Manager Starting\n");
 
@@ -1118,6 +1119,7 @@ main(int argc, char **argv)
 	if (rg_initialized())
 		cleanup(cluster_ctx);
 	rv = 0;
+	xmlCleanupParser();
 out_ls:
 	clu_lock_finished(rgmanager_lsname);
 

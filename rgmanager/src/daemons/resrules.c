@@ -1135,7 +1135,6 @@ load_resource_rules(const char *rpath, resource_rule_t **rules)
 	if (!dir)
 		return -1;
 
-	xmlInitParser();
 	while ((de = readdir(dir))) {
 		
 		fn = basename(de->d_name);
@@ -1173,7 +1172,6 @@ load_resource_rules(const char *rpath, resource_rule_t **rules)
    			load_resource_rulefile(path, rules);
   		}
 	}
-	xmlCleanupParser();
 
 	closedir(dir);
 
