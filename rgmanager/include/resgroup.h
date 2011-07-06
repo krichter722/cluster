@@ -202,6 +202,7 @@ int rg_unlock(struct dlm_lksb *p);
 
 
 /* Return codes */
+#define RG_EWARNING	-19		/* Warning (see logs) */
 #define RG_EPERM	-18		/* Permission denied */
 #define RG_ERELO	-17		/* Relocation failure; service running
 					   on original node */

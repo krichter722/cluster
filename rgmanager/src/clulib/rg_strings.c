@@ -8,7 +8,8 @@ struct string_val {
 
 
 const struct string_val rg_error_strings[] = {
-	{ RG_EPERM,	"Permissing denied" },
+	{ RG_EWARNING,	"Warning; see system logs" },
+	{ RG_EPERM,	"Permission denied" },
 	{ RG_ERELO,	"Failed; service running on original owner" },
 	{ RG_EEXCL,	"Service not runnable: cannot run exclusive" },
 	{ RG_EDOMAIN,   "Service not runnable" },

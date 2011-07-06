@@ -1441,11 +1441,23 @@ _svc_stop(const char *svcName, int req, int recover, uint32_t newstate)
 
 	ret = group_op(svcName, RG_STOP);
 
-	if (old_state == RG_STATE_FAILED && newstate == RG_STATE_DISABLED) {
-		if (ret)
+	/* fix up return code on failure during disable */
+	if (ret)
+		ret = RG_EFAIL;
+
+	if ((old_state == RG_STATE_FAILED ||
+	     old_state == RG_STATE_DISABLED) &&
+	    newstate == RG_STATE_DISABLED) {
+		if (ret) {
+			/*
+			 * Return warning on disable-after-fail.
+			 * (mark it disabled anyway)
+			 */
 			logt_print(LOG_ALERT, "Marking %s as 'disabled', "
 			       "but some resources may still be allocated!\n",
 			       svcName);
+			ret = RG_EWARNING;
+		}
 		_svc_stop_finish(svcName, 0, newstate);
 	} else {
 		_svc_stop_finish(svcName, ret, newstate);
@@ -1481,8 +1493,10 @@ _svc_stop_finish(const char *svcName, int failed, uint32_t newstate)
 		return 0;
 	}
 
-	svcStatus.rs_last_owner = svcStatus.rs_owner;
-	svcStatus.rs_owner = 0;
+	if (svcStatus.rs_owner != 0) {
+		svcStatus.rs_last_owner = svcStatus.rs_owner;
+		svcStatus.rs_owner = 0;
+	}
 
 	if (failed) {
 		logt_print(LOG_CRIT, "#12: RG %s failed to stop; intervention "
@@ -1826,7 +1840,7 @@ handle_relocate_req(char *svcName, int orig_request, int preferred_target,
 		ret = _svc_stop(svcName, request, 0, RG_STATE_STOPPED);
 		if (ret == RG_EFAIL) {
 			svc_fail(svcName);
-			return RG_EFAIL;
+			return RG_EABORT;
 		}
 		if (ret == RG_EFROZEN) {
 			return RG_EFROZEN;
