@@ -42,6 +42,7 @@ print_usage() {
 	echo "  -l configfile    Validate an alternate config file (load test)"
 	echo ""
 	echo "Advanced options:"
+	echo "  -u               Do not update relaxng schema"
 	echo "  -r               Force validation of runtime config"
 	echo "  -C config_loader Override config plugin loader"
 	echo "  -t tempfile      Force temporay file to tempfile"
@@ -135,6 +136,9 @@ check_opts() {
 				exit 255
 			fi
 		;;
+		-u)
+			updaterelaxng=0
+		;;
 		esac
 		shift
 	done
@@ -146,7 +150,7 @@ lecho()
 	return 0
 }
 
-opts=$(getopt t:hVnC:f:l:rR:ovq $@)
+opts=$(getopt t:hVnC:f:l:rR:ovqu $@)
 if [ "$?" != 0 ]; then
 	print_usage >&2
 	exit 255
@@ -181,6 +185,25 @@ else
 	fi
 fi
 lecho "Configuration stored in temporary file"
+
+lecho "Updating relaxng schema"
+if [ "$updaterelaxng" != 0 ]; then
+	updateerr="$(ccs_update_schema 2>&1)"
+	if [ $? != 0 ]; then
+		echo "Unable to update relaxng schema: $updateerr" >&2
+		exit 255
+	fi
+fi
+
+if [ -f /var/lib/cluster/rng_update.lock ]; then
+	echo "Relax-ng schema update in progress" >&2
+	exit 255
+fi
+
+if [ ! -e @SHAREDIR@/cluster.rng ]; then
+	echo "Unable to verify a configuration without relaxng schema" >&2
+	exit 255
+fi
 
 lecho "Validating.."
 

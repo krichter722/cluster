@@ -44,6 +44,12 @@ endif
 ifdef SHAREDIRT
 	${UNINSTALL} ${SHAREDIRT} ${sharedir}
 endif
+ifdef SHAREDIRSYMT
+	${UNINSTALL} ${SHAREDIRSYMT} ${sharedir}
+endif
+ifdef RELAXNGDIRT
+	${UNINSTALL} ${RELAXNGDIRT} ${sharedir}/relaxng
+endif
 ifdef MANTARGET
 	set -e; \
 	for i in ${MANTARGET}; do \

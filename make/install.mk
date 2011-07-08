@@ -74,6 +74,14 @@ ifdef SHAREDIRT
 	install -d ${sharedir}
 	install -m644 ${SHAREDIRT} ${sharedir}
 endif
+ifdef SHAREDIRSYMT
+	install -d ${sharedir}
+	cp -a ${SHAREDIRSYMT} ${sharedir}
+endif
+ifdef RELAXNGDIRT
+	install -d ${sharedir}/relaxng
+	install -m644 ${RELAXNGDIRT} ${sharedir}/relaxng
+endif
 ifdef MANTARGET
 	set -e; \
 	for i in ${MANTARGET}; do \
