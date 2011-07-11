@@ -114,19 +114,52 @@ generate_hash() {
 	fi
 }
 
+create_ras_stubs() {
+	lecho " ras: cannot find rng files. Creating stubs"
+	touch "$outputdir/resources.rng.hash"
+	cat > "$outputdir/resources.rng.cache" << EOF
+<!-- STUB resource-agents definitions -->
+<define name="SERVICE">
+ <element name="service" rha:description="Stub service">
+  <optional>
+   <ref name="CHILDREN"/>
+  </optional>
+ </element>
+</define>
+<define name="VM" >
+ <element name="vm" rha:description="Stub VM">
+  <optional>
+   <ref name="CHILDREN"/>
+  </optional>
+ </element>
+</define>
+<define name="CHILDREN">
+ <zeroOrMore>
+  <choice>
+   <ref name="SERVICE"/>
+   <ref name="VM"/>
+  </choice>
+ </zeroOrMore>
+</define>
+<!-- end STUB resource-agents definitions -->
+EOF
+}
+
 generate_ras() {
 	outputdir="$1"
 	raslist=""
 
 	lecho " ras: checking required files"
 
+	doras_stub=""
 	for i in ra2rng.xsl ra2ref.xsl \
 		 resources.rng.head resources.rng.mid resources.rng.tail; do
 		if [ ! -f "$rngdir/$i" ]; then
-			echo "Unable to find $rngdir/$i" >&2
-			return 1
+			doras_stub=yes
 		fi
 	done
+
+	[ "$doras_stub" = yes ] && create_ras_stubs && return 0
 
 	lecho " ras: looking for agents"
 
@@ -178,18 +211,43 @@ generate_ras() {
 	cat $rngdir/resources.rng.tail >> "$outputdir/resources.rng.cache"
 }
 
+create_fas_stubs() {
+	lecho " fas: cannot find rng files. Creating stubs"
+	touch "$outputdir/fence_agents.rng.hash"
+	cat > "$outputdir/fence_agents.rng.cache" << EOF
+<!-- STUB fence-agents definitions -->
+<define name="FENCEDEVICEOPTIONS">
+ <element name="service" rha:description="Stub fence device options">
+  <optional>
+   <ref name="STUBFENCEDEVICEOPTIONS"/>
+  </optional>
+ </element>
+</define>
+<define name="STUBFENCEDEVICEOPTIONS">
+ <zeroOrMore>
+  <choice>
+   <ref name="FENCEDEVICEOPTIONS"/>
+  </choice>
+ </zeroOrMore>
+</define>
+<!-- end STUB fence-agents definitions -->
+EOF
+}
+
 generate_fas() {
 	outputdir="$1"
 	faslist=""
 
 	lecho " fas: checking required files"
 
+	dofas_stub=""
 	for i in fence2rng.xsl fence.rng.head fence.rng.tail; do
 		if [ ! -f "$rngdir/$i" ]; then
-			echo "Unable to find $rngdir/$i" >&2
-			return 1
+			dofas_stub=yes
 		fi
 	done
+
+	[ "$dofas_stub" = yes ] && create_fas_stubs && return 0
 
 	lecho " fas: looking for agents"
 
