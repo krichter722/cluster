@@ -159,6 +159,12 @@ generate_ras() {
 		fi
 	done
 
+	for i in service.sh vm.sh; do
+		if [ ! -x "$rasdir/$i" ]; then
+			doras_stub=yes
+		fi
+	done
+
 	[ "$doras_stub" = yes ] && create_ras_stubs && return 0
 
 	lecho " ras: looking for agents"
