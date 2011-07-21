@@ -869,6 +869,11 @@ To validate your cluster.conf against this schema, run:
        of the following keywords: auth, authpriv, cron, daemon, kern,
        lpr, mail, news, syslog, user, uucp and local0 through local7"/>
    </optional>
+   <optional>
+    <attribute name="disabled" rha:description="Disables rgmanager entirely if set to 1.  Do not set unless you really mean it." rha:sample="">
+     <data type="integer"/>
+    </attribute>
+   </optional>
    <interleave>
    <optional>
     <element name="failoverdomains" rha:description="Failover domain definitions.">
