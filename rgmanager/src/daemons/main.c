@@ -749,6 +749,14 @@ event_loop(msgctx_t *localctx, msgctx_t *clusterctx)
 	if (need_reconfigure) {
 		need_reconfigure = 0;
 		configure_rgmanager(-1, 0, NULL);
+
+		/*
+		 * A shutdown during reconfiguration would slow down
+		 * the exit request, so it's pointless to run the
+		 * deltas at this point
+		 */
+		if (shutdown_pending)
+			return 0;
 		config_event_q();
 		return 0;
 	}
@@ -782,11 +790,40 @@ cleanup(msgctx_t *clusterctx)
 }
 
 
-
 static void
 statedump(int __attribute__ ((unused)) sig)
 {
 	signalled++;
+}
+
+
+static int
+rgmanager_disabled(int ccsfd)
+{
+	char *v;
+	int disabled = 0;
+	int internal;
+
+	if (ccsfd < 0) {
+		internal = 1;
+		ccsfd = ccs_force_connect(NULL, 0);
+		if (ccsfd < 0)
+			return -1;
+	}
+
+	if (ccs_get(ccsfd, "/cluster/rm/@disabled", &v) == 0) {
+		if (atoi(v) == 1) {
+			disabled = 1;
+			shutdown_pending = 1;
+			logt_print(LOG_NOTICE, "Resource Group Manager Disabled\n");
+		}
+		free(v);
+	}
+
+	if (internal)
+		ccs_disconnect(ccsfd);
+
+	return disabled;
 }
 
 
@@ -809,6 +846,8 @@ configure_rgmanager(int ccsfd, int dbg, int *token_secs)
 	}
 
 	setup_logging(ccsfd);
+
+	rgmanager_disabled(ccsfd);
 
 	if (token_secs && ccs_get(ccsfd, "/cluster/totem/@token", &v) == 0) {
 		tmp = atoi(v);
@@ -982,6 +1021,13 @@ main(int argc, char **argv)
 		debug = 1;
 	}
 
+	/* If we're disabled in the configuration, don't fork */
+	if (rgmanager_disabled(-1) > 0) {
+		fprintf(stderr,
+			"rgmanager disabled in configuration; not starting\n");
+		return 2;
+	}
+
 	if (!foreground && (geteuid() == 0)) {
 		daemon_init(argv[0]);
 		if (wd && !debug && !watchdog_init())
@@ -1040,6 +1086,9 @@ main(int argc, char **argv)
 	 */
 	xmlInitParser();
 	configure_rgmanager(-1, debug, &cluster_timeout);
+	if (shutdown_pending == 1)
+		goto out_ls;
+
 	logt_print(LOG_NOTICE, "Resource Group Manager Starting\n");
 
 	if (rgm_dbus_notify && rgm_dbus_init() != 0) {
