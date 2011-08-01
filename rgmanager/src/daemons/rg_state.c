@@ -2300,6 +2300,7 @@ handle_fd_start_req(char *svcName, int request, int *new_owner)
 
 		switch(ret) {
 		case RG_ESUCCESS:
+			*new_owner = target;
 		    	ret = RG_ESUCCESS;
 			goto out;
 		case RG_ERUN:
