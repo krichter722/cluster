@@ -149,11 +149,11 @@ _rgm_dbus_notify(const char *svcname,
 	DBusMessage *msg = NULL;
 	int ret = -1;
 
-	if (!db) {
-		goto out_free;
-	}
-
 	pthread_mutex_lock(&mu);
+
+	if (!db) {
+		goto out_unlock;
+	}
 
 	/* Check to ensure the connection is still valid. If it
 	 * isn't, clean up and shut down the dbus connection.
