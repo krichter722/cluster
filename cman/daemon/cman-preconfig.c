@@ -1274,13 +1274,15 @@ static int get_cman_globals(struct objdb_iface_ver0 *objdb)
 	char *use_hash;
 
 	objdb_get_string(objdb, cluster_parent_handle, "name", &cluster_name);
-	if (!cluster_name || strlen(cluster_name) > 15) {
-		    sprintf(error_reason, "%s\n", "Invalid cluster name. It must be 15 characters or fewer\n");
+	if (!cluster_name) {
+		sprintf(error_reason, "Unable to determine cluster name.\n");
+		write_cman_pipe("Unable to determine cluster name.\n");
 		return -1;
 	}
 
-	if (!cluster_name) {
-		sprintf(error_reason, "Unable to determine cluster name.\n");
+	if (strlen(cluster_name) > 15) {
+		sprintf(error_reason, "%s\n", "Invalid cluster name. It must be 15 characters or fewer\n");
+		write_cman_pipe("Invalid cluster name. It must be 15 characters or fewer\n");
 		return -1;
 	}
 
