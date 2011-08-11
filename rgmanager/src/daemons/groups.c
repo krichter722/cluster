@@ -723,6 +723,32 @@ eval_groups(int local, uint32_t nodeid, int nodeStatus)
 			continue;
 		}
 
+		/* Mark the service as stopped if applicable */
+		if ((svcStatus.rs_owner == nodeid && !nodeStatus) &&
+		    (svcStatus.rs_state == RG_STATE_STARTED ||
+		     svcStatus.rs_state == RG_STATE_RECOVER ||
+		     svcStatus.rs_state == RG_STATE_STARTING ||
+		     svcStatus.rs_state == RG_STATE_STOPPING )) {
+
+			logt_print(LOG_DEBUG,
+				   "Marking %s on down member %d as stopped",
+				   svcName, nodeid);
+
+			svcStatus.rs_last_owner = svcStatus.rs_owner;
+			svcStatus.rs_state = RG_STATE_STOPPED;
+			svcStatus.rs_owner = 0;
+			svcStatus.rs_transition = (uint64_t)time(NULL);
+			svcStatus.rs_flags = 0;
+
+			if (set_rg_state(svcName, &svcStatus) != 0) {
+				logt_print(LOG_ERR, "Failed to update state"
+					   " of %s during recovery; cannot "
+					   "fail over", svcName);
+				rg_unlock(&lockp);
+				continue;
+			}
+		}
+
 		rg_unlock(&lockp);
 
 		if (svcStatus.rs_owner == 0)
