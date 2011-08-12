@@ -1060,6 +1060,7 @@ static int do_cmd_try_shutdown(struct connection *con, char *cmdbuf)
 	shutdown_yes = 0;
 	shutdown_no = 0;
 	shutdown_expected = num_listeners();
+	shutdown_con->shutdown_con = 1;
 
 	/* If no-one is listening for events then we can just go down now */
 	if (shutdown_expected == 0) {

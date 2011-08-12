@@ -107,7 +107,7 @@ struct connection
 	uint32_t   confchg;     /* Registered for confchg */
 	struct list write_msgs; /* Queued messages to go to data clients */
 	uint32_t    num_write_msgs; /* Count of messages */
-	struct connection *next;
+	uint32_t    shutdown_con;
 	struct list list;       /* when on the client_list */
 };
 
