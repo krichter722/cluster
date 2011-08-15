@@ -112,12 +112,6 @@ static void remove_client(hdb_handle_t handle, struct connection *con)
 	struct queued_reply *qm;
 	int msgs=0;
 
-	if (con->shutdown_con) {
-		P_DAEMON("Delay removal of shutdown connection\n");
-		con->shutdown_con = 0;
-		return;
-	}
-
 	poll_dispatch_delete(handle, con->fd);
 	close(con->fd);
 	if (con->type == CON_CLIENT)
@@ -348,7 +342,6 @@ static int process_rendezvous(hdb_handle_t handle, int fd, int revent, void *dat
 		newcon->port = 0;
 		newcon->events = 0;
 		newcon->num_write_msgs = 0;
-		newcon->shutdown_con = 0;
 		list_init(&newcon->write_msgs);
 		fcntl(client_fd, F_SETFL, fcntl(client_fd, F_GETFL, 0) | O_NONBLOCK);
 
