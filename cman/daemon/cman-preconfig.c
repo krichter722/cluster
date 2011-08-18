@@ -276,7 +276,10 @@ static int add_udpu_members(struct objdb_iface_ver0 *objdb, hdb_handle_t interfa
 	return 0;
 }
 
-static int add_ifaddr(struct objdb_iface_ver0 *objdb, char *mcast, char *ifaddr, int port, int ttl, enum tx_mech transport)
+#define PRIMARY_IFACE	0
+#define ALT_IFACE	1
+
+static int add_ifaddr(struct objdb_iface_ver0 *objdb, char *mcast, char *ifaddr, int port, int ttl, int altiface, enum tx_mech transport)
 {
 	hdb_handle_t totem_object_handle;
 	hdb_handle_t find_handle;
@@ -310,15 +313,17 @@ static int add_ifaddr(struct objdb_iface_ver0 *objdb, char *mcast, char *ifaddr,
 	if (objdb->object_find_next(find_handle, &totem_object_handle)) {
 		objdb->object_create(OBJECT_PARENT_HANDLE, &totem_object_handle,
 				     "totem", strlen("totem"));
-        }
+	}
 	objdb->object_find_destroy(find_handle);
 
-	if (objdb_get_string(objdb, totem_object_handle, "transport", &transportstr)) {
-		objdb->object_key_create_typed(totem_object_handle, "transport",
-			tx_mech_to_str[transport], strlen(tx_mech_to_str[transport]) + 1, OBJDB_VALUETYPE_STRING);
-	} else {
-		sprintf(error_reason, "Transport should not be specified within <totem .../>, use <cman transport=\"...\" /> instead");
-		return -1;
+	if (!altiface) {
+		if (objdb_get_string(objdb, totem_object_handle, "transport", &transportstr)) {
+			objdb->object_key_create_typed(totem_object_handle, "transport",
+				tx_mech_to_str[transport], strlen(tx_mech_to_str[transport]) + 1, OBJDB_VALUETYPE_STRING);
+		} else {
+			sprintf(error_reason, "Transport should not be specified within <totem .../>, use <cman transport=\"...\" /> instead");
+			return -1;
+		}
 	}
 
 	if (objdb->object_create(totem_object_handle, &interface_object_handle,
@@ -749,7 +754,8 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 		}
 	}
 
-	if (add_ifaddr(objdb, mcast_name, nodename, portnum, ttl, transport)) {
+	if (add_ifaddr(objdb, mcast_name, nodename, portnum, ttl,
+		       PRIMARY_IFACE, transport)) {
 		write_cman_pipe(error_reason);
 		return -1;
 	}
@@ -775,7 +781,8 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 			mcast = mcast_name;
 		}
 
-		if (add_ifaddr(objdb, mcast, node, portnum, altttl, transport)) {
+		if (add_ifaddr(objdb, mcast, node, portnum, altttl,
+			       ALT_IFACE, transport)) {
 			write_cman_pipe(error_reason);
 			return -1;
 		}
