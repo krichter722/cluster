@@ -984,7 +984,7 @@ static void add_cman_overrides(struct objdb_iface_ver0 *objdb)
 		if (objdb_get_string(objdb, object_handle, "rrp_mode", &value)) {
 			if (num_interfaces > 1) {
 				objdb->object_key_create_typed(object_handle, "rrp_mode",
-							       "active", strlen("active")+1, OBJDB_VALUETYPE_STRING);
+							       "passive", strlen("passive")+1, OBJDB_VALUETYPE_STRING);
 			}
 			else {
 				objdb->object_key_create_typed(object_handle, "rrp_mode",
