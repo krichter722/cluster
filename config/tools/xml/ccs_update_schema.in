@@ -56,9 +56,15 @@ if [ "$?" != 0 ]; then
 fi
 check_opts $opts
 
+tmpdir="$(mktemp -d -q)" || {
+	echo "unable to create tempdir" >&2
+	exit 1
+}
+export tmpdir
+
 # need to be careful (might have to mask traps on exit)
 cleanup() {
-	[ -n "$tmpdir" ] && [ -d "$tmddir" ] && rm -rf "$tmpdir"
+	[ -n "$tmpdir" ] && [ -d "$tmpdir" ] && rm -rf "$tmpdir"
 	rm -f $vardir/rng_update.lock
 	exit $1
 }
@@ -341,11 +347,6 @@ install_schema() {
 
 (
 	flock --exclusive 200
-
-	tmpdir="$(mktemp -d -q)" || {
-		echo "unable to create tempdir" >&2
-		exit 1
-	}
 
 	lecho "Generating resource-agents cache"
 
