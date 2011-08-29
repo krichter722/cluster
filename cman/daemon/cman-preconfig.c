@@ -1532,6 +1532,7 @@ static int cmanpre_readconfig(struct objdb_iface_ver0 *objdb, const char **error
 		ret = copy_tree_to_root(objdb, "amf", 0);
 		ret = copy_tree_to_root(objdb, "aisexec", 0);
 		ret = copy_tree_to_root(objdb, "service", 1);
+		ret = copy_tree_to_root(objdb, "uidgid", 0);
 	}
 
 	objdb->object_find_create(cluster_parent_handle, "cman", strlen("cman"), &find_handle);

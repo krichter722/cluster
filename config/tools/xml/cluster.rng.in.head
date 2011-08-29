@@ -7,6 +7,7 @@ xmlns:rha="http://redhat.com/~pkennedy/annotation_namespace/cluster_conf_annot_n
 cluster
 - cman
 - totem
+- uidgid
 - quorumd
 - fence_daemon
 - fence_xvmd
@@ -168,6 +169,27 @@ To validate your cluster.conf against this schema, run:
    </element>
  </optional>
 <!-- end cman block -->
+
+<!-- uidgid block -->
+ <optional>
+  <zeroOrMore>
+   <element name="uidgid" rha:description="Access control to corosync IPC">
+    <optional>
+     <attribute name="uid" rha:description="This is an unprivileged username,
+         as globally available to the system via /etc/passwd, including nis/ldap,
+         allowed to connect to corosync IPC. This value cannot be updated at runtime,
+         a full cman restart is required." rha:default="" rha:samble="userfoo"/>
+    </optional>
+    <optional>
+     <attribute name="gid" rha:description="This is an unprivileged group name,
+         as globally available to the system via /etc/group, including nis/ldap,
+         allowed to connect to corosync IPC. This value cannot be updated at runtime,
+         a full cman restart is required." rha:default="" rha:samble="groupfoo"/>
+    </optional>
+   </element>
+  </zeroOrMore>
+ </optional>
+<!-- end uidgid block -->
 
 <!-- totem block -->
  <optional>
