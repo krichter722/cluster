@@ -64,6 +64,7 @@ export tmpdir
 
 # need to be careful (might have to mask traps on exit)
 cleanup() {
+	[ "$1" != "0" ] && rm -f $vardir/*.cache $vardir/*.hash
 	[ -n "$tmpdir" ] && [ -d "$tmpdir" ] && rm -rf "$tmpdir"
 	rm -f $vardir/rng_update.lock
 	exit $1
