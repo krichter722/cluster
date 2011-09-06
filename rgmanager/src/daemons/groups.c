@@ -1709,8 +1709,6 @@ init_resource_groups(int reconfigure, int do_init)
 		free(val);
 	}
 
-	/* Wait for any pending requests */
-	rg_wait_threads();
 	/* Block operations that would break during configuration
 	   changes */
 	rg_clear_initialized(FL_CONFIG);
