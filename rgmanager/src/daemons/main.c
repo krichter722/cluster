@@ -802,7 +802,7 @@ rgmanager_disabled(int ccsfd)
 {
 	char *v;
 	int disabled = 0;
-	int internal;
+	int internal = 0;
 
 	if (ccsfd < 0) {
 		internal = 1;
