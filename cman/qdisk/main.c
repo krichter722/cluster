@@ -690,6 +690,17 @@ register_device(qd_ctx *ctx)
 				ctx->qc_votes : 0);
 }
 
+static int
+update_device(qd_ctx *ctx)
+{
+	return cman_update_quorum_device(
+			ctx->qc_cman_admin,
+			(ctx->qc_flags&RF_CMAN_LABEL) ?
+				ctx->qc_cman_label : ctx->qc_device,
+			(!(ctx->qc_flags & RF_MASTER_WINS) ||
+			 ctx->qc_status == S_MASTER) ?
+				ctx->qc_votes : 0);
+}
 
 static int 
 adjust_votes(qd_ctx *ctx)
@@ -2119,9 +2130,22 @@ main(int argc, char **argv)
 
 	if (!_running)
 		goto out;
-	
+
 	/* This registers the quorum device */
-	register_device(&ctx);
+	ret = register_device(&ctx);
+	if (ret) {
+		if (errno == EBUSY) {
+			logt_print(LOG_NOTICE, "quorum device is already registered, updating\n");
+			ret = update_device(&ctx);
+			if (ret) {
+				logt_print(LOG_ERR, "Unable to update quorum device info!\n");
+				goto out;
+			}
+		} else {
+			logt_print(LOG_ERR, "Unable to register quorum device!\n");
+			goto out;
+		}
+	}
 
 	io_nanny_start(ch_user, ctx.qc_tko * ctx.qc_interval);
 

@@ -1080,27 +1080,66 @@ static int do_cmd_try_shutdown(struct connection *con, char *cmdbuf)
 	return 0;
 }
 
+static void free_quorum_device(void)
+{
+	if (!quorum_device)
+		return;
+
+	if (quorum_device->name)
+		free(quorum_device->name);
+
+	free(quorum_device);
+
+	quorum_device = NULL;
+}
+
+static void quorum_device_update_votes(int votes)
+{
+	int oldvotes;
+
+	/* Update votes even if it existed before */
+	oldvotes = quorum_device->votes;
+	quorum_device->votes = votes;
+
+	/* If it is a member and votes changed, recalculate quorum */
+	if (quorum_device->state == NODESTATE_MEMBER &&
+	    oldvotes != votes) {
+		recalculate_quorum(1, 0);
+	}
+}
+
 static int do_cmd_register_quorum_device(char *cmdbuf, int *retlen)
 {
 	int votes;
-	int oldvotes;
 	char *name = cmdbuf+sizeof(int);
 
-	if (!ais_running)
+	if (!ais_running) {
+		log_printf(LOG_ERR, "unable to register quorum device: corosync is not running\n");
 		return -ENOTCONN;
+	}
 
-	if (!we_are_a_cluster_member)
+	if (!we_are_a_cluster_member) {
+		log_printf(LOG_ERR, "unable to register quorum device: this node is not part of a cluster\n");
 		return -ENOENT;
+	}
 
-	if (strlen(name) > MAX_CLUSTER_MEMBER_NAME_LEN)
+	if (strlen(name) > MAX_CLUSTER_MEMBER_NAME_LEN) {
+		log_printf(LOG_ERR, "unable to register quorum device: name is too long\n");
+		/* this should probably return -E2BIG? */
 		return -EINVAL;
+	}
 
 	/* Allow re-registering of a quorum device if the name is the same */
-	if (quorum_device && strcmp(name, quorum_device->name))
-                return -EBUSY;
+	if (quorum_device && strcmp(name, quorum_device->name)) {
+		log_printf(LOG_ERR, "unable to re-register quorum device: device names do not match\n");
+		log_printf(LOG_DEBUG, "memb: old name: %s new name: %s\n", quorum_device->name, name);
+		return -EBUSY;
+	}
 
-	if (find_node_by_name(name))
-                return -EALREADY;
+	if (find_node_by_name(name)) {
+		log_printf(LOG_ERR, "unable to register quorum device: a node with the same name (%s) already exists\n", name);
+		return -EALREADY;
+	}
 
 	memcpy(&votes, cmdbuf, sizeof(int));
 
@@ -1108,18 +1147,19 @@ static int do_cmd_register_quorum_device(char *cmdbuf, int *retlen)
 	if (!quorum_device)
 	{
 		quorum_device = malloc(sizeof(struct cluster_node));
-		if (!quorum_device)
+		if (!quorum_device) {
+			log_printf(LOG_ERR, "unable to register quorum device: not enough memory\n");
 			return -ENOMEM;
+		}
 		memset(quorum_device, 0, sizeof(struct cluster_node));
 
-		quorum_device->name = malloc(strlen(name) + 1);
+		quorum_device->name = strdup(name);
 		if (!quorum_device->name) {
-			free(quorum_device);
-			quorum_device = NULL;
+			log_printf(LOG_ERR, "unable to register quorum device: not enough memory\n");
+			free_quorum_device();
 			return -ENOMEM;
 		}
 
-		strcpy(quorum_device->name, name);
 		quorum_device->state = NODESTATE_DEAD;
 		gettimeofday(&quorum_device->join_time, NULL);
 
@@ -1132,34 +1172,63 @@ static int do_cmd_register_quorum_device(char *cmdbuf, int *retlen)
 		log_printf(LOG_INFO, "quorum device re-registered\n");
 	}
 
-	/* Update votes even if it existed before */
-	oldvotes = quorum_device->votes;
-        quorum_device->votes = votes;
+	quorum_device_update_votes(votes);
 
-	/* If it is a member and votes decreased, recalculate quorum */
-	if (quorum_device->state == NODESTATE_MEMBER &&
-	    oldvotes != votes) {
-		recalculate_quorum(1, 0);
-	}
-
-        return 0;
+	return 0;
 }
 
 static int do_cmd_unregister_quorum_device(char *cmdbuf, int *retlen)
 {
-        if (!quorum_device)
-                return -EINVAL;
+	if (!quorum_device) {
+		log_printf(LOG_DEBUG, "memb: failed to unregister a non existing quorum device\n");
+		return -EINVAL;
+	}
 
-        if (quorum_device->state == NODESTATE_MEMBER)
-                return -EBUSY;
+	if (quorum_device->state == NODESTATE_MEMBER) {
+		log_printf(LOG_DEBUG, "memb: failed to unregister: quorum device still active.\n");
+		return -EBUSY;
+	}
 
-	free(quorum_device->name);
-	free(quorum_device);
-
-        quorum_device = NULL;
+	free_quorum_device();
 
 	log_printf(LOG_INFO, "quorum device unregistered\n");
-        return 0;
+	return 0;
+}
+
+static int do_cmd_update_quorum_device(char *cmdbuf, int *retlen)
+{
+	int votes, ret = 0;
+	char *name = cmdbuf+sizeof(int);
+
+	if (!quorum_device) {
+		log_printf(LOG_DEBUG, "memb: failed to update a non-existing quorum device\n");
+		return -EINVAL;
+	}
+
+	memcpy(&votes, cmdbuf, sizeof(int));
+
+	/* allow name change of the quorum device */
+	if (quorum_device && strcmp(name, quorum_device->name)) {
+		char *newname = NULL;
+		char *oldname = NULL;
+
+		log_printf(LOG_DEBUG, "memb: old name: %s new name: %s\n", quorum_device->name, name);
+		newname = strdup(name);
+		if (!newname) {
+			log_printf(LOG_ERR, "memb: unable to update quorum device name: out of memory\n");
+			ret = -ENOMEM;
+			goto out;
+		}
+		log_printf(LOG_INFO, "quorum device name changed to %s\n", name);
+		oldname = quorum_device->name;
+		quorum_device->name = newname;
+		free(oldname);
+	}
+
+out:
+	quorum_device_update_votes(votes);
+
+	return ret;
 }
 
 static int reload_config(int new_version, int should_broadcast)
@@ -1558,6 +1627,10 @@ int process_command(struct connection *con, int cmd, char *cmdbuf,
 
 	case CMAN_CMD_UNREG_QUORUMDEV:
 		err = do_cmd_unregister_quorum_device(cmdbuf, retlen);
+		break;
+
+	case CMAN_CMD_UPDATE_QUORUMDEV:
+		err = do_cmd_update_quorum_device(cmdbuf, retlen);
 		break;
 
 	case CMAN_CMD_POLL_QUORUMDEV:
