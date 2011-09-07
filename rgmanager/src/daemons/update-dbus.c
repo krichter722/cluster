@@ -127,13 +127,11 @@ static void *
 _dbus_auto_flush(void *arg)
 {
 	/* DBus connection functions are thread safe */
-	dbus_connection_ref(db);
 	while (dbus_connection_read_write(db, 500)) {
 		if (!th)
 			break;	
 	}
 
-	dbus_connection_unref(db);
 	th = 0;
 	return NULL;
 }
@@ -147,13 +145,16 @@ _rgm_dbus_notify(const char *svcname,
 		 const char *svclast)
 {
 	DBusMessage *msg = NULL;
-	int ret = -1;
+	int ret = 0;
 
 	pthread_mutex_lock(&mu);
 
 	if (!db) {
 		goto out_unlock;
 	}
+
+	/* Notifications are enabled */
+	ret = -1;
 
 	/* Check to ensure the connection is still valid. If it
 	 * isn't, clean up and shut down the dbus connection.
@@ -215,12 +216,17 @@ rgm_dbus_update(char *key, uint64_t view, void *data, uint32_t size)
 
 	if (!rgm_dbus_notify)
 		goto out_free;
-	if (!db)
-		goto out_free;
 	if (view == 1)
 		goto out_free;
 	if (size != (sizeof(*st)))
 		goto out_free;
+	
+	pthread_mutex_lock(&mu);
+	if (!db) {
+		pthread_mutex_unlock(&mu);
+		goto out_free;
+	}
+	pthread_mutex_unlock(&mu);
 
 	st = (rg_state_t *)data;
 	swab_rg_state_t(st);
