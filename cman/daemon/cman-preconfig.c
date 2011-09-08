@@ -393,13 +393,14 @@ static uint16_t generate_cluster_id(char *name)
 	return value & 0xFFFF;
 }
 
-static char *default_mcast(char *node, uint16_t clusterid)
+static char *default_mcast(char *node, int altiface)
 {
         struct addrinfo *ainfo;
         struct addrinfo ahints;
 	int ret;
 	int family;
 	static char addr[132];
+	uint16_t clusterid = cluster_id + altiface;
 
         memset(&ahints, 0, sizeof(ahints));
 
@@ -691,7 +692,7 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 		}
 
 		if (!mcast_name) {
-			mcast_name = default_mcast(nodename, cluster_id);
+			mcast_name = default_mcast(nodename, PRIMARY_IFACE);
 
 		}
 		if (!mcast_name)
@@ -778,7 +779,7 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 		objdb_get_int(objdb, alt_object, "ttl", &altttl, ttl);
 
 		if (objdb_get_string(objdb, alt_object, "mcast", &mcast)) {
-			mcast = mcast_name;
+			mcast = default_mcast(nodename, ALT_IFACE);
 		}
 
 		if (add_ifaddr(objdb, mcast, node, portnum, altttl,
@@ -992,6 +993,13 @@ static void add_cman_overrides(struct objdb_iface_ver0 *objdb)
 			}
 		}
 
+		if (objdb_get_string(objdb, object_handle, "rrp_problem_count_threshold", &value)) {
+			if (num_interfaces > 1) {
+				objdb->object_key_create_typed(object_handle, "rrp_problem_count_threshold",
+							       "3", 2, OBJDB_VALUETYPE_STRING);
+			}
+		}
+
 		if (objdb_get_string(objdb, object_handle, "secauth", &value)) {
 			sprintf(tmp, "%d", 1);
 			objdb->object_key_create_typed(object_handle, "secauth",
@@ -1136,7 +1144,7 @@ static int set_noccs_defaults(struct objdb_iface_ver0 *objdb)
 	num_nodenames = 1;
 
 	if (!mcast_name) {
-		mcast_name = default_mcast(nodename, cluster_id);
+		mcast_name = default_mcast(nodename, PRIMARY_IFACE);
 	}
 
 	/* This will increase as nodes join the cluster */

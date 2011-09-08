@@ -257,7 +257,7 @@ To validate your cluster.conf against this schema, run:
       rha:sample="5"/>
    </optional>
    <!-- FIXME: The following description was adapted from the man page.
-   It may be tool long for the schema docuement. Consider cutting text
+   It may be tool long for the schema document. Consider cutting text
    after the second sentence and referring the reader to the openais.conf
    man page. -->
    <optional>
@@ -273,6 +273,13 @@ To validate your cluster.conf against this schema, run:
         specified, none is automatically chosen. If multiple interface
         directives are specified, only active or passive may be
         chosen." rha:sample="active"/>
+   </optional>
+   <optional>
+    <attribute name="rrp_problem_count_threshold"
+	rha:description="This specifies the number of times a problem is detected
+        with a link before setting the link faulty.  Once a link is set faulty, no
+        more data is transmitted upon it. Corosync default is 10, cman default is 3"
+        rha:default="3" rha:sample="5"/>
    </optional>
    <optional>
     <attribute name="secauth" rha:description="This attribute specifies
