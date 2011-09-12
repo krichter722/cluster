@@ -609,12 +609,12 @@ check_cman(qd_ctx *ctx, memb_mask_t mask, memb_mask_t master_mask)
 			   &retnodes, nodes) <0 )
 		return;
 
-	memset(master_mask, 0, sizeof(master_mask));
+	memset(master_mask, 0, sizeof(memb_mask_t));
 	for (x = 0; x < retnodes; x++) {
-		if (is_bit_set(mask, nodes[x].cn_nodeid-1, sizeof(mask)) &&
+		if (is_bit_set(mask, nodes[x].cn_nodeid-1, sizeof(memb_mask_t)) &&
 		    nodes[x].cn_member) {
 			set_bit(master_mask, nodes[x].cn_nodeid-1,
-				sizeof(master_mask));
+				sizeof(memb_mask_t));
 		} else {
 			/* Not in CMAN output = not allowed */
 			clear_bit(master_mask, (nodes[x].cn_nodeid-1),
