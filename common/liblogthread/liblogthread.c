@@ -69,7 +69,7 @@ static void write_entry(int level, time_t *t, char *str)
 static void write_dropped(int level, time_t *t, int num)
 {
 	char str[ENTRY_STR_LEN];
-	sprintf(str, "dropped %d entries", num);
+	snprintf(str, sizeof(str) - 1, "dropped %d entries", num);
 	write_entry(level, t, str);
 }
 
