@@ -128,7 +128,7 @@ static void _logt_print(int level, char *buf)
 	head_ent = head_ent % num_ents;
 	pending_ents++;
 
-	strncpy(e->str, buf, ENTRY_STR_LEN);
+	strncpy(e->str, buf, ENTRY_STR_LEN - 1);
 	e->level = level;
 	e->time = time(NULL);
  out:
@@ -172,9 +172,9 @@ static void _conf(const char *name, int mode, int syslog_facility,
 	logt_syslog_priority = syslog_priority;
 	logt_logfile_priority = logfile_priority;
 	if (name)
-		strncpy(logt_name, name, PATH_MAX);
+		strncpy(logt_name, name, PATH_MAX - 1);
 	if (logfile)
-		strncpy(logt_logfile, logfile, PATH_MAX);
+		strncpy(logt_logfile, logfile, PATH_MAX - 1);
 
 	if (logt_mode & LOG_MODE_OUTPUT_FILE && logt_logfile[0]) {
 		if (logt_logfile_fp) {
@@ -255,11 +255,11 @@ int logt_reinit(void)
 	memset(name_tmp, 0, sizeof(name_tmp));
 	memset(file_tmp, 0, sizeof(file_tmp));
 
-	strncpy(name_tmp, logt_name, sizeof(name_tmp));
+	strncpy(name_tmp, logt_name, sizeof(name_tmp) - 1);
 	if (!strlen(name_tmp))
 		return -1;
 	if (strlen(logt_logfile))
-		strncpy(file_tmp, logt_logfile, sizeof(file_tmp));
+		strncpy(file_tmp, logt_logfile, sizeof(file_tmp) - 1);
 
 	return logt_init(name_tmp, logt_mode, logt_syslog_facility,
 			 logt_syslog_priority, logt_logfile_priority,
