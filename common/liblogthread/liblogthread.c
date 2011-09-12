@@ -42,8 +42,15 @@ static FILE *logt_logfile_fp;
 static char *_time(time_t *t)
 {
 	static char buf[64];
+	struct tm *tm;
 
-	strftime(buf, sizeof(buf), "%b %d %T", localtime(t));
+	tm = localtime(t);
+	if (!tm) {
+		strncpy(buf, "unknown time", sizeof(buf) - 1);
+	} else {
+		strftime(buf, sizeof(buf), "%b %d %T", tm);
+	}
+
 	return buf;
 }
 
