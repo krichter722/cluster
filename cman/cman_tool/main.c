@@ -641,7 +641,7 @@ static void set_votes(commandline_t *comline)
 	else {
 		/* Resolve node name into a number */
 		node.cn_nodeid = 0;
-		strcpy(node.cn_name, comline->nodenames[0]);
+		strncpy(node.cn_name, comline->nodenames[0], CMAN_MAX_NODENAME_LEN);
 		if (cman_get_node(h, node.cn_nodeid, &node))
 			die("Can't set votes for node %s : %s\n", node.cn_name, strerror(errno));
 		nodeid = node.cn_nodeid;
@@ -864,7 +864,7 @@ static void kill_node(commandline_t *comline)
 
 	    /* Resolve node name into a number */
 	    node.cn_nodeid = 0;
-	    strcpy(node.cn_name, comline->nodenames[i]);
+	    strncpy(node.cn_name, comline->nodenames[i], CMAN_MAX_NODENAME_LEN);
 	    if (cman_get_node(h, node.cn_nodeid, &node)) {
 		fprintf(stderr, "Can't kill node %s : %s\n", node.cn_name, strerror(errno));
 		continue;
