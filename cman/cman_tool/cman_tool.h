@@ -12,7 +12,6 @@
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <stdio.h>
-#include <errno.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -107,6 +106,5 @@ struct commandline
 typedef struct commandline commandline_t;
 
 int join(commandline_t *comline, char *envp[]);
-const char *cman_error(int err);
 
 #endif  /*  __CMAN_TOOL_DOT_H__  */

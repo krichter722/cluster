@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <sys/wait.h>
 #include <stdint.h>
 #include <signal.h>

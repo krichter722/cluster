@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <inttypes.h>
 #include <unistd.h>
 #include <signal.h>
@@ -192,6 +193,24 @@ static char *membership_state(char *buf, int buflen, int node_state)
 	}
 
 	return buf;
+}
+
+static const char *cman_error(int err)
+{
+	const char *die_error;
+
+	switch (err) {
+	case ENOTCONN:
+		die_error = "Cluster software not started";
+		break;
+	case ENOENT:
+		die_error = "Node is not yet a cluster member";
+		break;
+	default:
+		die_error = strerror(err);
+		break;
+	}
+	return die_error;
 }
 
 static void show_status(void)
@@ -556,24 +575,6 @@ static int show_services(void)
 	return system("group_tool ls");
 }
 
-
-const char *cman_error(int err)
-{
-	const char *die_error;
-
-	switch (errno) {
-	case ENOTCONN:
-		die_error = "Cluster software not started";
-		break;
-	case ENOENT:
-		die_error = "Node is not yet a cluster member";
-		break;
-	default:
-		die_error = strerror(errno);
-		break;
-	}
-	return die_error;
-}
 
 static void leave(commandline_t *comline)
 {
