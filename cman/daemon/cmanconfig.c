@@ -71,7 +71,15 @@ int read_cman_nodes(struct corosync_api_v1 *corosync, unsigned int *config_versi
 	    objdb_get_int(corosync, object_handle, "expected_votes", &expected, 0);
 	    objdb_get_int(corosync, object_handle, "two_node", (unsigned int *)&two_node, 0);
 	    objdb_get_int(corosync, object_handle, "cluster_id", &cluster_id, 0);
-	    objdb_get_string(corosync, object_handle, "nodename", &our_nodename);
+	    if (objdb_get_string(corosync, object_handle, "nodename", &our_nodename) != 0) {
+		char message[132];
+		snprintf(message, sizeof(message),
+			 "cman was unable to determine our node name!\n");
+		log_printf(LOG_ERR, "%s", message);
+		write_cman_pipe(message);
+		error = -EINVAL;
+		goto out_err;
+	    }
 	    objdb_get_int(corosync, object_handle, "max_queued", &max_outstanding_messages, DEFAULT_MAX_QUEUED);
     }
     corosync->object_find_destroy(find_handle);
