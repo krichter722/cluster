@@ -19,7 +19,6 @@
 #include <fcntl.h>
 #include <netdb.h>
 #include <limits.h>
-#include <unistd.h>
 
 extern char *prog_name;
 
@@ -105,6 +104,6 @@ struct commandline
 };
 typedef struct commandline commandline_t;
 
-int join(commandline_t *comline, char *envp[]);
+int join(commandline_t *comline);
 
 #endif  /*  __CMAN_TOOL_DOT_H__  */

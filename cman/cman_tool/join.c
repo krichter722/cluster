@@ -1,4 +1,5 @@
 #include <errno.h>
+#include <unistd.h>
 #include <sys/wait.h>
 #include <stdint.h>
 #include <signal.h>
@@ -119,7 +120,7 @@ static int check_corosync_status(pid_t pid)
 	return status;
 }
 
-int join(commandline_t *comline, char *main_envp[])
+int join(commandline_t *comline)
 {
 	int i, err;
 	int envptr = 0;
@@ -205,9 +206,9 @@ int join(commandline_t *comline, char *main_envp[])
 
 	/* Copy any COROSYNC_* env variables to the new daemon */
 	i=0;
-	while (i < MAX_ARGS && main_envp[i]) {
-		if (strncmp(main_envp[i], "COROSYNC_", 9) == 0)
-			envp[envptr++] = main_envp[i];
+	while (i < MAX_ARGS && __environ[i]) {
+		if (strncmp(__environ[i], "COROSYNC_", 9) == 0)
+			envp[envptr++] = __environ[i];
 		i++;
 	}
 
@@ -363,7 +364,7 @@ int join(commandline_t *comline, char *main_envp[])
 	res = confdb_object_create(confdb_handle, OBJECT_PARENT_HANDLE, "cman_private", strlen("cman_private"), &object_handle);
 	if (res == CS_OK) {
 		int envnum = 0;
-		const char *envvar = main_envp[envnum];
+		const char *envvar = __environ[envnum];
 		const char *equal;
 		char envname[PATH_MAX];
 
@@ -381,7 +382,7 @@ int join(commandline_t *comline, char *main_envp[])
 					}
 				}
 			}
-			envvar = main_envp[++envnum];
+			envvar = __environ[++envnum];
 		}
 	}
 	res = confdb_key_create_typed(confdb_handle, object_handle,

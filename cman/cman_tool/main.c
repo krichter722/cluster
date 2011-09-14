@@ -1190,7 +1190,7 @@ static void check_arguments(commandline_t *comline)
 }
 
 
-static void do_join(commandline_t *comline, char *envp[])
+static void do_join(commandline_t *comline)
 {
 	int ret;
 
@@ -1212,18 +1212,18 @@ static void do_join(commandline_t *comline, char *envp[])
 			die("Not joining, configuration is not valid\n");
 	}
 
-	join(comline, envp);
+	join(comline);
 	if (comline->wait_opt || comline->wait_quorate_opt) {
 		do {
 			ret = cluster_wait(comline);
 			if (ret == ENOTCONN)
-				join(comline, envp);
+				join(comline);
 
 		} while (ret == ENOTCONN);
 	}
 }
 
-int main(int argc, char *argv[], char *envp[])
+int main(int argc, char *argv[])
 {
 	commandline_t comline;
 
@@ -1235,7 +1235,7 @@ int main(int argc, char *argv[], char *envp[])
 
 	switch (comline.operation) {
 	case OP_JOIN:
-		do_join(&comline, envp);
+		do_join(&comline);
 		break;
 
 	case OP_LEAVE:
