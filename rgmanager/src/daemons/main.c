@@ -211,7 +211,9 @@ membership_update(void)
 		if (node_delta)
 			free_member_list(node_delta);
 		node_event(1, my_id(), 0, 0);
-		/* NOTREACHED */
+		/* NOT REACHED */
+		/* Following simply quiets static analyzers */
+		exit(1);
 	}
 
 	for (x=0; node_delta && x < node_delta->cml_count; x++) {
