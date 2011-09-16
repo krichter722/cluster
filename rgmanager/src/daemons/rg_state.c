@@ -314,6 +314,7 @@ get_rg_state(const char *name, rg_state_t *svcblk)
 	if (ret != VFR_OK || datalen == 0) {
 		if (data)
 			free(data);
+		data = NULL;
 
 		ret = init_rg(name, svcblk);
 		if (ret != VFR_OK) {
@@ -326,6 +327,7 @@ get_rg_state(const char *name, rg_state_t *svcblk)
 		if (ret != VFR_OK) {
 			if (data)
 				free(data);
+			data = NULL;
 			free_member_list(membership);
 			printf("Couldn't reread rg %s! (%d)\n", name, ret);
 			return RG_EFAIL;
