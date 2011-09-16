@@ -931,7 +931,7 @@ vf_invalidate(void)
 	while ((c_key = key_list) != NULL) {
 
 		while ((c_jv = c_key->kn_jvlist) != NULL) {
-			key_list->kn_jvlist = c_jv->vn_next;
+			c_key->kn_jvlist = c_jv->vn_next;
 			free(c_jv);
 		}
 
