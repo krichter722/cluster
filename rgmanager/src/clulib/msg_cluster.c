@@ -17,6 +17,8 @@
 #include <cman-private.h>
 #include <logging.h>
 
+#define CTX_INVALID ((uint32_t)-1)
+
 static void process_cman_event(cman_handle_t handle, void *private,
 			       int reason, int arg);
 /* Ripped from ccsd's setup_local_socket */
@@ -401,7 +403,7 @@ _cluster_msg_receive(msgctx_t *ctx, void **msg, size_t *len)
 	if (len)
 		*len = 0;
 
-	if (ctx->u.cluster_info.local_ctx < 0 ||
+	if (ctx->u.cluster_info.local_ctx == CTX_INVALID ||
 	    ctx->u.cluster_info.local_ctx >= MAX_CONTEXTS) {
 		errno = EBADF;
 		return -1;
@@ -582,7 +584,7 @@ cluster_msg_open(int type, int nodeid, int port, msgctx_t *ctx, int timeout)
 	ctx->flags = 0;
 	ctx->u.cluster_info.nodeid = nodeid;
 	ctx->u.cluster_info.port = port;
-	ctx->u.cluster_info.local_ctx = -1;
+	ctx->u.cluster_info.local_ctx = CTX_INVALID;
 	ctx->u.cluster_info.remote_ctx = 0;
 	ctx->u.cluster_info.queue = NULL;
 
@@ -786,7 +788,7 @@ process_cman_msg(cman_handle_t h, void *priv, char *buf, int len,
 	printf("  Remote CTX: %d  Local CTX: %d\n", m->src_ctx, m->dest_ctx);
 #endif
 
-	if (m->dest_ctx >= MAX_CONTEXTS || m->dest_ctx < 0) {
+	if (m->dest_ctx >= MAX_CONTEXTS || m->dest_ctx == CTX_INVALID) {
 		printf("Context invalid; ignoring\n");
 		return;
 	}
