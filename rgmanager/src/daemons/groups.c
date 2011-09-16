@@ -342,6 +342,11 @@ best_target_node(cluster_member_list_t *allowed, uint32_t owner,
 		   it's an exclusive service and the target node already
 		   is running a service. */
 		res = find_root_by_ref(&_resources, rg_name);
+		if (!res) {
+			if (lock)
+				pthread_rwlock_unlock(&resource_lock);
+			continue;
+		}
 		val = (char *)res_attr_value(res, "exclusive");
 		exclusive = val && ((!strcmp(val, "yes") || (atoi(val)>0)));
 
