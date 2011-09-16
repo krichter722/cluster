@@ -885,6 +885,7 @@ load_resources(int ccsfd, resource_t **reslist, resource_rule_t **rulelist)
 #endif
 
 			       destroy_resource(newres);
+			       continue;
 		       }
 
 		       /* Just information */
