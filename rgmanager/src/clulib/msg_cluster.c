@@ -542,19 +542,18 @@ cluster_msg_receive(msgctx_t *ctx, void *msg, size_t maxlen, int timeout)
 		free(n);
 		return 0;
 	default:
-		pthread_mutex_lock(&ctx->u.cluster_info.mutex);
-		n = ctx->u.cluster_info.queue;
-		list_remove(&ctx->u.cluster_info.queue, n);
-		pthread_mutex_unlock(&ctx->u.cluster_info.mutex);
-
-		proto_error(ctx, n->message, "Illegal request on established pchannel");
-		if (n->message)
-			free(n->message);
-		free(n);
-		return -1;
+		break;
 	}
 
-	printf("%s: CODE PATH ERROR\n", __FUNCTION__);
+	pthread_mutex_lock(&ctx->u.cluster_info.mutex);
+	n = ctx->u.cluster_info.queue;
+	list_remove(&ctx->u.cluster_info.queue, n);
+	pthread_mutex_unlock(&ctx->u.cluster_info.mutex);
+
+	proto_error(ctx, n->message, "Illegal request on established pchannel");
+	if (n->message)
+		free(n->message);
+	free(n);
 	return -1;
 }
 

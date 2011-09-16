@@ -257,9 +257,6 @@ sock_msg_receive(msgctx_t *ctx, void *msg, size_t maxlen, int timeout)
 
 	memcpy(msg, priv_msg, priv_len);
 	return req;
-
-	printf("%s: CODE PATH ERROR\n", __FUNCTION__);
-	return -1;
 }
 
 
