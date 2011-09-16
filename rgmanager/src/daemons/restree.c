@@ -409,6 +409,10 @@ res_exec(resource_node_t *node, int op, const char *arg, int depth)
 			execle(fullpath, fullpath, op_str, arg, NULL, env);
 		else
 			execle(fullpath, fullpath, op_str, NULL, env);
+
+		/* Should not happen */
+		free(env);
+		exit(1);
 	}
 
 #ifdef DEBUG

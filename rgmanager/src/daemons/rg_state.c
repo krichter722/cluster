@@ -1945,8 +1945,10 @@ handle_relocate_req(char *svcName, int orig_request, int preferred_target,
 
 	while (memb_count(allowed_nodes)) {
 		target = best_target_node(allowed_nodes, me, svcName, 1);
-		if (target == me)
+		if (target == me) {
+			free_member_list(allowed_nodes);
 			goto exhausted;
+		}
 
 		retries = 0;
 retry:

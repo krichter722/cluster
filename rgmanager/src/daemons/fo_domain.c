@@ -131,8 +131,10 @@ fod_get_domain(int ccsfd, char *base, int idx, fod_t **domains)
 	} while (!list_done(domains, fod));
 
 	fod = malloc(sizeof(*fod));
-	if (!fod)
+	if (!fod) {
+		free(ret);
 		return NULL;
+	}
 	memset(fod, 0, sizeof(*fod));
 	fod->fd_name = ret;
 	fod->fd_nodes = 0;
