@@ -445,8 +445,8 @@ node_should_start(int nodeid, cluster_member_list_t *membership,
 	int nofailback = 0;
 	fod_t *fod = NULL;
 	int found = 0;
-	int owned_by_node = 0, started = 0, no_owner = 0;
 #ifndef NO_CCS
+	int owned_by_node = 0, started = 0, no_owner = 0;
 	rg_state_t svc_state;
 	struct dlm_lksb lockp;
 #endif
@@ -600,6 +600,7 @@ node_should_start(int nodeid, cluster_member_list_t *membership,
 			 * If we are ordered we want to see if failback is
 			 * turned on
 			 */
+#ifndef NO_CCS
 			if (nofailback && started && owned_by_node && !no_owner) {
 #ifdef DEBUG
 				logt_print(LOG_DEBUG,"Ordered mode and no "
@@ -607,6 +608,7 @@ node_should_start(int nodeid, cluster_member_list_t *membership,
 #endif
 				return FOD_BEST;
 			}
+#endif
 #ifdef DEBUG
 			logt_print(LOG_DEBUG,"Ordered mode -> BETTER\n");
 #endif
@@ -622,7 +624,7 @@ node_should_start(int nodeid, cluster_member_list_t *membership,
 		 * Node is a member of the domain and is the lowest-ordered,
 		 * online member.
 		 */
-
+#ifndef NO_CCS
 		if(nofailback && started && !owned_by_node && !no_owner) {
 #ifdef DEBUG
 			logt_print(LOG_DEBUG, "Member #%d is the lowest-ordered "
@@ -631,6 +633,7 @@ node_should_start(int nodeid, cluster_member_list_t *membership,
 #endif
 			return FOD_BETTER;
 		}
+#endif
  
 		/* In this case, we can ignore 'ordered' */
 #ifdef DEBUG
