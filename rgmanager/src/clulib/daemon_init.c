@@ -84,11 +84,11 @@ check_pid_valid(pid_t pid, char *prog)
 	/*
 	 * Check to see if this is the same executable.
 	 */
-	if ((s = strstr(proc_cmdline, prog)) == NULL) {
+	if (strstr(proc_cmdline, prog) == NULL) {
 		return 0;
-	} else {
-		return 1;
 	}
+
+	return 1;
 }
 
 

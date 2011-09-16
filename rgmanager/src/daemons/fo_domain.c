@@ -439,7 +439,7 @@ node_should_start(int nodeid, cluster_member_list_t *membership,
 		  const char *rg_name, fod_t **domains)
 {
 	char *nodename = NULL;
-	char domainname[128];
+	char domainname[128] = "";
 	int ordered = 0;
 	int restricted = 0;
 	int nofailback = 0;
