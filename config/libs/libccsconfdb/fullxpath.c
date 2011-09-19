@@ -326,6 +326,11 @@ char *_ccs_get_fullxpath(confdb_handle_t handle, hdb_handle_t connection_handle,
 			}
 		}
 
+		if (list)
+			if (set_previous_query(handle, connection_handle,
+					   (char *)query, OBJECT_PARENT_HANDLE))
+				goto fail;
+
 		rtn = malloc(size);
 
 		if (!rtn) {
@@ -341,10 +346,6 @@ char *_ccs_get_fullxpath(confdb_handle_t handle, hdb_handle_t connection_handle,
 			sprintf(rtn, "%s",
 				node->children ? node->children->
 				content : node->name);
-
-		if (list)
-			set_previous_query(handle, connection_handle,
-					   (char *)query, OBJECT_PARENT_HANDLE);
 
 	} else
 		errno = EINVAL;
