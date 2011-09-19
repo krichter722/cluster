@@ -551,7 +551,9 @@ quorum_init(qd_ctx *ctx, node_info_t *ni, int max, struct h_data *h, int maxh)
 
 		tv.tv_sec = ctx->qc_interval;
 		tv.tv_usec = 0;
-		cman_wait(ctx->qc_cman_user, &tv);
+		if (cman_wait(ctx->qc_cman_user, &tv) < 0)
+			logt_print(LOG_ERR, "cman_dispatch: %s\n",
+				   strerror(errno));
 	}
 
 	if (!_running) {
@@ -1246,10 +1248,12 @@ quorum_loop(qd_ctx *ctx, node_info_t *ni, int max)
 		} else {
 			error_cycles = 0;
 		}
-		
+
 		/* Could hit a watchdog timer here if we wanted to */
 		if (_running) {
-			cman_wait(ctx->qc_cman_user, &sleeptime);
+			if (cman_wait(ctx->qc_cman_user, &sleeptime) < 0)
+				logt_print(LOG_ERR, "cman_dispatch: %s\n",
+					   strerror(errno));
 		}
 	}
 
