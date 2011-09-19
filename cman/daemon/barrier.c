@@ -177,11 +177,11 @@ void process_barrier_msg(struct cl_barriermsg *msg,
 {
 	struct cl_barrier *barrier;
 
-	barrier = find_barrier(msg->name);
-
 	/* Ignore other peoples' messages */
 	if (!we_are_a_cluster_member)
 		return;
+
+	barrier = find_barrier(msg->name);
 	if (!barrier)
 		return;
 
@@ -200,8 +200,6 @@ void process_barrier_msg(struct cl_barriermsg *msg,
 		break;
 
 	case BARRIER_COMPLETE:
-		if (!barrier)
-			return;
 		/* Once we receive COMPLETE, we know that everyone has completed.
 		   I love VS */
 		barrier_complete_phase2(barrier, 0);
