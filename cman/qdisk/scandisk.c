@@ -260,8 +260,10 @@ static int scanprocpart(struct devlisthead *devlisthead)
 
 		if (strlen(line) > 128 + (22))
 			continue;
-		sscanf(line, "%4d %4d %10llu %s",
-		       &major, &minor, &blkcnt, device);
+
+		if (sscanf(line, "%4d %4d %10llu %s",
+		       &major, &minor, &blkcnt, device) < 4)
+			continue;
 
 		/* careful here.. if there is no device, we are scanning the
 		 * first two lines that are not useful to us
@@ -327,8 +329,9 @@ static int scanmdstat(struct devlisthead *devlisthead)
 		if (!(line[0] == 'm' && line[1] == 'd'))
 			continue;
 
-		sscanf(line, "%s %s %s %s %s",
-		       device, separator, status, personality, firstdevice);
+		if (sscanf(line, "%s %s %s %s %s",
+		       device, separator, status, personality, firstdevice) < 5)
+			continue;
 
 		/* scan only raids that are active */
 		if (strcmp(status, "active"))
@@ -408,7 +411,8 @@ static int scanmapper(struct devlisthead *devlisthead)
 		if (!start)
 			continue;
 
-		sscanf(line, "%s %s", major, device);
+		if (sscanf(line, "%s %s", major, device) < 2)
+			continue;
 
 		if (!strncmp(device, "device-mapper", 13)) {
 			maj = atoi(major);
