@@ -207,7 +207,7 @@ static void dispatch_notification(const char *str, int *quorum)
 	int envptr = 0;
 	int argvptr = 0;
 	char scratch[PATH_MAX];
-	pid_t notify_pid;
+	pid_t notify_pid, pid;
 	int pidstatus;
 	int err = 0;
 
@@ -248,7 +248,10 @@ static void dispatch_notification(const char *str, int *quorum)
 			break;
 
 		default: /* parent */
-			waitpid(notify_pid, &pidstatus, 0);
+			pid = waitpid(notify_pid, &pidstatus, 0);
+			if (pid < 0)
+				logt_print(LOG_ERR, "Error waiting for " SBINDIR "/cman_notify execution\n");
+
 			break;
 	}
 
