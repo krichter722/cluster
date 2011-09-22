@@ -186,6 +186,10 @@ int join(commandline_t *comline, char *main_envp[])
 		snprintf(scratch, sizeof(scratch), "CMAN_DEBUG=%d", comline->verbose);
 		envp[envptr++] = strdup(scratch);
 	}
+	if (comline->nostderr_debug) {
+		snprintf(scratch, sizeof(scratch), "CMAN_NOSTDERR_DEBUG=true");
+		envp[envptr++] = strdup(scratch);
+	}
 	if (comline->noconfig_opt) {
 		envp[envptr++] = strdup("CMAN_NOCONFIG=true");
 		snprintf(config_modules, sizeof(config_modules), "cmanpreconfig%s",

@@ -12,7 +12,7 @@
 
 #define DEFAULT_CONFIG_MODULE "xmlconfig"
 
-#define OPTION_STRING		("m:n:v:e:2p:c:i:N:t:o:k:F:C:VAPwfqah?XD::Sd::r::")
+#define OPTION_STRING		("m:n:v:e:2p:c:i:N:t:o:k:F:C:VAPwfqazh?XD::Sd::r::")
 #define OP_JOIN			1
 #define OP_LEAVE		2
 #define OP_EXPECTED		3
@@ -62,6 +62,7 @@ static void print_usage(int subcmd)
 		printf("  -D<fail|warn|none> What to do about the config. Default (without -D) is to\n");
 		printf("                   validate the config. with -D no validation will be done.\n");
 		printf("                   -Dwarn will print errors but allow the operation to continue.\n");
+		printf("  -z		   Disable stderr debugging output.\n");
 		printf("\n");
 	}
 
@@ -1045,6 +1046,10 @@ static void decode_arguments(int argc, char *argv[], commandline_t *comline)
 				comline->verbose = atoi(optarg);
 			else
 				comline->verbose = 255;
+			break;
+
+		case 'z':
+			comline->nostderr_debug = 1;
 			break;
 
 		case 'w':

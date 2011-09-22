@@ -556,7 +556,7 @@ start_cman()
 		return 1
 	fi
 
-	cman_tool -t $CMAN_CLUSTER_TIMEOUT -w join $cman_join_opts > $tmpfile 2>&1 &
+	cman_tool -z -t $CMAN_CLUSTER_TIMEOUT -w join $cman_join_opts > $tmpfile 2>&1 &
 
 	while status cman_tool >/dev/null 2>&1; do
 		sleep 0.2
