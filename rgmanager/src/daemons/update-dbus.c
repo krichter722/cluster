@@ -18,6 +18,8 @@
 #define DBUS_RGM_IFACE	"com.redhat.cluster.rgmanager"
 #define DBUS_RGM_PATH	"/com/redhat/cluster/rgmanager"
 
+static void * _dbus_auto_flush(void *arg);
+
 static DBusConnection *db = NULL;
 static pthread_mutex_t mu = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t th = 0;
@@ -58,6 +60,9 @@ rgm_dbus_init(void)
 	dbus_connection_set_exit_on_disconnect(dbc, FALSE);
 
 	db = dbc;
+
+	pthread_create(&th, NULL, _dbus_auto_flush, NULL);
+
 	pthread_mutex_unlock(&mu);
 	logt_print(LOG_DEBUG, "DBus Notifications Initialized\n");
 	return 0;
@@ -169,8 +174,7 @@ _rgm_dbus_notify(const char *svcname,
 	}
 
 	if (!th) {
-		/* start auto-flush thread if needed */
-		pthread_create(&th, NULL, _dbus_auto_flush, NULL);
+		goto out_unlock;
 	}
 
 	if (!(msg = dbus_message_new_signal(DBUS_RGM_PATH,
@@ -223,6 +227,12 @@ rgm_dbus_update(char *key, uint64_t view, void *data, uint32_t size)
 	
 	pthread_mutex_lock(&mu);
 	if (!db) {
+		pthread_mutex_unlock(&mu);
+		goto out_free;
+	}
+	if (!th) {
+		/* Dispatch thread died. */
+		_rgm_dbus_release();
 		pthread_mutex_unlock(&mu);
 		goto out_free;
 	}
