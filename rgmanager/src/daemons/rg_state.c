@@ -2075,8 +2075,16 @@ handle_start_req(char *svcName, int req, int *new_owner)
 
 	/* Check for dependency.  We cannot start unless our
 	   dependency is met */
-	if (check_depend_safe(svcName) == 0)
+	if (check_depend_safe(svcName) == 0) {
+		if (req == RG_START_RECOVER) {
+			logt_print(LOG_INFO, "Dependency for %s missing "
+				   "during recovery; marking as stopped",
+				   svcName);
+
+			_svc_stop_finish(svcName, 0, RG_STATE_STOPPED);
+		}
 		return RG_EDEPEND;
+	}
 	
 	/*
 	 * This is a 'root' start request.  We need to clear out our failure
