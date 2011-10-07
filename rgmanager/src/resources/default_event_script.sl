@@ -178,6 +178,7 @@ define move_or_start(service, node_list)
 		(,,, owner, state) = service_status(depends);
 		if (owner < 0) {
 			debug(service, " is not runnable; dependency not met");
+			()=service_stop(service);
 			return ERR_DEPEND;
 		}
 	}
