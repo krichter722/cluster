@@ -51,10 +51,12 @@ static void xml_comp_register(void)
 	lcr_component_register(&xml_comp_ver0);
 };
 
-static void addkeys(xmlAttrPtr tmpattr, struct objdb_iface_ver0 *objdb,
+static void addkeys(xmlAttrPtr tmpattr_in, struct objdb_iface_ver0 *objdb,
 		    hdb_handle_t object_handle)
 {
-	for (tmpattr = tmpattr; tmpattr; tmpattr = tmpattr->next) {
+	xmlAttrPtr tmpattr;
+
+	for (tmpattr = tmpattr_in; tmpattr; tmpattr = tmpattr->next) {
 		if (tmpattr->type == XML_ATTRIBUTE_NODE)
 			objdb->object_key_create_typed(object_handle,
 						 (char *)tmpattr->name,
@@ -66,12 +68,13 @@ static void addkeys(xmlAttrPtr tmpattr, struct objdb_iface_ver0 *objdb,
 	}
 }
 
-static void xml2objdb(xmlNodePtr tmpnode, struct objdb_iface_ver0 *objdb,
+static void xml2objdb(xmlNodePtr tmpnode_in, struct objdb_iface_ver0 *objdb,
 		      hdb_handle_t parent)
 {
 	hdb_handle_t object_handle = 0;
+	xmlNodePtr tmpnode;
 
-	for (tmpnode = tmpnode; tmpnode; tmpnode = tmpnode->next) {
+	for (tmpnode = tmpnode_in; tmpnode; tmpnode = tmpnode->next) {
 		if (tmpnode->type == XML_ELEMENT_NODE) {
 			objdb->object_create(parent, &object_handle,
 					     (char *)tmpnode->name,
