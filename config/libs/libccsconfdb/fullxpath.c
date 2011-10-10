@@ -62,7 +62,7 @@ static int dump_objdb_buff(confdb_handle_t dump_handle, hdb_handle_t cluster_han
 		return -1;
 	}
 
-	if (!*buffer || ((*buffer) && !strlen(*buffer))) {
+	if (!strlen(*buffer)) {
 		snprintf(temp, PATH_MAX - 1,
 			 "<?xml version=\"1.0\"?>\n<cluster");
 		if (add_to_buffer(temp, buffer, bufsize))
