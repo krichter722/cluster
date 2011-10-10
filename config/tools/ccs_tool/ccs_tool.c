@@ -90,6 +90,10 @@ static int test_main(int argc, char *argv[], int old_format){
       exit(EXIT_FAILURE);
     }
     desc = ccs_connect();
+    if (desc < 0) {
+      fprintf(stderr, "ccs_disconnect failed: unable to communicate with ccs\n");
+      exit(EXIT_FAILURE);
+    }
     if((error = ccs_disconnect(desc))){
       fprintf(stderr, "ccs_disconnect failed: %s\n", errstring(-error));
       exit(EXIT_FAILURE);
@@ -173,6 +177,10 @@ static int xpath_query(int argc, char **argv)
 	}
 
 	handle = ccs_connect();
+	if (handle < 0) {
+		fprintf(stderr, "Unable to connect to ccs\n");
+		exit(EXIT_FAILURE);
+	}
 
 	/* Process all the queries on the command-line */
 	for (i=1; i<argc; i++) {
