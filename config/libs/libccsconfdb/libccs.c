@@ -414,7 +414,7 @@ static int check_cluster_name(int ccs_handle, const char *cluster_name)
 	size_t datalen = 0;
 
 	handle = confdb_connect();
-	if (handle < 0)
+	if (handle == -1)
 		return -1;
 
 	if (confdb_object_find_start(handle, OBJECT_PARENT_HANDLE) != CS_OK) {
@@ -472,7 +472,7 @@ static int _ccs_get(int desc, const char *query, char **rtn, int list)
 	*rtn = NULL;
 
 	handle = confdb_connect();
-	if (handle < 0)
+	if (handle == -1)
 		return -1;
 
 	connection_handle = find_ccs_handle(handle, desc);
