@@ -154,7 +154,7 @@ static void read_arguments(int argc, char **argv)
 	}
 }
 
-int main(int argc, char *argv[], char *envp[])
+int main(int argc, char *argv[])
 {
 	confdb_handle_t handle = 0;
 	hdb_handle_t cluster_handle;
