@@ -166,7 +166,6 @@ static void _conf(const char *name, int mode, int syslog_facility,
 {
 	int fd;
 
-	pthread_mutex_lock(&mutex);
 	logt_mode = mode;
 	logt_syslog_facility = syslog_facility;
 	logt_syslog_priority = syslog_priority;
@@ -197,24 +196,22 @@ static void _conf(const char *name, int mode, int syslog_facility,
 		closelog();
 		openlog(logt_name, LOG_CONS | LOG_PID, logt_syslog_facility);
 	}
-	pthread_mutex_unlock(&mutex);
 }
 
 void logt_conf(const char *name, int mode, int syslog_facility, int syslog_priority,
 	       int logfile_priority, const char *logfile)
 {
-	if (!init)
-		return;
+	pthread_mutex_lock(&mutex);
+	if (init)
+		_conf(name, mode, syslog_facility, syslog_priority, logfile_priority,
+		      logfile);
 
-	_conf(name, mode, syslog_facility, syslog_priority, logfile_priority,
-	      logfile);
+	pthread_mutex_unlock(&mutex);
 }
 
-int logt_init(const char *name, int mode, int syslog_facility, int syslog_priority,
+static int _init(const char *name, int mode, int syslog_facility, int syslog_priority,
 	      int logfile_priority, const char *logfile)
 {
-	int rv;
-
 	if (init)
 		return -1;
 
@@ -224,18 +221,30 @@ int logt_init(const char *name, int mode, int syslog_facility, int syslog_priori
 	ents = malloc(num_ents * sizeof(struct entry));
 	if (!ents)
 		return -1;
+
 	memset(ents, 0, num_ents * sizeof(struct entry));
 
-	rv = pthread_create(&thread_handle, NULL, thread_fn, NULL);
-	if (rv) {
+	if (pthread_create(&thread_handle, NULL, thread_fn, NULL)) {
 		free(ents);
 		return -1;
 	}
 	done = 0;
 	init = 1;
+
 	return 0;
 }
 
+int logt_init(const char *name, int mode, int syslog_facility, int syslog_priority,
+              int logfile_priority, const char *logfile)
+{
+	int rv = 0;
+
+	pthread_mutex_lock(&mutex);
+	rv = _init(name, mode, syslog_facility, syslog_priority,
+			 logfile_priority, logfile);
+	pthread_mutex_unlock(&mutex);
+	return rv;
+}
 
 /*
  * Reinitialize logt w/ previous values (e.g. use after
@@ -247,23 +256,33 @@ int logt_reinit(void)
 {
 	char name_tmp[PATH_MAX];
 	char file_tmp[PATH_MAX];
+	int rv = 0;
 
-	if (!done || init)
-		return -1;
+	pthread_mutex_lock(&mutex);
+	if (!done || init) {
+		rv = -1;
+		goto out;
+	}
 
 	/* Use copies on the stack for these */
 	memset(name_tmp, 0, sizeof(name_tmp));
 	memset(file_tmp, 0, sizeof(file_tmp));
 
 	strncpy(name_tmp, logt_name, sizeof(name_tmp) - 1);
-	if (!strlen(name_tmp))
-		return -1;
+	if (!strlen(name_tmp)) {
+		rv = -1;
+		goto out;
+	}
 	if (strlen(logt_logfile))
 		strncpy(file_tmp, logt_logfile, sizeof(file_tmp) - 1);
 
-	return logt_init(name_tmp, logt_mode, logt_syslog_facility,
+	rv = _init(name_tmp, logt_mode, logt_syslog_facility,
 			 logt_syslog_priority, logt_logfile_priority,
 			 file_tmp);
+
+out:
+	pthread_mutex_unlock(&mutex);
+	return rv;
 }
 
 
