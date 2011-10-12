@@ -1,4 +1,4 @@
-.TH "QDisk" "5" "20 Feb 2007" "" "Cluster Quorum Disk"
+.TH "QDisk" "5" "12 Oct 2011" "" "Cluster Quorum Disk"
 .SH "NAME"
 qdisk \- a disk-based quorum daemon for CMAN / Linux-Cluster
 .SH "1. Overview"
@@ -502,7 +502,7 @@ by the qdiskd timeout.
 .br
 <quorumd interval="1" tko="10" votes="1" label="testing">
 .in 12
-<heuristic program="ping A -c1 -t1" score="1" interval="2" tko="3"/>
+<heuristic program="ping A -c1 -w1" score="1" interval="2" tko="3"/>
 .br
 .in 8
 </quorumd>
