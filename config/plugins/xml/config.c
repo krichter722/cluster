@@ -106,11 +106,11 @@ static int xml_readconfig(struct objdb_iface_ver0 *objdb, const char **error_str
 
 	/* Read low-level totem/aisexec etc config from cluster.conf */
 	if (!(ret = init_config(objdb, configfile, error_reason)))
-		sprintf(error_reason, "Successfully read config from %s\n",
-			configfile);
+		snprintf(error_reason, sizeof(error_reason),
+			 "Successfully read config from %s\n", configfile);
 	else
-		sprintf(error_reason, "Unable to read config from %s\n",
-			configfile);
+		snprintf(error_reason, sizeof(error_reason),
+			"Unable to read config from %s\n", configfile);
 
 	*error_string = error_reason;
 
