@@ -227,7 +227,7 @@ static int priority_id_get(char *name)
 }
 
 /* requires string buffer to be PATH_MAX */
-static void read_string(int fd, const char *path, char *string)
+static void read_string(int fd, const char *path, char *string, size_t string_s)
 {
 	char *str;
 	int error;
@@ -238,7 +238,7 @@ static void read_string(int fd, const char *path, char *string)
 	if (error || !str)
 		return;
 
-	strcpy(string, str);
+	strncpy(string, str, string_s - 1);
 
 	free(str);
 }
@@ -345,7 +345,8 @@ void ccs_read_logging(int fd, const char *name, int *debug, int *mode,
 	 */
 	create_daemon_path(name, "syslog_facility", path);
 
-	read_string(fd, "/cluster/logging/@syslog_facility", string);
+	read_string(fd, "/cluster/logging/@syslog_facility",
+		    string, sizeof(string));
 
 	if (string[0]) {
 		val = facility_id_get(string);
@@ -353,7 +354,7 @@ void ccs_read_logging(int fd, const char *name, int *debug, int *mode,
 			*syslog_facility = val;
 	}
 
-	read_string(fd, path, string);
+	read_string(fd, path, string, sizeof(string));
 
 	if (string[0]) {
 		val = facility_id_get(string);
@@ -366,7 +367,8 @@ void ccs_read_logging(int fd, const char *name, int *debug, int *mode,
 	 */
 	create_daemon_path(name, "syslog_priority", path);
 
-	read_string(fd, "/cluster/logging/@syslog_priority", string);
+	read_string(fd, "/cluster/logging/@syslog_priority",
+		    string, sizeof(string));
 
 	if (string[0]) {
 		val = priority_id_get(string);
@@ -374,7 +376,7 @@ void ccs_read_logging(int fd, const char *name, int *debug, int *mode,
 			*syslog_priority = val;
 	}
 
-	read_string(fd, path, string);
+	read_string(fd, path, string, sizeof(string));
 
 	if (string[0]) {
 		val = priority_id_get(string);
@@ -387,12 +389,12 @@ void ccs_read_logging(int fd, const char *name, int *debug, int *mode,
 	 */
 	create_daemon_path(name, "logfile", path);
 
-	read_string(fd, "/cluster/logging/@logfile", string);
+	read_string(fd, "/cluster/logging/@logfile", string, sizeof(string));
 
 	if (string[0])
 		strcpy(logfile, string);
 
-	read_string(fd, path, string);
+	read_string(fd, path, string, sizeof(string));
 
 	if (string[0])
 		strcpy(logfile, string);
@@ -432,7 +434,8 @@ void ccs_read_logging(int fd, const char *name, int *debug, int *mode,
 	 */
 	create_daemon_path(name, "logfile_priority", path);
 
-	read_string(fd, "/cluster/logging/@logfile_priority", string);
+	read_string(fd, "/cluster/logging/@logfile_priority",
+		    string, sizeof(string));
 
 	if (string[0]) {
 		val = priority_id_get(string);
@@ -440,7 +443,7 @@ void ccs_read_logging(int fd, const char *name, int *debug, int *mode,
 			*logfile_priority = val;
 	}
 
-	read_string(fd, path, string);
+	read_string(fd, path, string, sizeof(string));
 
 	if (string[0]) {
 		val = priority_id_get(string);
