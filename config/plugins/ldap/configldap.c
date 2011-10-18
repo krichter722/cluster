@@ -67,7 +67,7 @@ static int ldap_readconfig(struct objdb_iface_ver0 *objdb, const char **error_st
 
 	/* Read config tree from LDAP */
 	if (!(ret = init_config(objdb)))
-	    sprintf(error_reason, "%s", "Successfully read config from LDAP\n");
+	    snprintf(error_reason, sizeof(error_reason), "%s", "Successfully read config from LDAP\n");
 
         *error_string = error_reason;
 
@@ -156,13 +156,13 @@ static int read_config_for(LDAP *ld, struct objdb_iface_ver0 *objdb, hdb_handle_
 	hdb_handle_t parent_handle = OBJECT_PARENT_HANDLE;
 	hdb_handle_t object_handle;
 
-	sprintf(search_dn, "%s,%s", sub_dn, ldap_basedn);
+	snprintf(search_dn, sizeof(search_dn), "%s,%s", sub_dn, ldap_basedn);
 
 	/* Search the whole tree from the base DN provided */
 	rc = ldap_search_ext_s(ld, search_dn, LDAP_SCOPE_SUBTREE, "(objectClass=*)", NULL, 0,
 			       NULL, NULL, NULL, 0, &result);
 	if (rc != LDAP_SUCCESS) {
-		sprintf(error_reason, "ldap_search_ext_s: %s\n", ldap_err2string(rc));
+		snprintf(error_reason, sizeof(error_reason), "ldap_search_ext_s: %s\n", ldap_err2string(rc));
 		if (rc == LDAP_NO_SUCH_OBJECT)
 			return 0;
 		else
@@ -177,7 +177,7 @@ static int read_config_for(LDAP *ld, struct objdb_iface_ver0 *objdb, hdb_handle_
 
 			/* Make it parsable so we can discern the hierarchy */
 			if (ldap_str2dn(dn, &parsed_dn, LDAP_DN_PEDANTIC)) {
-				sprintf(error_reason, "ldap_str2dn failed: %s\n", ldap_err2string(rc));
+				snprintf(error_reason, sizeof(error_reason), "ldap_str2dn failed: %s\n", ldap_err2string(rc));
 				return -1;
 			}
 
@@ -273,7 +273,7 @@ static int init_config(struct objdb_iface_ver0 *objdb)
 
 	/* Connect to the LDAP server */
 	if (ldap_initialize(&ld, ldap_url)) {
-		sprintf(error_reason, "ldap_initialize failed: %s\n", strerror(errno));
+		snprintf(error_reason, sizeof(error_reason), "ldap_initialize failed: %s\n", strerror(errno));
 		return -1;
 	}
 	version = LDAP_VERSION3;
@@ -284,7 +284,7 @@ static int init_config(struct objdb_iface_ver0 *objdb)
 	 */
 	rc = ldap_simple_bind_s(ld, getenv("COROSYNC_LDAP_BINDDN"), getenv("COROSYNC_LDAP_BINDPWD"));
 	if (rc != LDAP_SUCCESS) {
-		sprintf(error_reason, "ldap_simple_bind failed: %s\n", ldap_err2string(rc));
+		snprintf(error_reason, sizeof(error_reason), "ldap_simple_bind failed: %s\n", ldap_err2string(rc));
 		return -1;
 	}
 
