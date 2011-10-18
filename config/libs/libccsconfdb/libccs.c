@@ -468,6 +468,7 @@ static int _ccs_get(int desc, const char *query, char **rtn, int list)
 	char data[128];
 	size_t datalen = 0;
 	int fullxpathint = 0;
+	int myerrno;
 
 	*rtn = NULL;
 
@@ -499,8 +500,11 @@ static int _ccs_get(int desc, const char *query, char **rtn, int list)
 		    _ccs_get_fullxpath(handle, connection_handle, query, list);
 
 fail:
+	myerrno = errno;
+
 	confdb_disconnect(handle);
 
+	errno = myerrno;
 	if (!*rtn)
 		return -1;
 
@@ -518,6 +522,7 @@ int ccs_connect(void)
 {
 	confdb_handle_t handle = 0;
 	int ccs_handle = 0;
+	int myerrno;
 
 	handle = confdb_connect();
 	if (handle == -1)
@@ -535,7 +540,11 @@ int ccs_connect(void)
 	}
 
 fail:
+	myerrno = errno;
+
 	confdb_disconnect(handle);
+
+	errno = myerrno;
 
 	return ccs_handle;
 }
@@ -584,9 +593,10 @@ int ccs_disconnect(int desc)
 	char data[128];
 	size_t datalen = 0;
 	int fullxpathint = 0;
+	int myerrno;
 
 	handle = confdb_connect();
-	if (handle <= 0)
+	if (handle == -1)
 		return handle;
 
 	connection_handle = find_ccs_handle(handle, desc);
@@ -611,7 +621,9 @@ int ccs_disconnect(int desc)
 	ret = destroy_ccs_handle(handle, connection_handle);
 
 fail:
+	myerrno = errno;
 	confdb_disconnect(handle);
+	errno = myerrno;
 	return ret;
 }
 

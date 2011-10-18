@@ -148,10 +148,8 @@ static int dump_objdb_buff(confdb_handle_t dump_handle, hdb_handle_t cluster_han
 		res =
 		    dump_objdb_buff(dump_handle, cluster_handle, object_handle, buffer,
 				    bufsize);
-		if (res) {
-			errno = res;
+		if (res)
 			return res;
-		}
 
 		if (object_handle != parent_object_handle) {
 			snprintf(temp, PATH_MAX - 1, "</%s>\n", object_name);
@@ -254,8 +252,7 @@ char *_ccs_get_fullxpath(confdb_handle_t handle, hdb_handle_t connection_handle,
 	unsigned int xmllistindex = 0;
 	int prev = 0;
 	char *rtn = NULL;
-
-	errno = 0;
+	int myerrno;
 
 	if (strncmp(query, "/", 1)) {
 		errno = EINVAL;
@@ -351,8 +348,10 @@ char *_ccs_get_fullxpath(confdb_handle_t handle, hdb_handle_t connection_handle,
 		errno = EINVAL;
 
 fail:
+	myerrno = errno;
 	if (obj)
 		xmlXPathFreeObject(obj);
 
+	errno = myerrno;
 	return rtn;
 }
