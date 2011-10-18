@@ -174,10 +174,10 @@ static int dump_objdb_buff(confdb_handle_t dump_handle, hdb_handle_t cluster_han
 int xpathfull_init(confdb_handle_t handle)
 {
 	int size = XMLBUFSIZE;
-	char *buffer, *newbuf;
+	char *buffer;
 	hdb_handle_t cluster_handle;
 
-	newbuf = buffer = malloc(XMLBUFSIZE);
+	buffer = malloc(XMLBUFSIZE);
 	if (!buffer) {
 		errno = ENOMEM;
 		goto fail;
@@ -191,13 +191,8 @@ int xpathfull_init(confdb_handle_t handle)
 	if (confdb_object_find(handle, OBJECT_PARENT_HANDLE, "cluster", strlen("cluster"), &cluster_handle) != CS_OK)
 		goto fail;
 
-	if (dump_objdb_buff(handle, cluster_handle, cluster_handle, &newbuf, &size))
+	if (dump_objdb_buff(handle, cluster_handle, cluster_handle, &buffer, &size))
 		goto fail;
-
-	if (newbuf != buffer) {
-		buffer = newbuf;
-		newbuf = NULL;
-	}
 
 	doc = xmlParseMemory(buffer, strlen(buffer));
 	if (!doc)
@@ -214,6 +209,9 @@ int xpathfull_init(confdb_handle_t handle)
 	return 0;
 
 fail:
+	if (buffer)
+		free(buffer);
+
 	return -1;
 }
 
