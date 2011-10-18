@@ -65,7 +65,7 @@ int ccs_lookup_nodename(int cd, const char *nodename, char **retval)
 	}
 
 	/* Try just the hostname */
-	strcpy(host_only, nodename);
+	strncpy(host_only, nodename, sizeof(host_only) - 1);
 	p = strchr(host_only, '.');
 	if (p != NULL) {
 		*p = '\0';
@@ -134,7 +134,7 @@ int ccs_lookup_nodename(int cd, const char *nodename, char **retval)
 					errno = E2BIG;
 					return -1;
 				}
-				strcpy(canonical_name, str);
+				strncpy(canonical_name, str, sizeof(canonical_name) - 1);
 			}
 
 			if (strlen(str) >= sizeof(cur_node)) {
@@ -143,7 +143,7 @@ int ccs_lookup_nodename(int cd, const char *nodename, char **retval)
 				return -1;
 			}
 
-			strcpy(cur_node, str);
+			strncpy(cur_node, str, sizeof(cur_node) - 1);
 
 			p = strchr(cur_node, '.');
 			if (p != NULL)
