@@ -12,6 +12,7 @@
 #include <dbus/dbus.h>
 #include <liblogthread.h>
 #include <members.h>
+#include <signal.h>
 
 
 #define DBUS_RGM_NAME	"com.redhat.cluster.rgmanager"
@@ -28,6 +29,28 @@ static pthread_t th = 0;
 /* Set this to the desired value prior to calling rgm_dbus_init() */
 int rgm_dbus_notify = RGM_DBUS_DEFAULT;
 
+/*
+ * block the world when entering dbus critical sections so that
+ * if we get a signal while in dbus critical (exclusive of crash
+ * signals), we ignore it
+ */
+#define DBUS_ENTRY(set, old) \
+do { \
+	pthread_mutex_lock(&mu); \
+	sigfillset(&set); \
+	sigdelset(&set, SIGILL); \
+	sigdelset(&set, SIGSEGV); \
+	sigdelset(&set, SIGABRT); \
+	sigdelset(&set, SIGBUS); \
+	sigprocmask(SIG_SETMASK, &set, &old); \
+} while(0)
+
+#define DBUS_EXIT(old) \
+do { \
+	sigprocmask(SIG_SETMASK, &old, NULL); \
+	pthread_mutex_unlock(&mu); \
+} while(0)
+
 
 int 
 rgm_dbus_init(void)
@@ -35,13 +58,14 @@ rgm_dbus_init(void)
 {
 	DBusConnection *dbc = NULL;
 	DBusError err;
+	sigset_t set, old;
 
 	if (!rgm_dbus_notify)
 		return 0;
 
-	pthread_mutex_lock(&mu);
+	DBUS_ENTRY(set, old);
 	if (db) {
-		pthread_mutex_unlock(&mu);
+		DBUS_EXIT(old);
 		return 0;
 	}
 
@@ -53,7 +77,7 @@ rgm_dbus_init(void)
 			   "DBus Failed to initialize: dbus_bus_get: %s\n",
 			   err.message);
 		dbus_error_free(&err);
-		pthread_mutex_unlock(&mu);
+		DBUS_EXIT(old);
 		return -1;
 	}
 
@@ -63,7 +87,7 @@ rgm_dbus_init(void)
 
 	pthread_create(&th, NULL, _dbus_auto_flush, NULL);
 
-	pthread_mutex_unlock(&mu);
+	DBUS_EXIT(old);
 	logt_print(LOG_DEBUG, "DBus Notifications Initialized\n");
 	return 0;
 }
@@ -111,10 +135,11 @@ rgm_dbus_release(void)
 #ifdef DBUS
 {
 	int ret;
+	sigset_t set, old;
 
-	pthread_mutex_lock(&mu);
+	DBUS_ENTRY(set, old);
 	ret = _rgm_dbus_release();
-	pthread_mutex_unlock(&mu);
+	DBUS_EXIT(old);
 	return ret;
 }
 #else
@@ -131,6 +156,15 @@ rgm_dbus_release(void)
 static void *
 _dbus_auto_flush(void *arg)
 {
+	sigset_t set;
+
+	sigfillset(&set);
+	sigdelset(&set, SIGILL);
+	sigdelset(&set, SIGSEGV);
+	sigdelset(&set, SIGABRT);
+	sigdelset(&set, SIGBUS);
+	sigprocmask(SIG_SETMASK, &set, NULL);
+
 	/* DBus connection functions are thread safe */
 	while (dbus_connection_read_write(db, 500)) {
 		if (!th)
@@ -151,8 +185,9 @@ _rgm_dbus_notify(const char *svcname,
 {
 	DBusMessage *msg = NULL;
 	int ret = 0;
+	sigset_t set, old;
 
-	pthread_mutex_lock(&mu);
+	DBUS_ENTRY(set, old);
 
 	if (!db) {
 		goto out_unlock;
@@ -197,10 +232,10 @@ _rgm_dbus_notify(const char *svcname,
 	ret = 0;
 
 out_unlock:
-	pthread_mutex_unlock(&mu);
+	DBUS_EXIT(old);
 	if (msg)
 		dbus_message_unref(msg);
-out_free:
+
 	return ret;
 }
 
@@ -216,6 +251,7 @@ rgm_dbus_update(char *key, uint64_t view, void *data, uint32_t size)
 	cluster_member_list_t *m = NULL;
 	const char *owner;
 	const char *last;
+	sigset_t set, old;
 	int ret = 0;
 
 	if (!rgm_dbus_notify)
@@ -225,18 +261,18 @@ rgm_dbus_update(char *key, uint64_t view, void *data, uint32_t size)
 	if (size != (sizeof(*st)))
 		goto out_free;
 	
-	pthread_mutex_lock(&mu);
+	DBUS_ENTRY(set, old);
 	if (!db) {
-		pthread_mutex_unlock(&mu);
+		DBUS_EXIT(old);
 		goto out_free;
 	}
 	if (!th) {
 		/* Dispatch thread died. */
 		_rgm_dbus_release();
-		pthread_mutex_unlock(&mu);
+		DBUS_EXIT(old);
 		goto out_free;
 	}
-	pthread_mutex_unlock(&mu);
+	DBUS_EXIT(old);
 
 	st = (rg_state_t *)data;
 	swab_rg_state_t(st);
