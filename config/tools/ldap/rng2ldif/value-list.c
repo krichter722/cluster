@@ -158,6 +158,7 @@ id_readfile(struct idinfo *oi, char *filename)
 		assert(v->name);
 
 		c = valp;
+		assert(c);
 
 		valp = strchr(c, ',');
 		v->value = 0;
