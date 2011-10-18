@@ -216,6 +216,8 @@ static int read_config_for(LDAP *ld, struct objdb_iface_ver0 *objdb, hdb_handle_
 				struct berval **val_ber;
 
 				val_ber = ldap_get_values_len(ld, e, attr);
+				if (!val_ber)
+					goto ldap_next;
 				i=0;
 				while (val_ber[i]) {
 					/*
@@ -244,9 +246,10 @@ static int read_config_for(LDAP *ld, struct objdb_iface_ver0 *objdb, hdb_handle_
 					}
 					i++;
 				}
+				ldap_value_free_len(val_ber);
+ldap_next:
 				ldap_memfree(attr);
 				attr = ldap_next_attribute(ld, e, attr_ber);
-				ldap_value_free_len(val_ber);
 			}
 			ldap_memfree(attr);
 			ber_free(attr_ber, 0);
