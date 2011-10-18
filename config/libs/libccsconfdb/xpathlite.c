@@ -15,12 +15,17 @@ static int tokenizer(char *current_query)
 	int tokens = 0;
 	char *curpos = current_query;
 	char *next = NULL;
-	char *end;
+	char *end = NULL;
 
 	end = current_query + strlen(current_query);
 
 	while (curpos <= end) {
 		tokens++;
+
+		if (!curpos) {
+			errno = EINVAL;
+			return -1;
+		}
 
 		if (strncmp(curpos, "/", 1)) {
 			errno = EINVAL;
@@ -39,11 +44,16 @@ static int tokenizer(char *current_query)
 		if (!next)
 			return tokens;
 
-		if ((strstr(curpos, "[") > next) || !strstr(curpos, "["))
+		if ((strstr(curpos, "[") > next) || !strstr(curpos, "[")) {
 			curpos = next;
-		else
-			curpos = strstr(strstr(curpos, "]"), "/");
-
+		} else {
+			curpos = strstr(curpos, "]");
+			if (!curpos) {
+				errno = EINVAL;
+				return -1;
+			}
+			curpos = strstr(curpos, "/");
+		}
 	}
 	errno = EINVAL;
 	return -1;
