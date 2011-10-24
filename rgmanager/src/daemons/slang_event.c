@@ -15,6 +15,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#define HAVE_LONG_LONG
 #include <slang.h>
 #include <sys/syslog.h>
 #include <malloc.h>
@@ -204,14 +205,68 @@ get_service_state_internal(const char *svcName, rg_state_t *svcStatus)
 
 
 /*
-   (restarts, last_owner, owner, state) = get_service_status(servicename)
+   (rte, restarts, last_owner, owner, state) =
+		service_status(servicename)
+
+For extra information (flags, transition time)
+   (transition_time, flags, rte, restarts, owner, state) = 
+                service_status(servicename, 1);
  */
 static void
-sl_service_status(const char *svcName)
+sl_service_status(void)
 {
+	char *svcName = NULL;
+	char *state_str;
 	rg_state_t svcStatus;
 	int restarts_exceeded = 0;
-	char *state_str;
+	int nargs = 0, t = 0, extra = 0, flags = 0;
+	unsigned long long mtime;
+
+	nargs = SLang_Num_Function_Args;
+
+	/* Takes one or two args */
+	if (nargs <= 0 || nargs > 2) {
+		SLang_verror(SL_Syntax_Error,
+		     (char *)"%s: Wrong # of args (%d), must be 1 or 2\n",
+		     __FUNCTION__,
+		     nargs);
+		return;
+	}
+
+	if (nargs == 2) {
+		t = SLang_peek_at_stack();
+		if (t != SLANG_INT_TYPE) {
+			SLang_verror(SL_Syntax_Error,
+				     (char *)"%s: expected type %d got %d\n",
+				     __FUNCTION__, SLANG_INT_TYPE, t);
+			return;
+		}
+
+		if (SLang_pop_integer(&extra) < 0) {
+			SLang_verror(SL_Syntax_Error,
+			    (char *)"%s: Failed to pop integer from stack!\n",
+			    __FUNCTION__);
+			return;
+		}
+	}
+
+	t = SLang_peek_at_stack();
+	if (t != SLANG_STRING_TYPE) {
+		SLang_verror(SL_Syntax_Error,
+			     (char *)"%s: expected type %d got %d\n",
+			     __FUNCTION__,
+			     SLANG_STRING_TYPE, t);
+		return;
+	}
+
+	if (SLpop_string(&svcName) < 0) {
+		SLang_verror(SL_Syntax_Error,
+		    (char *)"%s: Failed to pop string from stack!\n",
+		    __FUNCTION__);
+		return;
+	}
+
+	/* Ok, got our parameters */
 
 	if (get_service_state_internal(svcName, &svcStatus) < 0) {
 		SLang_verror(SL_RunTime_Error,
@@ -219,6 +274,28 @@ sl_service_status(const char *svcName)
 			     __FUNCTION__,
 			     svcName);
 		return;
+	}
+
+	if (extra) {
+		/* push transition time and flags on to the stack */
+
+		mtime = (unsigned long long)svcStatus.rs_transition;
+		if (SLang_push_ulong_long(mtime) < 0) {
+			SLang_verror(SL_RunTime_Error,
+				     (char *)"%s: Failed to push mtime %s",
+				     __FUNCTION__,
+				     svcName);
+			return;
+		}
+
+		flags = (int)svcStatus.rs_flags;
+		if (SLang_push_integer(flags) < 0) {
+			SLang_verror(SL_RunTime_Error,
+				     (char *)"%s: Failed to push flags %s",
+				     __FUNCTION__,
+				     svcName);
+			return;
+		}
 	}
 
 	restarts_exceeded = check_restart(svcName);
@@ -903,6 +980,8 @@ array_to_string(char *buf, int buflen, int *array, int arraylen)
 static void
 sl_logt_print(int level)
 {
+	unsigned long long s_ullval;
+	unsigned long s_ulval;
 	int t, nargs, len;
 	//int level;
 	int s_intval;
@@ -912,6 +991,7 @@ sl_logt_print(int level)
 	char tmp[256];
 	int need_free;
 	int remain = sizeof(logbuf)-2;
+	SLang_Any_Type *stuff = NULL;
 
 	nargs = SLang_Num_Function_Args;
 	if (nargs < 1)
@@ -935,6 +1015,16 @@ sl_logt_print(int level)
 			}
 			free(nodes);
 			break;
+		case SLANG_ULONG_TYPE:
+			if (SLang_pop_ulong(&s_ulval) < 0)
+				return;
+			len=snprintf(tmp, sizeof(tmp) - 1, "%lu", s_ulval);
+			break;
+		case SLANG_ULLONG_TYPE:
+			if (SLang_pop_ulong_long(&s_ullval) < 0)
+				return;
+			len=snprintf(tmp, sizeof(tmp) - 1, "%llu", s_ullval);
+			break;
 		case SLANG_INT_TYPE:
 			if (SLang_pop_integer(&s_intval) < 0)
 				return;
@@ -951,6 +1041,11 @@ sl_logt_print(int level)
 			need_free = 0;
 			len=snprintf(tmp, sizeof(tmp) - 1,
 				     "{UnknownType %d}", t);
+			SLang_pop_anytype(&stuff);
+			if (stuff) {
+				SLang_free_anytype(stuff);
+				stuff = NULL;
+			}
 			break;
 		}
 
@@ -1054,7 +1149,7 @@ static SLang_Intrin_Fun_Type rgmanager_slang[] =
 			 SLANG_INT_TYPE),
 	MAKE_INTRINSIC_0((char *)"service_migrate", sl_migrate_service,
 			 SLANG_INT_TYPE),
-	MAKE_INTRINSIC_S((char *)"service_status", sl_service_status,
+	MAKE_INTRINSIC_0((char *)"service_status", sl_service_status,
 			 SLANG_VOID_TYPE),
 	MAKE_INTRINSIC_S((char *)"service_freeze", sl_service_freeze,
 			 SLANG_INT_TYPE),
