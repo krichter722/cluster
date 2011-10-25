@@ -292,7 +292,7 @@ static void save_file(xmlDoc *doc, struct option_info *ninfo)
 	}
 	else
 	{
-		strcpy(tmpconffile, ninfo->outputfile);
+		strncpy(tmpconffile, ninfo->outputfile, sizeof(tmpconffile));
 	}
 
 	xmlKeepBlanksDefault(0);
@@ -431,6 +431,7 @@ static xmlNode *valid_fence_type(xmlNode *root, const char *fencetype)
 		if (cur_node->type == XML_ELEMENT_NODE && strcmp((char *)cur_node->name, "fencedevice") == 0)
 		{
 			xmlChar *name = xmlGetProp(cur_node, BAD_CAST "name");
+			assert(name);
 			if (strcmp((char *)name, fencetype) == 0)
 				return cur_node;
 		}
@@ -1268,6 +1269,7 @@ void add_nodeids(int argc, char **argv)
 	doc = open_configfile(&ninfo);
 
 	root_element = xmlDocGetRootElement(doc);
+	assert(root_element);
 
 	increment_version(root_element);
 
@@ -1332,10 +1334,11 @@ void add_nodeids(int argc, char **argv)
 		{
 			char tmp[80];
 			xmlChar *name = xmlGetProp(cur_node, BAD_CAST "name");
+			assert(name);
 
 			assert(strcmp((char*)nodenames[nodeidx], (char*)name) == 0);
 
-			sprintf(tmp, "%d", nodenumbers[nodeidx]);
+			snprintf(tmp, sizeof(tmp), "%d", nodenumbers[nodeidx]);
 			xmlSetProp(cur_node, BAD_CAST "nodeid", BAD_CAST tmp);
 			nodeidx++;
 		}
@@ -1404,6 +1407,7 @@ void add_node(int argc, char **argv)
 	doc = open_configfile(&ninfo);
 
 	root_element = xmlDocGetRootElement(doc);
+	assert(root_element);
 
 	increment_version(root_element);
 
@@ -1434,6 +1438,7 @@ void del_node(int argc, char **argv)
 	doc = open_configfile(&ninfo);
 
 	root_element = xmlDocGetRootElement(doc);
+	assert(root_element);
 
 	increment_version(root_element);
 
@@ -1486,7 +1491,7 @@ void list_nodes(int argc, char **argv)
 	doc = open_configfile(&ninfo);
 
 	root_element = xmlDocGetRootElement(doc);
-
+	assert(root_element);
 
 	printf("\nCluster name: %s, config_version: %s\n\n",
 	       (char *)cluster_name(root_element),
@@ -1604,6 +1609,7 @@ void add_service(int argc, char **argv)
 	doc = open_configfile(&ninfo);
 
 	root_element = xmlDocGetRootElement(doc);
+	assert(root_element);
 
 	increment_version(root_element);
 
@@ -1646,7 +1652,7 @@ void list_services(int argc, char **argv)
 	doc = open_configfile(&ninfo);
 
 	root_element = xmlDocGetRootElement(doc);
-
+	assert(root_element);
 
 	printf("\nCluster name: %s, config_version: %s\n\n",
 	       (char *)cluster_name(root_element),
@@ -1702,6 +1708,7 @@ void add_script(int argc, char **argv)
 	doc = open_configfile(&ninfo);
 
 	root_element = xmlDocGetRootElement(doc);
+	assert(root_element);
 
 	increment_version(root_element);
 
@@ -1750,6 +1757,7 @@ void add_ip(int argc, char **argv)
 	doc = open_configfile(&ninfo);
 
 	root_element = xmlDocGetRootElement(doc);
+	assert(root_element);
 
 	increment_version(root_element);
 
@@ -1838,6 +1846,7 @@ void add_fs(int argc, char **argv)
 	doc = open_configfile(&ninfo);
 
 	root_element = xmlDocGetRootElement(doc);
+	assert(root_element);
 
 	increment_version(root_element);
 
@@ -1887,8 +1896,14 @@ void add_fdomain(int argc, char **argv)
 	if (optind < argc - 1) {
 		ninfo.name = strdup(argv[optind]);
 		ninfo.failover_nodes = (const char **)malloc(sizeof(char *) * (argc - optind));
-		for (i = 0; i < argc - optind - 1; i++)
+		if (!ninfo.failover_nodes) {
+			fprintf(stdout, "Out of mem!\n");
+			exit(EXIT_FAILURE);
+		}
+		for (i = 0; i < argc - optind - 1; i++) {
 			ninfo.failover_nodes[i] = strdup(argv[i + optind + 1]);
+			assert(ninfo.failover_nodes[i]);
+		}
 		ninfo.failover_nodes[i] = NULL;
 	} else
 		addfdomain_usage(argv[0]);
@@ -1896,6 +1911,7 @@ void add_fdomain(int argc, char **argv)
 	doc = open_configfile(&ninfo);
 
 	root_element = xmlDocGetRootElement(doc);
+	assert(root_element);
 
 	increment_version(root_element);
 
@@ -1905,6 +1921,11 @@ void add_fdomain(int argc, char **argv)
 	save_file(doc, &ninfo);
 	/* Shutdown libxml */
 	xmlCleanupParser();
+
+	for (i = 0; i < argc - optind - 1; i++)
+		free((void *)ninfo.failover_nodes[i]);
+
+	free(ninfo.failover_nodes);
 }
 
 void create_skeleton(int argc, char **argv)
@@ -2018,6 +2039,7 @@ void add_fence(int argc, char **argv)
 
 	doc = open_configfile(&ninfo);
 	root_element = xmlDocGetRootElement(doc);
+	assert(root_element);
 
 	increment_version(root_element);
 
@@ -2065,6 +2087,7 @@ void del_fence(int argc, char **argv)
 
 	doc = open_configfile(&ninfo);
 	root_element = xmlDocGetRootElement(doc);
+	assert(root_element);
 	increment_version(root_element);
 
 	fencedevices = findnode(root_element, "fencedevices");
@@ -2109,6 +2132,7 @@ void list_fences(int argc, char **argv)
 	}
 	doc = open_configfile(&ninfo);
 	root_element = xmlDocGetRootElement(doc);
+	assert(root_element);
 
 	fencedevices = findnode(root_element, "fencedevices");
 	if (!fencedevices)
@@ -2159,6 +2183,7 @@ void list_scripts(int argc, char **argv)
 	}
 	doc = open_configfile(&ninfo);
 	root_element = xmlDocGetRootElement(doc);
+	assert(root_element);
 
 	rm = findnode(root_element, "rm");
 	if (!rm)
@@ -2210,7 +2235,7 @@ void list_ips(int argc, char **argv)
 	}
 	doc = open_configfile(&ninfo);
 	root_element = xmlDocGetRootElement(doc);
-
+	assert(root_element);
 	rm = findnode(root_element, "rm");
 	if (!rm)
 		die("Can't find \"rm\" in %s\n", ninfo.configfile);
@@ -2261,6 +2286,7 @@ void list_fs(int argc, char **argv)
 	}
 	doc = open_configfile(&ninfo);
 	root_element = xmlDocGetRootElement(doc);
+	assert(root_element);
 
 	rm = findnode(root_element, "rm");
 	if (!rm)
@@ -2328,7 +2354,7 @@ void list_fdomains(int argc, char **argv)
 	}
 	doc = open_configfile(&ninfo);
 	root_element = xmlDocGetRootElement(doc);
-
+	assert(root_element);
 	rm = findnode(root_element, "rm");
 	if (!rm)
 		die("Can't find \"rm\" in %s\n", ninfo.configfile);
