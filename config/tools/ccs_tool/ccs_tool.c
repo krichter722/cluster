@@ -9,15 +9,6 @@
 #include "ccs.h"
 
 
-/*
- * Old libccs retruned -error (mostly!) but didn't set errno (sigh)
- * New libccs sets errno correctly
- */
-static char *errstring(int retcode)
-{
-	return strerror(errno);
-}
-
 static void tool_print_usage(FILE *stream);
 
 int globalverbose=0;
@@ -27,7 +18,6 @@ static void test_print_usage(FILE *stream);
 static int test_main(int argc, char *argv[], int old_format){
   int desc=0;
   int i=0;
-  int error = 0;
   int force = 0, blocking = 0;
   char *str=NULL;
   char *cluster_name = NULL;
@@ -76,7 +66,7 @@ static int test_main(int argc, char *argv[], int old_format){
       desc = ccs_connect();
     }
     if(desc < 0){
-      fprintf(stderr, "ccs_connect failed: %s\n", errstring(-desc));
+      fprintf(stderr, "ccs_connect failed: %s\n", strerror(errno));
       exit(EXIT_FAILURE);
     } else {
       printf("Connect successful.\n");
@@ -94,8 +84,8 @@ static int test_main(int argc, char *argv[], int old_format){
       fprintf(stderr, "ccs_disconnect failed: unable to communicate with ccs\n");
       exit(EXIT_FAILURE);
     }
-    if((error = ccs_disconnect(desc))){
-      fprintf(stderr, "ccs_disconnect failed: %s\n", errstring(-error));
+    if(ccs_disconnect(desc)){
+      fprintf(stderr, "ccs_disconnect failed: %s\n", strerror(errno));
       exit(EXIT_FAILURE);
     } else {
       printf("Disconnect successful.\n");
@@ -107,8 +97,8 @@ static int test_main(int argc, char *argv[], int old_format){
       exit(EXIT_FAILURE);
     }
     desc = ccs_connect();
-    if((desc < 0) || (error = ccs_get(desc, argv[3], &str))){
-      fprintf(stderr, "ccs_get failed: %s\n", errstring(-error));
+    if((desc < 0) || ccs_get(desc, argv[3], &str)){
+      fprintf(stderr, "ccs_get failed: %s\n", strerror(errno));
       exit(EXIT_FAILURE);
     } else {
 	    if (old_format) {
