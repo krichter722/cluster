@@ -95,6 +95,10 @@ get_attr(xmlNodePtr curr_node, struct ldap_attr_node **attrs,
 	char *name, *normalized;
 
 	name = (char *)xmlGetProp(curr_node, (xmlChar *)"name");
+	if (!name) {
+		return NULL;
+	}
+
 	normalized = normalize_name((const char *)name);
 
 	n = find_attr_byname(*attrs, normalized);
@@ -152,8 +156,16 @@ find_ref(xmlNodePtr curr_node)
 
 	dbg_printf("Trying to parse ref tag\n");
 	name = (char *)xmlGetProp(curr_node, (xmlChar *)"name");
+	if (!name) {
+		fprintf(stderr, "Unable to determine xml name prop\n");
+		exit(1);
+	}
 
 	n = xmlDocGetRootElement(curr_node->doc);
+	if (!n) {
+		fprintf(stderr, "Unable to determine xml root element\n");
+		exit(1);
+	}
 	n = n->xmlChildrenNode;
 	for (; n; n = n->next) {
 		if (n->type != XML_ELEMENT_NODE)
@@ -189,7 +201,7 @@ find_optional_attributes(xmlNodePtr curr_node, int in_block,
 {
 	xmlNodePtr node;
 	struct ldap_attr_node *attr;
-	struct ldap_attr_meta_node *n;
+	struct ldap_attr_meta_node *n = NULL;
 
 	if (!curr_node || (curr_node->type == XML_ELEMENT_NODE &&
 	    (curr_node->name && !strcasecmp((char *)curr_node->name, "element")))) {
@@ -201,6 +213,13 @@ find_optional_attributes(xmlNodePtr curr_node, int in_block,
 	for (node = curr_node; node; node = node->next) {
 		if (node->type != XML_ELEMENT_NODE)
 			continue;
+
+		if (!node->name) 
+			continue;
+
+		if (strcmp((char *)node->name, "attribute"))
+			continue;
+
 		if (!strcasecmp((char *)node->name, "ref")) {
 			find_optional_attributes(
 				find_ref(node), 1, curr_obj, attrs, ids);
@@ -224,16 +243,14 @@ find_optional_attributes(xmlNodePtr curr_node, int in_block,
 			continue;
 		}
 
-		if (!node->name || strcmp((char *)node->name,
-			    "attribute")) {
-			continue;
-		}
-
 		if (!in_block)
 			continue;
 
 		attr = get_attr(node, attrs, ids);
-		n = zalloc(sizeof(*n));
+		if (!n) {
+			n = zalloc(sizeof(*n));
+			assert(n);
+		}
 
 		dbg_printf("opt attr '%s'\n", attr->idval->name);
 
@@ -251,6 +268,12 @@ find_optional_attributes(xmlNodePtr curr_node, int in_block,
 		n->node = attr;
 		n->next = curr_obj->optional_attrs;
 		curr_obj->optional_attrs = n;
+		n=NULL;
+	}
+
+	if (n) {
+		free(n);
+		n=NULL;
 	}
 	return 0;
 }
@@ -264,7 +287,7 @@ find_required_attributes(xmlNodePtr curr_node,
 {
 	xmlNodePtr node;
 	struct ldap_attr_node *attr;
-	struct ldap_attr_meta_node *n;
+	struct ldap_attr_meta_node *n = NULL;
 
 	dbg_printf("lookin for required\n");
 
@@ -275,7 +298,10 @@ find_required_attributes(xmlNodePtr curr_node,
 			continue;
 
 		attr = get_attr(node, attrs, ids);
-		n = zalloc(sizeof(*n));
+		if (!n) {
+			n = zalloc(sizeof(*n));
+			assert(n);
+		}
 
 		dbg_printf("req attr '%s'\n", attr->idval->name);
 
@@ -293,6 +319,12 @@ find_required_attributes(xmlNodePtr curr_node,
 		n->node = attr;
 		n->next = curr_obj->required_attrs;
 		curr_obj->required_attrs = n;
+		n=NULL;
+	}
+
+	if (n) {
+		free(n);
+		n=NULL;
 	}
 	return 0;
 }
@@ -311,6 +343,10 @@ parse_element_tag(xmlNodePtr curr_node,
 	
 	dbg_printf("Trying to parse element tag\n");
 	n = (char *)xmlGetProp(curr_node, (xmlChar *)"name");
+	if (!n) {
+		printf("Unable to parse element tag\n");
+		exit(1);
+	}
 	normalized = normalize_name(n);
 	v = id_find(ids, normalized, OBJ, 0);
 

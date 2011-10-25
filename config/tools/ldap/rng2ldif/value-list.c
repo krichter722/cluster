@@ -3,6 +3,8 @@
 #include <assert.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include "value-list.h"
 #include "zalloc.h"
 
@@ -71,11 +73,15 @@ int
 id_writefile(struct idinfo *oi, char *filename)
 {
 	char tmpfn[4096];
-	FILE *fp;
+	FILE *fp = NULL;
 	int fd;
+	mode_t oldumask;
+
+	oldumask=umask(S_IWGRP | S_IRGRP | S_IWOTH | S_IROTH);
 
 	snprintf(tmpfn, sizeof(tmpfn), "%s.XXXXXX", filename);
 	fd = mkstemp(tmpfn);
+	umask(oldumask);
 	if (fd < 0)
 		return -1;
 
@@ -109,8 +115,13 @@ id_readfile(struct idinfo *oi, char *filename)
 	char buf[4096];
 	int len, lineno = 0, entries = 0;
 
-	fp = fopen(filename, "r");
 	if (!filename) {
+		perror("no file?");
+		return 1;
+	}
+
+	fp = fopen(filename, "r");
+	if (!fp) {
 		perror("fopen");
 		return 1;
 	}
@@ -127,6 +138,7 @@ id_readfile(struct idinfo *oi, char *filename)
 			--len;
 		}
 		v = zalloc(sizeof(*v));
+		assert(v);
 
 		/* Attribute / object */
 		c = strchr(buf, ',');
@@ -184,6 +196,8 @@ id_readfile(struct idinfo *oi, char *filename)
 		}
 
 		++entries;
+		free(v);
+		v = NULL;
 	}
 
 	fclose(fp);

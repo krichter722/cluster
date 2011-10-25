@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -40,12 +41,15 @@ write_class_struct(char *csv, char *arg, struct idinfo *ids)
 	char filename[4096];
 	FILE *out = NULL;
 	int fd = -1;
+	mode_t oldumask;
 
 	if (!strcmp(arg, "-")) {
 		out = stdout;
 	} else {
+		oldumask=umask(S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
 		snprintf(filename, sizeof(filename), "%s.XXXXXX", arg);
 		fd = mkstemp(filename);
+		umask(oldumask);
 		if (fd < 0) {
 			perror("mkstemp");
 			return -1;

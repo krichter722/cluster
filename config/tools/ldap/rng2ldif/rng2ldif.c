@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
@@ -118,6 +119,12 @@ open_relaxng(const char *filename)
 	}
 
 	n = xmlDocGetRootElement(p);
+	if (!n) {
+		printf("Unable to determine xml root element\n");
+		xmlFreeDoc(p);
+		return NULL;
+	}
+
 	if (xmlStrcmp(n->name, (xmlChar *)"grammar")) {
 		printf("%s is not a relaxng grammar\n", filename);
 		xmlFreeDoc(p);
@@ -141,12 +148,15 @@ write_ldap_schema(const char *rng, const char *arg,
 	time_t now;
 	struct tm now_tm;
 	int fd = -1;
+	mode_t oldumask;
 
 	if (!strcmp(arg, "-")) {
 		out_ldap = stdout;
 	} else {
+		oldumask=umask(S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
 		snprintf(filename, sizeof(filename), "%s.XXXXXX", arg);
 		fd = mkstemp(filename);
+		umask(oldumask);
 		if (fd < 0) {
 			perror("mkstemp");
 			return -1;
