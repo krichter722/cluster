@@ -35,7 +35,7 @@ static int handle_migrate_status(const char *svcName, int ret, rg_state_t *svcSt
 
 static int _svc_stop_finish(const char *svcName, int failed, uint32_t newstate);
 
-static void
+void
 broadcast_event(const char *svcName, uint32_t state, int owner, int last)
 {
 	SmMessageSt msgp;
@@ -1508,7 +1508,8 @@ _svc_stop_finish(const char *svcName, int failed, uint32_t newstate)
 	}
 
 	svcStatus.rs_state = newstate;
-	svcStatus.rs_flags = 0;
+	/* If host fails, we need to remember frozen flag */
+	svcStatus.rs_flags &= RG_FLAG_FROZEN;
 
 	logt_print(LOG_NOTICE, "Service %s is %s\n", svcName,
 	       rg_state_str(svcStatus.rs_state));

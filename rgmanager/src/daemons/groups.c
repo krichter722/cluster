@@ -683,7 +683,7 @@ eval_groups(int local, uint32_t nodeid, int nodeStatus)
 	resource_node_t *node;
 	rg_state_t svcStatus;
 	cluster_member_list_t *membership;
-	int ret;
+	int ret, state_updated = 0;
 
 	if (rg_locked()) {
 		logt_print(LOG_DEBUG,
@@ -700,6 +700,7 @@ eval_groups(int local, uint32_t nodeid, int nodeStatus)
 
 	list_do(&_tree, node) {
 
+		state_updated = 0;
 		res_build_name(svcName, sizeof(svcName), node->rn_resource);
 
 		/*
@@ -738,7 +739,9 @@ eval_groups(int local, uint32_t nodeid, int nodeStatus)
 			svcStatus.rs_state = RG_STATE_STOPPED;
 			svcStatus.rs_owner = 0;
 			svcStatus.rs_transition = (uint64_t)time(NULL);
-			svcStatus.rs_flags = 0;
+			/* If host fails, we need to remember
+			 * frozen flag */
+			svcStatus.rs_flags &= RG_FLAG_FROZEN;
 
 			if (set_rg_state(svcName, &svcStatus) != 0) {
 				logt_print(LOG_ERR, "Failed to update state"
@@ -747,9 +750,17 @@ eval_groups(int local, uint32_t nodeid, int nodeStatus)
 				rg_unlock(&lockp);
 				continue;
 			}
+
+			state_updated = 1;
 		}
 
 		rg_unlock(&lockp);
+
+		if (state_updated) {
+			/* don't do this with lock held */
+			broadcast_event(svcName, RG_STATE_STOPPED, -1,
+					svcStatus.rs_last_owner);
+		}
 
 		if (svcStatus.rs_owner == 0)
 			nodeName = (char *)"none";
