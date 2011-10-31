@@ -953,7 +953,14 @@ static int match_change(struct lockspace *ls, struct change *cg,
 			  "cluster add %llu", hd->nodeid, seq, cg->seq,
 			  (unsigned long long)cg->create_time,
 			  (unsigned long long)node->cluster_add_time);
-		return 0;
+
+		/* nacks can apply to older cg's */
+		if (!(hd->flags & DLM_MFLG_NACK)) {
+			return 0;
+		} else {
+			log_group(ls, "match_change %d:%u unskip cg %u for nack",
+				  hd->nodeid, seq, cg->seq);
+		}
 	}
 
 	/* verify this is the right change by matching the counts

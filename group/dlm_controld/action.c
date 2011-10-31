@@ -424,7 +424,11 @@ int set_configfs_members(char *name, int new_count, int *new_members,
 			if (rv) {
 				log_error("%s: renew rmdir failed: %d",
 					  path, errno);
-				goto out;
+
+				/* don't quit here, there's a case where
+				 * this can happen, where a node identified
+				 * for renewal was not really added
+				 * previously */
 			}
 		}
 
