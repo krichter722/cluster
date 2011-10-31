@@ -1132,8 +1132,11 @@ static void receive_complete(struct fd *fd, struct fd_header *hd, int len)
 	list_for_each_entry_safe(node, safe, &fd->victims, list) {
 		log_debug("receive_complete clear victim nodeid %d init %d",
 			  node->nodeid, node->init_victim);
-		list_del(&node->list);
-		free(node);
+
+		if (node->init_victim) {
+			list_del(&node->list);
+			free(node);
+		}
 	}
 }
 
@@ -1319,6 +1322,35 @@ static void add_victims(struct fd *fd, struct change *cg)
 			return;
 		list_add(&node->list, &fd->victims);
 		log_debug("add_victims node %d", node->nodeid);
+
+		/*
+		 * If we haven't completed a start cycle yet, set
+		 * init_victim on any failed node so that receive_complete
+		 * will clear it.  This is a hack for one specific scenario:
+		 *
+		 * - node 2 joins domain, blocks in startup fencing
+		 * - node 1 joins domain, waiting for messages in start cycle
+		 * - partition between 1,2
+		 * - 1 adds victim 2
+		 *   (and sets init_victim below since 1 hasn't completed
+		 *    a start cycle yet)
+		 * - partition removed
+		 * - node 2 completes startup fencing
+		 * - 2 gets confchg for partition
+		 * - 2 adds victim 1 (due to partition)
+		 * - 2 gets confchg for merge
+		 * - 2 does join for 1 (due to merge), begins start cycle
+		 * - start cycle adding node 1 finishes, 2 sends complete
+		 * - 2 reduces victim 1
+		 * - 1 receives complete for its join start cycle,
+		 *   and clears victim 2 because we've set init_victim here
+		 */
+
+		if (!fd->started_count) {
+			log_debug("add_victims node %d set init_victim",
+				  node->nodeid);
+			node->init_victim = 1;
+		}
 	}
 }
 
