@@ -467,7 +467,7 @@ int cman_dispatch(cman_handle_t handle, int flags)
 			len = smsg->msg->length;
 			free(smsg->msg);
 			free(smsg);
-			if (res || (flags & CMAN_DISPATCH_ONE))
+			if (res || (flags & CMAN_DISPATCH_TYPE_MASK) == CMAN_DISPATCH_ONE)
 				break;
 			else
 				continue;
@@ -481,7 +481,7 @@ int cman_dispatch(cman_handle_t handle, int flags)
 			len = smsg->msg->length;
 			free(smsg->msg);
 			free(smsg);
-			if (res || (flags & CMAN_DISPATCH_ONE))
+			if (res || (flags & CMAN_DISPATCH_TYPE_MASK) == CMAN_DISPATCH_ONE)
 				break;
 			else
 				continue;
@@ -495,7 +495,7 @@ int cman_dispatch(cman_handle_t handle, int flags)
 			len = smsg->msg->length;
 			free(smsg->msg);
 			free(smsg);
-			if (res || (flags & CMAN_DISPATCH_ONE))
+			if (res || (flags & CMAN_DISPATCH_TYPE_MASK) == CMAN_DISPATCH_ONE)
 				break;
 			else
 				continue;
