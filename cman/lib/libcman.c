@@ -1018,12 +1018,6 @@ static int cman_set_quorum_device(cman_handle_t handle,
 	char buf[strlen(name)+1 + sizeof(int)];
 	VALIDATE_HANDLE(h);
 
-	if ((!name) || (strlen(name) > MAX_CLUSTER_MEMBER_NAME_LEN) || (votes < 0))
-	{
-		errno = EINVAL;
-		return -1;
-	}
-
 	memcpy(buf, &votes, sizeof(int));
 	strcpy(buf+sizeof(int), name);
 	return info_call(h, ops, buf, strlen(name)+1+sizeof(int), NULL, 0);
@@ -1031,6 +1025,11 @@ static int cman_set_quorum_device(cman_handle_t handle,
 
 int cman_register_quorum_device(cman_handle_t handle, char *name, int votes)
 {
+	if ((!name) || (strlen(name) > MAX_CLUSTER_MEMBER_NAME_LEN) || (votes < 0))
+	{
+		errno = EINVAL;
+		return -1;
+	}
 	return cman_set_quorum_device(handle, CMAN_CMD_REG_QUORUMDEV, name, votes);
 }
 
@@ -1069,6 +1068,11 @@ int cman_get_quorum_device(cman_handle_t handle, struct cman_qdev_info *info)
 
 int cman_update_quorum_device(cman_handle_t handle, char *name, int votes)
 {
+	if ((!name) || (strlen(name) > MAX_CLUSTER_MEMBER_NAME_LEN) || (votes < 0))
+	{
+		errno = EINVAL;
+		return -1;
+	}
 	return cman_set_quorum_device(handle, CMAN_CMD_UPDATE_QUORUMDEV, name, votes);
 }
 
