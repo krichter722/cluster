@@ -533,16 +533,24 @@ int cman_dispatch(cman_handle_t handle, int flags)
 		{
 			len = read(h->fd, bufptr+offset, header->length-offset);
 			if (len == 0) {
+				if (bufptr != buf)
+					free(bufptr);
 				errno = EHOSTDOWN;
 				return -1;
 			}
 
 			if (len < 0 &&
-			    (errno == EINTR || errno == EAGAIN))
+			    (errno == EINTR || errno == EAGAIN)) {
+				if (bufptr != buf)
+					free(bufptr);
 				return 0;
+			}
 
-			if (len < 0)
+			if (len < 0) {
+				if (bufptr != buf)
+					free(bufptr);
 				return -1;
+			}
 			offset += len;
 		}
 
