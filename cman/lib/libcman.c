@@ -232,7 +232,7 @@ static int loopy_writev(int fd, struct iovec *iovptr, size_t iovlen)
 static int send_message(struct cman_handle *h, int msgtype, const void *inbuf, int inlen)
 {
 	struct sock_header header;
-	size_t len;
+	int len;
 	struct iovec iov[2];
 	size_t iovlen = 1;
 
