@@ -82,7 +82,7 @@ static void copy_node(cman_node_t *unode, struct cl_cluster_node *knode)
 {
 	unode->cn_nodeid = knode->node_id;
 	unode->cn_member = knode->state == NODESTATE_MEMBER?1:0;
-	strcpy(unode->cn_name, knode->name);
+	strncpy(unode->cn_name, knode->name, sizeof(unode->cn_name) - 1);
 	unode->cn_incarnation = knode->incarnation;
 	unode->cn_jointime = knode->jointime;
 
@@ -678,14 +678,14 @@ int cman_get_node(cman_handle_t handle, int nodeid, cman_node_t *node)
 	int status;
 	VALIDATE_HANDLE(h);
 
-	if (!node || strlen(node->cn_name) > sizeof(cman_node.name))
+	if (!node || strlen(node->cn_name) >= sizeof(cman_node.name))
 	{
 		errno = EINVAL;
 		return -1;
 	}
 
 	cman_node.node_id = nodeid;
-	strcpy(cman_node.name, node->cn_name);
+	strncpy(cman_node.name, node->cn_name, sizeof(cman_node.name) - 1);
 	status = info_call(h, CMAN_CMD_GETNODE, &cman_node, sizeof(struct cl_cluster_node),
 			   &cman_node, sizeof(struct cl_cluster_node));
 	if (status < 0)
@@ -905,14 +905,14 @@ int cman_barrier_register(cman_handle_t handle, const char *name, int flags, int
 	struct cl_barrier_info binfo;
 	VALIDATE_HANDLE(h);
 
-	if (strlen(name) > MAX_BARRIER_NAME_LEN)
+	if (strlen(name) >= MAX_BARRIER_NAME_LEN)
 	{
 		errno = EINVAL;
 		return -1;
 	}
 
 	binfo.cmd = BARRIER_CMD_REGISTER;
-	strcpy(binfo.name, name);
+	strncpy(binfo.name, name, sizeof(binfo.name) - 1);
 	binfo.arg = nodes;
 	binfo.flags = flags;
 
@@ -926,14 +926,14 @@ int cman_barrier_change(cman_handle_t handle, const char *name, int flags, int a
 	struct cl_barrier_info binfo;
 	VALIDATE_HANDLE(h);
 
-	if (strlen(name) > MAX_BARRIER_NAME_LEN)
+	if (strlen(name) >= MAX_BARRIER_NAME_LEN)
 	{
 		errno = EINVAL;
 		return -1;
 	}
 
 	binfo.cmd = BARRIER_CMD_CHANGE;
-	strcpy(binfo.name, name);
+	strncpy(binfo.name, name, sizeof(binfo.name) - 1);
 	binfo.arg = arg;
 	binfo.flags = flags;
 
@@ -947,14 +947,14 @@ int cman_barrier_wait(cman_handle_t handle, const char *name)
 	struct cl_barrier_info binfo;
 	VALIDATE_HANDLE(h);
 
-	if (strlen(name) > MAX_BARRIER_NAME_LEN)
+	if (strlen(name) >= MAX_BARRIER_NAME_LEN)
 	{
 		errno = EINVAL;
 		return -1;
 	}
 
 	binfo.cmd = BARRIER_CMD_WAIT;
-	strcpy(binfo.name, name);
+	strncpy(binfo.name, name, sizeof(binfo.name) - 1);
 
 	return info_call(h, CMAN_CMD_BARRIER, &binfo, sizeof(binfo), NULL, 0);
 }
@@ -965,14 +965,14 @@ int cman_barrier_delete(cman_handle_t handle, const char *name)
 	struct cl_barrier_info binfo;
 	VALIDATE_HANDLE(h);
 
-	if (strlen(name) > MAX_BARRIER_NAME_LEN)
+	if (strlen(name) >= MAX_BARRIER_NAME_LEN)
 	{
 		errno = EINVAL;
 		return -1;
 	}
 
 	binfo.cmd = BARRIER_CMD_DELETE;
-	strcpy(binfo.name, name);
+	strncpy(binfo.name, name, sizeof(binfo.name) - 1);
 
 	return info_call(h, CMAN_CMD_BARRIER, &binfo, sizeof(binfo), NULL, 0);
 }
@@ -1019,7 +1019,7 @@ static int cman_set_quorum_device(cman_handle_t handle,
 	VALIDATE_HANDLE(h);
 
 	memcpy(buf, &votes, sizeof(int));
-	strcpy(buf+sizeof(int), name);
+	strncpy(buf+sizeof(int), name, strlen(name)+1 + sizeof(int) - 1);
 	return info_call(h, ops, buf, strlen(name)+1+sizeof(int), NULL, 0);
 }
 
@@ -1059,7 +1059,7 @@ int cman_get_quorum_device(cman_handle_t handle, struct cman_qdev_info *info)
 	cman_node.node_id = CLUSTER_GETNODE_QUORUMDEV;
 	ret = info_call(h, CMAN_CMD_GETNODE, &cman_node, sizeof(cman_node), &cman_node, sizeof(cman_node));
 	if (!ret) {
-		strcpy(info->qi_name, cman_node.name);
+		strncpy(info->qi_name, cman_node.name, sizeof(info->qi_name) - 1);
 		info->qi_state = cman_node.state;
 		info->qi_votes = cman_node.votes;
 	}
@@ -1087,7 +1087,7 @@ int cman_get_fenceinfo(cman_handle_t handle, int nodeid, uint64_t *time, int *fe
 	if (!ret) {
 		*time = f.fence_time;
 		if (agent)
-			strcpy(agent, f.fence_agent);
+			strncpy(agent, f.fence_agent, sizeof(f.fence_agent) - 1);
 		*fenced = ((f.flags & FENCE_FLAGS_FENCED) != 0);
 	}
 	return ret;
@@ -1131,6 +1131,6 @@ int cman_node_fenced(cman_handle_t handle, int nodeid, uint64_t time, char *agen
 
 	f.nodeid = nodeid;
 	f.fence_time = time;
-	strcpy(f.fence_agent, agent);
+	strncpy(f.fence_agent, agent, sizeof(f.fence_agent) - 1);
 	return info_call(h, CMAN_CMD_UPDATE_FENCE_INFO, &f, sizeof(f), NULL, 0);
 }
