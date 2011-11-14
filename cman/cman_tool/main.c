@@ -539,6 +539,9 @@ static void show_nodes(commandline_t *comline)
 	/* Get Disallowed nodes, so we can show them as such */
 	dis_nodes = malloc(sizeof(cman_node_t) * count);
 
+	if (!dis_nodes)
+		die("cannot allocate memory for disallowed node\n");
+
 	if (cman_get_disallowed_nodes(h, count, &dis_count, dis_nodes) == 0) {
 		for (i = 0; i < numnodes; i++) {
 			for (j = 0; j < dis_count; j++) {
