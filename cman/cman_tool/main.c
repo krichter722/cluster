@@ -618,11 +618,10 @@ static void leave(commandline_t *comline)
 static void set_expected(commandline_t *comline)
 {
 	cman_handle_t h;
-	int result;
 
 	h = open_cman_handle(1);
 
-	if ((result = cman_set_expected_votes(h, comline->expected_votes)))
+	if (cman_set_expected_votes(h, comline->expected_votes))
 		die("can't set expected votes: %s", cman_error(errno));
 
 	cman_finish(h);
@@ -631,7 +630,6 @@ static void set_expected(commandline_t *comline)
 static void set_votes(commandline_t *comline)
 {
 	cman_handle_t h;
-	int result;
 	int nodeid;
 	struct cman_node node;
 
@@ -650,7 +648,7 @@ static void set_votes(commandline_t *comline)
 		nodeid = node.cn_nodeid;
 	}
 
-	if ((result = cman_set_votes(h, comline->votes, nodeid)))
+	if (cman_set_votes(h, comline->votes, nodeid))
 		die("can't set votes: %s", cman_error(errno));
 
 	cman_finish(h);

@@ -122,7 +122,7 @@ static int check_corosync_status(pid_t pid)
 
 int join(commandline_t *comline)
 {
-	int i, err;
+	int i;
 	int envptr = 0;
 	int argvptr = 0;
 	char scratch[1024];
@@ -252,13 +252,13 @@ int join(commandline_t *comline)
 		be_daemon();
 
 		sprintf(scratch, "FORKED: %d\n", getpid());
-		err = write(p[1], scratch, strlen(scratch));
+		write(p[1], scratch, strlen(scratch));
 
 		execve(COROSYNCBIN, argv, envp);
 
 		/* exec failed - tell the parent process */
 		sprintf(scratch, "execve of " COROSYNCBIN " failed: %s", strerror(errno));
-		err = write(p[1], scratch, strlen(scratch));
+		write(p[1], scratch, strlen(scratch));
 		exit(1);
 		break;
 
@@ -290,7 +290,7 @@ int join(commandline_t *comline)
 			if ((len = read(p[0], message, sizeof(message)) > 0)) {
 
 				/* Forked OK - get the real corosync pid */
-				if (sscanf(messageptr, "FORKED: %d", &corosync_pid) == 1) {
+				if ((messageptr) && (sscanf(messageptr, "FORKED: %d", &corosync_pid) == 1)) {
 					if (comline->verbose & DEBUG_STARTUP_ONLY)
 						fprintf(stderr, "forked process ID is %d\n", corosync_pid);
 					status = 0;
@@ -303,7 +303,7 @@ int join(commandline_t *comline)
 						continue;
 				}
 				/* Success! get the new PID of double-forked corosync */
-				if (sscanf(messageptr, "SUCCESS: %d", &corosync_pid) == 1) {
+				if ((messageptr) && (sscanf(messageptr, "SUCCESS: %d", &corosync_pid) == 1)) {
 					if (comline->verbose & DEBUG_STARTUP_ONLY)
 						fprintf(stderr, "corosync running, process ID is %d\n", corosync_pid);
 					status = 0;
