@@ -94,7 +94,7 @@ static const char *corosync_exit_reason(signed char status)
 		return "Another Corosync instance is already running";
 		break;
 	default:
-		sprintf(reason, "Error, reason code is %d", status);
+		snprintf(reason, sizeof(reason) - 1, "Error, reason code is %d", status);
 		return reason;
 		break;
 	}
@@ -287,7 +287,8 @@ int join(commandline_t *comline)
 		/* Did we get a cman-reported error? */
 		if (status == 1) {
 			int len;
-			if ((len = read(p[0], message, sizeof(message)) > 0)) {
+			if ((len = read(p[0], message, sizeof(message) - 1) > 0)) {
+				message[sizeof(message) - 1] = '\0';
 
 				/* Forked OK - get the real corosync pid */
 				if ((messageptr) && (sscanf(messageptr, "FORKED: %d", &corosync_pid) == 1)) {

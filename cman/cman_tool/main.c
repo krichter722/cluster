@@ -188,7 +188,7 @@ static char *membership_state(char *buf, int buflen, int node_state)
 		strncpy(buf, "Leaving", buflen);
 		break;
 	default:
-		sprintf(buf, "Unknown: code=%d", node_state);
+		snprintf(buf, buflen - 1, "Unknown: code=%d", node_state);
 		break;
 	}
 
@@ -414,7 +414,7 @@ static void print_node(commandline_t *comline, cman_handle_t h, int *format, str
 	if (node->cn_jointime.tv_sec && node->cn_member)
 		strftime(jstring, sizeof(jstring), "%F %H:%M:%S", jtime);
 	else
-		strcpy(jstring, "                   ");
+		strncpy(jstring, "                   ", sizeof(jstring));
 
 	if (!comline->format_opts) {
 		printf("%4u   %c  %5d   %s  %s\n",
@@ -1018,7 +1018,7 @@ static void decode_arguments(int argc, char *argv[], commandline_t *comline)
 			if (strlen(optarg) > MAX_NODE_NAME_LEN-1)
 				die("maximum cluster name length is %d",
 				    MAX_CLUSTER_NAME_LEN-1);
-			strcpy(comline->clustername, optarg);
+			strncpy(comline->clustername, optarg, sizeof(comline->clustername) - 1);
 			comline->clustername_opt = TRUE;
 			break;
 
