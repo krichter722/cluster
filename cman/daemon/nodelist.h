@@ -2,10 +2,8 @@
 static inline int objdb_get_string(OBJDB_API *corosync, hdb_handle_t object_service_handle,
 				   const char *key, char **value)
 {
-	int res;
-
 	*value = NULL;
-	if ( !(res = corosync->object_key_get(object_service_handle,
+	if ( !(corosync->object_key_get(object_service_handle,
 					      key,
 					      strlen(key),
 					      (void *)value,

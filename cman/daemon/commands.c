@@ -90,7 +90,6 @@ static int ccsd_timer_active = 0;
 static struct cluster_node *find_node_by_nodeid(int nodeid);
 static struct cluster_node *find_node_by_name(char *name);
 static int get_node_count(void);
-static int get_highest_nodeid(void);
 static int send_port_open_msg(unsigned char port);
 static int send_port_enquire(int nodeid);
 static void process_internal_message(char *data, int nodeid, int byteswap);
@@ -612,12 +611,9 @@ static int do_cmd_get_all_members(char *cmdbuf, char **retbuf, int retsize, int 
 	char *outbuf = *retbuf + offset;
 	int num_nodes = 0;
 	int total_nodes = 0;
-	int highest_node;
 
 	if (!we_are_a_cluster_member)
 		return -ENOENT;
-
-	highest_node = get_highest_nodeid();
 
 	/* Count nodes */
 	list_iterate(nodelist, &cluster_members_list) {
@@ -1896,7 +1892,6 @@ void send_transition_msg(int last_memb_count, int first_trans)
 static void byteswap_internal_message(char *data)
 {
 	struct cl_protmsg *msg = (struct cl_protmsg *)data;
-	struct cl_barriermsg *barriermsg;
 	struct cl_killmsg *killmsg;
 	struct cl_leavemsg *leavemsg;
 	struct cl_transmsg *transmsg;
@@ -1934,7 +1929,6 @@ static void byteswap_internal_message(char *data)
 		break;
 
 	case CLUSTER_MSG_BARRIER:
-		barriermsg = (struct cl_barriermsg *)data;
 		break;
 
 	case CLUSTER_MSG_RECONFIGURE:
@@ -2386,18 +2380,6 @@ void del_ais_node(int nodeid)
 	case NODESTATE_DEAD:
 		break;
 	}
-}
-
-static int get_highest_nodeid()
-{
-	int highest = 0;
-	struct cluster_node *node;
-
-	list_iterate_items(node, &cluster_members_list) {
-		if (node->node_id > highest)
-			highest = node->node_id;
-	}
-	return highest;
 }
 
 static int get_node_count()
