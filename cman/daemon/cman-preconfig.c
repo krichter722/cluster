@@ -468,7 +468,7 @@ static int verify_nodename(struct objdb_iface_ver0 *objdb, char *node)
 	/* If nodename (from uname) is domain-less, try to match against
 	   cluster.conf names which may have domainname specified */
 	nodes_handle = nodeslist_init(objdb, cluster_parent_handle, &find_handle);
-	do {
+	while (nodes_handle) {
 		int len;
 
 		if (objdb_get_string(objdb, nodes_handle, "name", &str)) {
@@ -490,7 +490,7 @@ static int verify_nodename(struct objdb_iface_ver0 *objdb, char *node)
 			return 0;
 		}
 		nodes_handle = nodeslist_next(objdb, find_handle);
-	} while (nodes_handle);
+	}
 	objdb->object_find_destroy(find_handle);
 
 
@@ -788,6 +788,12 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 	objdb->object_key_create_typed(object_handle, "nodename",
 				       nodename, strlen(nodename)+1, OBJDB_VALUETYPE_STRING);
 
+	if (!nodeid_str) {
+		sprintf(error_reason, "This node has no nodeid in cluster.conf");
+		write_cman_pipe("This node has no nodeid in cluster.conf");
+		return -1;
+	}
+
 	nodeid = atoi(nodeid_str);
 	error = 0;
 
@@ -1084,7 +1090,7 @@ static void add_cman_overrides(struct objdb_iface_ver0 *objdb)
 			int keylen;
 			memset(tmp, 0, sizeof(tmp));
 
-			strcpy(tmp, cluster_name);
+			strncpy(tmp, cluster_name, sizeof(tmp) - 1);
 
 			/* Key length must be a multiple of 4 */
 			keylen = (strlen(cluster_name)+4) & 0xFC;

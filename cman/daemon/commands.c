@@ -457,8 +457,10 @@ int cman_join_cluster(struct corosync_api_v1 *api,
 	/* Make sure we have a node name */
 	if (nodename[0] == '\0') {
 		struct utsname un;
-		uname(&un);
-		strcpy(nodename, un.nodename);
+		if (uname(&un)) {
+			return -EINVAL;
+		}
+		strncpy(nodename, un.nodename, sizeof(nodename) - 1);
 	}
 
 	time(&join_time);
@@ -2314,6 +2316,10 @@ void add_ais_node(int nodeid, uint64_t incar, int total_members)
 		/* Emergency nodename */
 		sprintf(tempname, "Node%d", nodeid);
 		node = add_new_node(tempname, nodeid, 1, total_members, NODESTATE_DEAD);
+		if (!node) {
+			log_printf(LOG_ERR, "Unable to add newnode!\n");
+			return;
+		}
 	}
 
 	if (node->state == NODESTATE_DEAD || node->state == NODESTATE_LEAVING) {

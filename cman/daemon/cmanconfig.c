@@ -238,7 +238,7 @@ static int get_cman_join_info(struct corosync_api_v1 *corosync)
 	if (!votes) {
 		unsigned int votestmp=-1;
 		objdb_get_int(corosync, node_object, "votes", &votestmp, 1);
-		if (votestmp < 0 || votestmp > 255) {
+		if (votestmp > 255) {
 			log_printf(LOG_ERR, "invalid votes value %d", votestmp);
 			write_cman_pipe("Found invalid votes for node in CCS");
 			return -EINVAL;

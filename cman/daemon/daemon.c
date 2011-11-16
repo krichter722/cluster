@@ -353,7 +353,7 @@ static int process_rendezvous(hdb_handle_t handle, int fd, int revent, void *dat
 	return 0;
 }
 
-static int open_local_sock(const char *name, int name_len, mode_t mode, hdb_handle_t handle, int type)
+static int open_local_sock(const char *name, int name_len, mode_t mode, hdb_handle_t handle, con_type_t type)
 {
 	int local_socket;
 	struct sockaddr_un sockaddr;
