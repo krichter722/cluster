@@ -300,8 +300,10 @@ check_transitions(qd_ctx *ctx, node_info_t *ni, int max, memb_mask_t mask)
 				logt_print(LOG_NOTICE,
 				       "Writing eviction notice for node %d\n",
 				       ni[x].ni_status.ps_nodeid);
-				qd_write_status(ctx, ni[x].ni_status.ps_nodeid,
-						S_EVICT, NULL, NULL, NULL);
+				if (qd_write_status(ctx, ni[x].ni_status.ps_nodeid,
+						S_EVICT, NULL, NULL, NULL) != 0)
+					logt_print(LOG_CRIT, "Unable to write eviction notice for node %d!\n",
+						   ni[x].ni_status.ps_nodeid);
 				if (ctx->qc_flags & RF_ALLOW_KILL) {
 					logt_print(LOG_DEBUG, "Telling CMAN to "
 						"kill the node\n");
@@ -335,8 +337,10 @@ check_transitions(qd_ctx *ctx, node_info_t *ni, int max, memb_mask_t mask)
 			logt_print(LOG_ALERT,
  			       "Writing eviction notice (again) for node %d\n",
 			       ni[x].ni_status.ps_nodeid);
-			qd_write_status(ctx, ni[x].ni_status.ps_nodeid,
-					S_EVICT, NULL, NULL, NULL);
+			if (qd_write_status(ctx, ni[x].ni_status.ps_nodeid,
+					S_EVICT, NULL, NULL, NULL) != 0)
+				logt_print(LOG_CRIT, "Unable to write eviction notice for node %d!\n",
+					   ni[x].ni_status.ps_nodeid);
 			ni[x].ni_status.ps_state = S_EVICT;
 
 			/* XXX Need to fence it again */
@@ -1850,7 +1854,7 @@ get_config_data(qd_ctx *ctx, struct h_data *h, int maxh, int *cfh)
 		ctx->qc_sched_prio = 1;
 		ctx->qc_max_error_cycles = 0;
 	}
-	
+
 	if (get_dynamic_config_data(ctx, ccsfd) < 0) {
 		goto out;
 	}
