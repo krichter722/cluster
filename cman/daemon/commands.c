@@ -563,8 +563,6 @@ static int do_cmd_get_extrainfo(char *cmdbuf, char **retbuf, int retsize, int *r
 	corosync->object_find_create(OBJECT_PARENT_HANDLE, "totem", strlen("totem"), &totem_find_handle);
 	if (corosync->object_find_next(totem_find_handle, &totem_object_handle) == 0) {
 
-		corosync->object_find_destroy(totem_find_handle);
-
 		corosync->object_find_create(totem_object_handle, "interface", strlen("interface"), &iface_find_handle);
 		while (corosync->object_find_next(iface_find_handle, &object_handle) == 0) {
 
@@ -589,8 +587,10 @@ static int do_cmd_get_extrainfo(char *cmdbuf, char **retbuf, int retsize, int *r
 			}
 			ptr += sizeof(struct sockaddr_storage);
 		}
+
+		corosync->object_find_destroy(iface_find_handle);
 	}
-	corosync->object_find_destroy(iface_find_handle);
+	corosync->object_find_destroy(totem_find_handle);
 
 	for (i=0; i<num_interfaces; i++) {
 		ss = (struct sockaddr_storage *)ptr;
