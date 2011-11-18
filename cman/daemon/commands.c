@@ -396,7 +396,7 @@ static void copy_to_usernode(struct cluster_node *node,
 	struct totem_ip_address node_ifs[INTERFACE_MAX];
 	/* totempg_ifaces_get always copies INTERFACE_MAX addresses */
 
-	strcpy(unode->name, node->name);
+	strncpy(unode->name, node->name, MAX_CLUSTER_MEMBER_NAME_LEN - 1);
 	unode->jointime = node->join_time;
 	unode->size = sizeof(struct cl_cluster_node);
 	unode->votes = node->votes;
@@ -421,7 +421,7 @@ int cman_set_nodename(char *name)
 	if (ais_running)
 		return -EALREADY;
 
-	strncpy(nodename, name, MAX_CLUSTER_MEMBER_NAME_LEN);
+	strncpy(nodename, name, MAX_CLUSTER_MEMBER_NAME_LEN - 1);
 	return 0;
 }
 
@@ -1401,7 +1401,7 @@ static int do_cmd_update_fence_info(char *cmdbuf)
 	fence_msg->nodeid = f->nodeid;
 	fence_msg->timesec = f->fence_time;
 	fence_msg->fenced = 1;
-	strcpy(fence_msg->agent, f->fence_agent);
+	strncpy(fence_msg->agent, f->fence_agent, MAX_FENCE_AGENT_NAME_LEN - 1);
 	comms_send_message(msg, sizeof(msg), 0,0, 0, 0);
 
 	log_printf(LOGSYS_LEVEL_DEBUG, "memb: node %d fenced by %s\n", f->nodeid, f->fence_agent);
@@ -1428,7 +1428,7 @@ static int do_cmd_get_fence_info(char *cmdbuf, char **retbuf, int retsize, int *
 	f->flags = node->flags&NODE_FLAGS_FENCED;
 
 	if (node->fence_agent)
-		strcpy(f->fence_agent, node->fence_agent);
+		strncpy(f->fence_agent, node->fence_agent, MAX_FENCE_AGENT_NAME_LEN - 1);
 	else
 		f->fence_agent[0] = '\0';
 	*retlen = sizeof(struct cl_fence_info);
@@ -1867,10 +1867,10 @@ void send_transition_msg(int last_memb_count, int first_trans)
 	msg->flags = us->flags;
 	msg->fence_time = us->fence_time;
 	msg->join_time = join_time;
-	strcpy(msg->clustername, cluster_name);
+	memcpy(msg->clustername, cluster_name, MAX_CLUSTER_NAME_LEN);
 	if (us->fence_agent)
 	{
-		strcpy(msg->fence_agent, us->fence_agent);
+		strncpy(msg->fence_agent, us->fence_agent, MAX_FENCE_AGENT_NAME_LEN - 1);
 		len += strlen(us->fence_agent)+1;
 	}
 	else
@@ -2128,7 +2128,7 @@ static void do_process_transition(int nodeid, char *data)
 		fence_msg->nodeid = nodeid;
 		fence_msg->timesec = node->fence_time;
 		fence_msg->fenced = 0;
-		strcpy(fence_msg->agent, node->fence_agent);
+		strncpy(fence_msg->agent, node->fence_agent, MAX_FENCE_AGENT_NAME_LEN - 1);
 		comms_send_message(fencemsg, sizeof(fencemsg), 0,0, nodeid, 0);
 	}
 }
@@ -2307,7 +2307,7 @@ void add_ais_node(int nodeid, uint64_t incar, int total_members)
 		log_printf(LOG_ERR, "Got node from AIS id %d with no config entry\n", nodeid);
 
 		/* Emergency nodename */
-		sprintf(tempname, "Node%d", nodeid);
+		snprintf(tempname, sizeof(tempname) - 1, "Node%d", nodeid);
 		node = add_new_node(tempname, nodeid, 1, total_members, NODESTATE_DEAD);
 		if (!node) {
 			log_printf(LOG_ERR, "Unable to add newnode!\n");
@@ -2432,7 +2432,7 @@ static const char *killmsg_reason(int reason)
 		return "we rejoined the cluster without a full restart";
 
 	default:
-		sprintf(msg, "we got kill message number %d", reason);
+		snprintf(msg, sizeof(msg) - 1, "we got kill message number %d", reason);
 		return msg;
 	}
 }

@@ -213,7 +213,7 @@ static int cman_exec_init_fn(struct corosync_api_v1 *api)
 	cman_init(api);
 
 	/* Let cman_tool know we are running and our PID */
-	sprintf(pipe_msg,"SUCCESS: %d", getpid());
+	snprintf(pipe_msg, sizeof(pipe_msg) - 1,"SUCCESS: %d", getpid());
 	write_cman_pipe(pipe_msg);
 	close(startup_pipe);
 	startup_pipe = 0;

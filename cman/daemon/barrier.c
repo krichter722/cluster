@@ -101,7 +101,7 @@ static void check_barrier_complete_phase1(struct cl_barrier *barrier)
 
 		bmsg.cmd = CLUSTER_MSG_BARRIER;
 		bmsg.subcmd = BARRIER_COMPLETE;
-		strcpy(bmsg.name, barrier->name);
+		strncpy(bmsg.name, barrier->name, MAX_BARRIER_NAME_LEN - 1);
 
 		log_printf(LOGSYS_LEVEL_DEBUG, "barrier: Sending COMPLETE for %s\n", barrier->name);
 		comms_send_message((char *) &bmsg, sizeof (bmsg),
@@ -160,7 +160,7 @@ static struct cl_barrier *alloc_barrier(char *name, int nodes)
 	}
 	memset(barrier, 0, sizeof (*barrier));
 
-	strcpy(barrier->name, name);
+	strncpy(barrier->name, name, MAX_BARRIER_NAME_LEN - 1);
 	barrier->flags = 0;
 	barrier->expected_nodes = nodes;
 	barrier->got_nodes = 0;
@@ -268,7 +268,7 @@ static int barrier_setattr_enabled(struct cl_barrier *barrier,
 		/* Send it to the rest of the cluster */
 		bmsg.cmd = CLUSTER_MSG_BARRIER;
 		bmsg.subcmd = BARRIER_WAIT;
-		strcpy(bmsg.name, barrier->name);
+		strncpy(bmsg.name, barrier->name, MAX_BARRIER_NAME_LEN - 1);
 
 		barrier->waitsent = 1;
 		barrier->phase = 1;

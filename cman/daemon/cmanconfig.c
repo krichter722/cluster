@@ -175,7 +175,7 @@ static int get_cman_join_info(struct corosync_api_v1 *corosync)
 		goto out;
 	}
 
-	strcpy(cluster_name, cname);
+	strncpy(cluster_name, cname, sizeof(cluster_name) - 1);
 
 	expected_votes = 0;
 	if (getenv("CMAN_EXPECTEDVOTES")) {

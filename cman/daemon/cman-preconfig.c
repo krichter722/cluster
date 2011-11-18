@@ -312,14 +312,14 @@ static int add_ifaddr(struct objdb_iface_ver0 *objdb, char *mcast, char *ifaddr,
 	/* Check the families match */
 	if (address_family(mcast, &mcast_addr, 0) !=
 	    address_family(ifaddr, &if_addr, mcast_addr.ss_family)) {
-		sprintf(error_reason, "Node address family does not match multicast address family");
+		snprintf(error_reason, sizeof(error_reason) - 1, "Node address family does not match multicast address family");
 		return -1;
 	}
 
 	/* Check it's not bound to localhost, sigh */
 	get_localhost(if_addr.ss_family, &localhost);
 	if (ipaddr_equal(&localhost, &if_addr)) {
-		sprintf(error_reason, "Node name resolves to localhost, please check /etc/hosts and assign this node a network IP address");
+		snprintf(error_reason, sizeof(error_reason) - 1, "Node name resolves to localhost, please check /etc/hosts and assign this node a network IP address");
 		return -1;
 	}
 
@@ -335,7 +335,7 @@ static int add_ifaddr(struct objdb_iface_ver0 *objdb, char *mcast, char *ifaddr,
 			objdb->object_key_create_typed(totem_object_handle, "transport",
 				tx_mech_to_str[transport], strlen(tx_mech_to_str[transport]) + 1, OBJDB_VALUETYPE_STRING);
 		} else {
-			sprintf(error_reason, "Transport should not be specified within <totem .../>, use <cman transport=\"...\" /> instead");
+			snprintf(error_reason, sizeof(error_reason) - 1, "Transport should not be specified within <totem .../>, use <cman transport=\"...\" /> instead");
 			return -1;
 		}
 	}
@@ -346,7 +346,7 @@ static int add_ifaddr(struct objdb_iface_ver0 *objdb, char *mcast, char *ifaddr,
 		struct sockaddr_in6 *in6= (struct sockaddr_in6 *)&if_addr;
 		void *addrptr;
 
-		sprintf(tmp, "%d", num_interfaces);
+		snprintf(tmp, sizeof(tmp) - 1, "%d", num_interfaces);
 		objdb->object_key_create_typed(interface_object_handle, "ringnumber",
 					       tmp, strlen(tmp)+1, OBJDB_VALUETYPE_STRING);
 
@@ -373,19 +373,19 @@ static int add_ifaddr(struct objdb_iface_ver0 *objdb, char *mcast, char *ifaddr,
 			break;
 		}
 
-		sprintf(tmp, "%d", port);
+		snprintf(tmp, sizeof(tmp) - 1, "%d", port);
 		objdb->object_key_create_typed(interface_object_handle, "mcastport",
 					       tmp, strlen(tmp)+1, OBJDB_VALUETYPE_STRING);
 
 		/* paranoia check. corosync already does it */
 		if ((intttl < 0) || (intttl > 255)) {
-			sprintf(error_reason, "TTL value (%u) out of range (0 - 255)", intttl);
+			snprintf(error_reason, sizeof(error_reason) - 1, "TTL value (%u) out of range (0 - 255)", ttl);
 			return -1;
 		}
 
 		/* add the key to the objdb only if value is not default */
 		if (intttl != 1) {
-			sprintf(tmp, "%d", intttl);
+			snprintf(tmp, sizeof(tmp) - 1, "%d", ttl);
 			objdb->object_key_create_typed(interface_object_handle, "ttl",
 						       tmp, strlen(tmp)+1, OBJDB_VALUETYPE_STRING);
 		}
@@ -422,7 +422,7 @@ static char *default_mcast(char *node, int altiface)
 	   default a multicast address */
         ret = getaddrinfo(node, NULL, &ahints, &ainfo);
 	if (ret) {
-		sprintf(error_reason, "Can't determine address family of nodename %s\n", node);
+		snprintf(error_reason, sizeof(error_reason) - 1, "Can't determine address family of nodename %s\n", node);
 		write_cman_pipe("Can't determine address family of nodename");
 		return NULL;
 	}
@@ -458,13 +458,13 @@ static int verify_nodename(struct objdb_iface_ver0 *objdb, char *node)
 		return 0;
 
 	/* If nodename was from uname, try a domain-less version of it */
-	strcpy(nodename2, node);
+	strncpy(nodename2, node, sizeof(nodename2) - 1);
 	dot = strchr(nodename2, '.');
 	if (dot) {
 		*dot = '\0';
 
 		if (nodelist_byname(objdb, cluster_parent_handle, nodename2)) {
-			strcpy(node, nodename2);
+			strncpy(node, nodename2, MAX_CLUSTER_MEMBER_NAME_LEN - 1);
 			return 0;
 		}
 	}
@@ -476,12 +476,12 @@ static int verify_nodename(struct objdb_iface_ver0 *objdb, char *node)
 		int len;
 
 		if (objdb_get_string(objdb, nodes_handle, "name", &str)) {
-			sprintf(error_reason, "Cannot get node name");
+			snprintf(error_reason, sizeof(error_reason) - 1, "Cannot get node name");
 			nodes_handle = nodeslist_next(objdb, find_handle);
 			continue;
 		}
 
-		strcpy(nodename3, str);
+		strncpy(nodename3, str, sizeof(nodename3) - 1);
 		dot = strchr(nodename3, '.');
 		if (dot)
 			len = dot-nodename3;
@@ -490,7 +490,7 @@ static int verify_nodename(struct objdb_iface_ver0 *objdb, char *node)
 
 		if (strlen(nodename2) == len &&
 		    !strncmp(nodename2, nodename3, len)) {
-			strcpy(node, str);
+			strncpy(node, str, sizeof(nodename) - 1);
 			return 0;
 		}
 		nodes_handle = nodeslist_next(objdb, find_handle);
@@ -509,7 +509,7 @@ static int verify_nodename(struct objdb_iface_ver0 *objdb, char *node)
 		socklen_t salen = 0;
 
 		/* Restore this */
-		strcpy(nodename2, node);
+		strncpy(nodename2, node, sizeof(nodename2) - 1);
 		sa = ifa->ifa_addr;
 		if (!sa)
 			continue;
@@ -526,7 +526,7 @@ static int verify_nodename(struct objdb_iface_ver0 *objdb, char *node)
 		if (!error) {
 
 			if (nodelist_byname(objdb, cluster_parent_handle, nodename2)) {
-				strcpy(node, nodename2);
+				strncpy(node, nodename2, sizeof(nodename) - 1);
 				goto out;
 			}
 
@@ -536,7 +536,7 @@ static int verify_nodename(struct objdb_iface_ver0 *objdb, char *node)
 				*dot = '\0';
 
 				if (nodelist_byname(objdb, cluster_parent_handle, nodename2)) {
-					strcpy(node, nodename2);
+					strncpy(node, nodename2, sizeof(nodename) - 1);
 					goto out;
 				}
 			}
@@ -549,7 +549,7 @@ static int verify_nodename(struct objdb_iface_ver0 *objdb, char *node)
 			continue;
 
 		if (nodelist_byname(objdb, cluster_parent_handle, nodename2)) {
-			strcpy(node, nodename2);
+			strncpy(node, nodename2, sizeof(nodename) - 1);
 			goto out;
 		}
 	}
@@ -649,16 +649,16 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 		/* our nodename */
 		if (nodename_env != NULL) {
 			if (strlen(nodename_env) >= sizeof(nodename)) {
-				sprintf(error_reason, "Overridden node name %s is too long", nodename);
+				snprintf(error_reason, sizeof(error_reason) - 1, "Overridden node name %s is too long", nodename);
 				write_cman_pipe("Overridden node name is too long");
 				error = -1;
 				goto out;
 			}
 
-			strcpy(nodename, nodename_env);
+			strncpy(nodename, nodename_env, sizeof(nodename) - 1);
 
 			if (!(node_object_handle = nodelist_byname(objdb, cluster_parent_handle, nodename))) {
-				sprintf(error_reason, "Overridden node name %s is not in CCS", nodename);
+				snprintf(error_reason, sizeof(error_reason) - 1, "Overridden node name %s is not in CCS", nodename);
 				write_cman_pipe("Overridden node name is not in CCS");
 				error = -1;
 				goto out;
@@ -669,20 +669,20 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 
 			error = uname(&utsname);
 			if (error) {
-				sprintf(error_reason, "cannot get node name, uname failed");
+				snprintf(error_reason, sizeof(error_reason) - 1, "cannot get node name, uname failed");
 				write_cman_pipe("Can't determine local node name, uname failed");
 				error = -1;
 				goto out;
 			}
 
 			if (strlen(utsname.nodename) >= sizeof(nodename)) {
-				sprintf(error_reason, "node name from uname is too long");
+				snprintf(error_reason, sizeof(error_reason) - 1, "node name from uname is too long");
 				write_cman_pipe("local node name is too long");
 				error = -1;
 				goto out;
 			}
 
-			strcpy(nodename, utsname.nodename);
+			strncpy(nodename, utsname.nodename, sizeof(nodename) - 1);
 		}
 		if (verify_nodename(objdb, nodename)) {
 			write_cman_pipe("Cannot find node name in cluster.conf");
@@ -694,7 +694,7 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 	/* Add <cman> bits to pass down to the main module*/
 	if ((node_object_handle = nodelist_byname(objdb, cluster_parent_handle, nodename))) {
 		if (objdb_get_string(objdb, node_object_handle, "nodeid", &nodeid_str)) {
-			sprintf(error_reason, "This node has no nodeid in cluster.conf");
+			snprintf(error_reason, sizeof(error_reason) - 1, "This node has no nodeid in cluster.conf");
 			write_cman_pipe("This node has no nodeid in cluster.conf");
 			return -1;
 		}
@@ -793,7 +793,7 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 				       nodename, strlen(nodename)+1, OBJDB_VALUETYPE_STRING);
 
 	if (!nodeid_str) {
-		sprintf(error_reason, "This node has no nodeid in cluster.conf");
+		snprintf(error_reason, sizeof(error_reason) - 1, "This node has no nodeid in cluster.conf");
 		write_cman_pipe("This node has no nodeid in cluster.conf");
 		return -1;
 	}
@@ -804,6 +804,47 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 	/* optional port */
 	if (!portnum) {
 		objdb_get_int(objdb, object_handle, "port", &portnum, mcast_portnum);
+	}
+
+	/* Check for broadcast */
+	if (!objdb_get_string(objdb, object_handle, "broadcast", &str)) {
+		if (strcmp(str, "yes") == 0) {
+			mcast_name = strdup("255.255.255.255");
+			if (!mcast_name)
+				return -1;
+			transport = TX_MECH_UDPB;
+		}
+	}
+
+	/* Check for transport */
+	if (!objdb_get_string(objdb, object_handle, "transport", &str)) {
+		if (strcmp(str, "udp") == 0) {
+			if (transport != TX_MECH_UDPB) {
+				transport = TX_MECH_UDP;
+			}
+		} else if (strcmp(str, "udpb") == 0) {
+			transport = TX_MECH_UDPB;
+		} else if (strcmp(str, "udpu") == 0) {
+			if (transport != TX_MECH_UDPB) {
+				transport = TX_MECH_UDPU;
+			} else {
+				snprintf(error_reason, sizeof(error_reason) - 1, "Transport and broadcast option are mutually exclusive");
+				write_cman_pipe("Transport and broadcast option are mutually exclusive");
+				return -1;
+			}
+		} else if (strcmp(str, "rdma") == 0) {
+			if (transport != TX_MECH_UDPB) {
+				transport = TX_MECH_RDMA;
+			} else {
+				snprintf(error_reason, sizeof(error_reason) - 1, "Transport and broadcast option are mutually exclusive");
+				write_cman_pipe("Transport and broadcast option are mutually exclusive");
+				return -1;
+			}
+		} else {
+			snprintf(error_reason, sizeof(error_reason) - 1, "Transport option value can be one of udp, udpb, udpu, rdma");
+			write_cman_pipe("Transport option value can be one of udp, udpb, udpu, rdma");
+			return -1;
+		}
 	}
 
 	if (add_ifaddr(objdb, mcast_name, nodename, portnum, ttl,
@@ -991,7 +1032,7 @@ static void add_cman_overrides(struct objdb_iface_ver0 *objdb)
 		objdb->object_key_create_typed(object_handle, "version",
 					       "2", 2, OBJDB_VALUETYPE_STRING);
 
-		sprintf(tmp, "%d", nodeid);
+		snprintf(tmp, sizeof(tmp) - 1, "%d", nodeid);
 		objdb->object_key_create_typed(object_handle, "nodeid",
 					       tmp, strlen(tmp)+1, OBJDB_VALUETYPE_STRING);
 
@@ -1001,7 +1042,7 @@ static void add_cman_overrides(struct objdb_iface_ver0 *objdb)
 		/* Set the token timeout is 10 seconds, but don't overrride anything that
 		   might be in cluster.conf */
 		if (objdb_get_string(objdb, object_handle, "token", &value)) {
-			snprintf(tmp, sizeof(tmp), "%d", DEFAULT_TOKEN_TIMEOUT);
+			snprintf(tmp, sizeof(tmp) - 1, "%d", DEFAULT_TOKEN_TIMEOUT);
 			objdb->object_key_create_typed(object_handle, "token",
 						       tmp, strlen(tmp)+1, OBJDB_VALUETYPE_STRING);
 		}
@@ -1036,7 +1077,7 @@ static void add_cman_overrides(struct objdb_iface_ver0 *objdb)
 		if (objdb_get_string(objdb, object_handle, "consensus", &value)) {
 			unsigned int token=0;
 			unsigned int consensus;
-			char calc_consensus[32];
+			char calc_consensus[64];
 
 			objdb_get_int(objdb, object_handle, "token", &token, DEFAULT_TOKEN_TIMEOUT);
 
@@ -1050,7 +1091,7 @@ static void add_cman_overrides(struct objdb_iface_ver0 *objdb)
 					consensus = 2000;
 			}
 
-			snprintf(calc_consensus, sizeof(calc_consensus), "%d", consensus);
+			snprintf(calc_consensus, sizeof(calc_consensus) - 1, "%d", consensus);
 			objdb->object_key_create_typed(object_handle, "consensus",
 						       calc_consensus, strlen(calc_consensus)+1, OBJDB_VALUETYPE_STRING);
 		}
@@ -1075,7 +1116,7 @@ static void add_cman_overrides(struct objdb_iface_ver0 *objdb)
 		}
 
 		if (objdb_get_string(objdb, object_handle, "secauth", &value)) {
-			sprintf(tmp, "%d", 1);
+			snprintf(tmp, sizeof(tmp) - 1, "%d", 1);
 			objdb->object_key_create_typed(object_handle, "secauth",
 						       tmp, strlen(tmp)+1, OBJDB_VALUETYPE_STRING);
 		}
@@ -1127,13 +1168,13 @@ static void add_cman_overrides(struct objdb_iface_ver0 *objdb)
 	{
 		char str[255];
 
-		sprintf(str, "%d", cluster_id);
+		snprintf(str, sizeof(str) - 1, "%d", cluster_id);
 
 		objdb->object_key_create_typed(object_handle, "cluster_id",
 					       str, strlen(str) + 1, OBJDB_VALUETYPE_STRING);
 
 		if (two_node) {
-			sprintf(str, "%d", 1);
+			snprintf(str, sizeof(str) - 1, "%d", 1);
 			objdb->object_key_create_typed(object_handle, "two_node",
 						       str, strlen(str) + 1, OBJDB_VALUETYPE_STRING);
 		}
@@ -1178,7 +1219,7 @@ static int set_noccs_defaults(struct objdb_iface_ver0 *objdb)
 	/* Enforce key */
 	key_filename = strdup(NOCCS_KEY_FILENAME);
 	if (!key_filename) {
-		sprintf(error_reason, "cannot allocate memory for key file name");
+		snprintf(error_reason, sizeof(error_reason) - 1, "cannot allocate memory for key file name");
 		write_cman_pipe("cannot allocate memory for key file name");
 		return -1;
 	}
@@ -1187,7 +1228,7 @@ static int set_noccs_defaults(struct objdb_iface_ver0 *objdb)
 		cluster_name = strdup(DEFAULT_CLUSTER_NAME);
 
 	if (!cluster_name) {
-		sprintf(error_reason, "cannot allocate memory for cluster_name");
+		snprintf(error_reason, sizeof(error_reason) - 1, "cannot allocate memory for cluster_name");
 		write_cman_pipe("cannot allocate memory for cluster_name");
 		return -1;
 	}
@@ -1198,7 +1239,7 @@ static int set_noccs_defaults(struct objdb_iface_ver0 *objdb)
 	    else
 	        cluster_id = generate_cluster_id(cluster_name);
 
-	    sprintf(error_reason, "Generated cluster id for '%s' is %d\n", cluster_name, cluster_id);
+	    snprintf(error_reason, sizeof(error_reason) - 1, "Generated cluster id for '%s' is %d\n", cluster_name, cluster_id);
 	}
 
 	if (!nodename_env) {
@@ -1207,14 +1248,14 @@ static int set_noccs_defaults(struct objdb_iface_ver0 *objdb)
 
 		error = uname(&utsname);
 		if (error) {
-			sprintf(error_reason, "cannot get node name, uname failed");
+			snprintf(error_reason, sizeof(error_reason) - 1, "cannot get node name, uname failed");
 			write_cman_pipe("Can't determine local node name");
 			return -1;
 		}
 
 		nodename_env = (char *)&utsname.nodename;
 	}
-	strcpy(nodename, nodename_env);
+	strncpy(nodename, nodename_env, sizeof(nodename) - 1);
 	num_nodenames = 1;
 
 	if (!mcast_name) {
@@ -1239,7 +1280,7 @@ static int set_noccs_defaults(struct objdb_iface_ver0 *objdb)
 		memset(&ahints, 0, sizeof(ahints));
 		ret = getaddrinfo(nodename, NULL, &ahints, &ainfo);
 		if (ret) {
-			sprintf(error_reason, "Can't determine address family of nodename %s\n", nodename);
+			snprintf(error_reason, sizeof(error_reason) - 1, "Can't determine address family of nodename %s\n", nodename);
 			write_cman_pipe("Can't determine address family of nodename");
 			return -1;
 		}
@@ -1263,11 +1304,11 @@ static int set_noccs_defaults(struct objdb_iface_ver0 *objdb)
 	objdb->object_key_create_typed(object_handle, "name",
 				       nodename, strlen(nodename)+1, OBJDB_VALUETYPE_STRING);
 
-	sprintf(tmp, "%d", votes);
+	snprintf(tmp, sizeof(tmp) - 1, "%d", votes);
 	objdb->object_key_create_typed(object_handle, "votes",
 				       tmp, strlen(tmp)+1, OBJDB_VALUETYPE_STRING);
 
-	sprintf(tmp, "%d", nodeid);
+	snprintf(tmp, sizeof(tmp) - 1, "%d", nodeid);
 	objdb->object_key_create_typed(object_handle, "nodeid",
 				       tmp, strlen(tmp)+1, OBJDB_VALUETYPE_STRING);
 
@@ -1282,11 +1323,11 @@ static int set_noccs_defaults(struct objdb_iface_ver0 *objdb)
                 objdb->object_create(cluster_parent_handle, &object_handle,
                                             "cman", strlen("cman"));
         }
-	sprintf(tmp, "%d", cluster_id);
+	snprintf(tmp, sizeof(tmp) - 1, "%d", cluster_id);
 	objdb->object_key_create_typed(object_handle, "cluster_id",
 				       tmp, strlen(tmp)+1, OBJDB_VALUETYPE_STRING);
 
-	sprintf(tmp, "%d", expected_votes);
+	snprintf(tmp, sizeof(tmp) - 1, "%d", expected_votes);
 	objdb->object_key_create_typed(object_handle, "expected_votes",
 				       tmp, strlen(tmp)+1, OBJDB_VALUETYPE_STRING);
 
@@ -1329,7 +1370,7 @@ static int copy_config_tree(struct objdb_iface_ver0 *objdb, hdb_handle_t source_
 	/* Create sub-objects */
 	res = objdb->object_find_create(source_object, NULL, 0, &find_handle);
 	if (res) {
-		sprintf(error_reason, "error resetting object iterator for object %ud: %d\n", (unsigned int)source_object, res);
+		snprintf(error_reason, sizeof(error_reason) - 1, "error resetting object iterator for object %ud: %d\n", (unsigned int)source_object, res);
 		return -1;
 	}
 
@@ -1370,13 +1411,13 @@ static int get_cman_globals(struct objdb_iface_ver0 *objdb)
 
 	objdb_get_string(objdb, cluster_parent_handle, "name", &cluster_name);
 	if (!cluster_name) {
-		sprintf(error_reason, "Unable to determine cluster name.\n");
+		snprintf(error_reason, sizeof(error_reason) - 1, "Unable to determine cluster name.\n");
 		write_cman_pipe("Unable to determine cluster name.\n");
 		return -1;
 	}
 
 	if (strlen(cluster_name) > 15) {
-		sprintf(error_reason, "%s\n", "Invalid cluster name. It must be 15 characters or fewer\n");
+		snprintf(error_reason, sizeof(error_reason) - 1, "Invalid cluster name. It must be 15 characters or fewer\n\n");
 		write_cman_pipe("Invalid cluster name. It must be 15 characters or fewer\n");
 		return -1;
 	}
@@ -1402,7 +1443,7 @@ static int get_cman_globals(struct objdb_iface_ver0 *objdb)
 		    else
 		        cluster_id = generate_cluster_id(cluster_name);
 
-		    sprintf(error_reason, "Generated cluster id for '%s' is %d\n", cluster_name, cluster_id);
+		    snprintf(error_reason, sizeof(error_reason) - 1, "Generated cluster id for '%s' is %d\n", cluster_name, cluster_id);
 		}
 	}
 	objdb->object_find_destroy(find_handle);
@@ -1420,7 +1461,7 @@ static int cmanpre_reloadconfig(struct objdb_iface_ver0 *objdb, int flush, const
 
 	/* don't reload if we've been told to run configless */
 	if (getenv("CMAN_NOCONFIG")) {
-		sprintf(error_reason, "Config not updated because we were run with cman_tool -X");
+		snprintf(error_reason, sizeof(error_reason) - 1, "Config not updated because we were run with cman_tool -X");
 		ret = 0;
 		goto err;
 	}
@@ -1429,12 +1470,12 @@ static int cmanpre_reloadconfig(struct objdb_iface_ver0 *objdb, int flush, const
 	objdb->object_find_create(OBJECT_PARENT_HANDLE, "cluster", strlen("cluster"), &find_handle);
 	objdb->object_find_next(find_handle, &cluster_parent_handle);
 	if (!cluster_parent_handle) {
-		sprintf (error_reason, "%s", "Cannot find old /cluster/ key in configuration\n");
+		snprintf (error_reason, sizeof(error_reason) - 1, "Cannot find old /cluster/ key in configuration\n");
 		goto err;
 	}
 	objdb->object_find_next(find_handle, &cluster_parent_handle_new);
 	if (!cluster_parent_handle_new) {
-		sprintf (error_reason, "%s", "Cannot find new /cluster/ key in configuration\n");
+		snprintf (error_reason, sizeof(error_reason) - 1, "Cannot find new /cluster/ key in configuration\n");
 		goto err;
 	}
 	objdb->object_find_destroy(find_handle);
@@ -1444,7 +1485,7 @@ static int cmanpre_reloadconfig(struct objdb_iface_ver0 *objdb, int flush, const
 			config_version = atoi(config_value);
 		} else {
 			/* it should never ever happen.. */
-			sprintf (error_reason, "%s", "Cannot find old /cluster/config_version key in configuration\n");
+			snprintf (error_reason, sizeof(error_reason) - 1, "Cannot find old /cluster/config_version key in configuration\n");
 			goto err;
 		}
 	}
@@ -1456,14 +1497,14 @@ static int cmanpre_reloadconfig(struct objdb_iface_ver0 *objdb, int flush, const
 			config_version_new = atoi(config_value);
 		} else {
 			objdb->object_destroy(cluster_parent_handle_new);
-			sprintf (error_reason, "%s", "Cannot find new /cluster/config_version key in configuration\n");
+			snprintf (error_reason, sizeof(error_reason) - 1,"Cannot find new /cluster/config_version key in configuration\n");
 			goto err;
 		}
 	}
 
 	if (config_version_new <= config_version) {
 		objdb->object_destroy(cluster_parent_handle_new);
-		sprintf (error_reason, "%s", "New configuration version has to be newer than current running configuration\n");
+		snprintf (error_reason, sizeof(error_reason) - 1, "New configuration version has to be newer than current running configuration\n");
 		goto err;
 	}
 
@@ -1657,11 +1698,11 @@ static int cmanpre_readconfig(struct objdb_iface_ver0 *objdb, const char **error
 
 
 	if (!ret) {
-		sprintf (error_reason, "%s", "Successfully parsed cman config\n");
+		snprintf(error_reason, sizeof(error_reason) - 1, "Successfully parsed cman config\n");
 	}
 	else {
 		if (error_reason[0] == '\0')
-			sprintf (error_reason, "%s", "Error parsing cman config\n");
+			snprintf(error_reason, sizeof(error_reason) - 1, "Error parsing cman config\n");
 	}
         *error_string = error_reason;
 
