@@ -224,7 +224,7 @@ static int lsdev(struct devlisthead *devlisthead, const char *path)
 
 				if (dev_is_block(&sb, newpath))
 					if (!add_lsdev_block
-					    (devlisthead, &sb, newpath) < 0)
+					    (devlisthead, &sb, newpath))
 						return -2;
 			}
 		}
