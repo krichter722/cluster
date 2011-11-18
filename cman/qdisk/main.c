@@ -150,6 +150,7 @@ check_self(qd_ctx *ctx, status_block_t *sb)
 	default:
 		logt_print(LOG_EMERG, "Unhandled state: %d\n", sb->ps_state);
 		raise(SIGSTOP);
+		break;
 	}
 }
 
