@@ -48,11 +48,12 @@ check_pid_valid(pid_t pid, char *prog)
 	char dirpath[PATH_MAX];
 	char proc_cmdline[64];	/* yank this from kernel somewhere */
 	char *s = NULL;
+	size_t proc_cmdline_len = 0;
 
 	memset(filename, 0, PATH_MAX);
 	memset(dirpath, 0, PATH_MAX);
 
-	snprintf(dirpath, sizeof (dirpath), "/proc/%d", pid);
+	snprintf(dirpath, sizeof (dirpath) - 1, "/proc/%d", pid);
 	if ((dir = opendir(dirpath)) == NULL) {
 		closedir(dir);
 		return 0;	/* Pid has gone away. */
@@ -63,7 +64,7 @@ check_pid_valid(pid_t pid, char *prog)
 	 * proc-pid directory exists.  Now check to see if this
 	 * PID corresponds to the daemon we want to start.
 	 */
-	snprintf(filename, sizeof (filename), "/proc/%d/cmdline", pid);
+	snprintf(filename, sizeof (filename) - 1, "/proc/%d/cmdline", pid);
 	fp = fopen(filename, "r");
 	if (fp == NULL) {
 		perror("check_pid_valid");
@@ -83,9 +84,12 @@ check_pid_valid(pid_t pid, char *prog)
 	}
 	fclose(fp);
 
-	s = &(proc_cmdline[strlen(proc_cmdline)]);
-	if (*s == '\n')
-		*s = 0;
+	proc_cmdline_len = strlen(proc_cmdline);
+	if (proc_cmdline_len) {
+		s = &(proc_cmdline[proc_cmdline_len]);
+		if (*s == '\n')
+			*s = 0;
+	}
 
 	/*
 	 * Check to see if this is the same executable.
