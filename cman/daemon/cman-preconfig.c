@@ -865,8 +865,8 @@ out:
 static void add_logging_overrides(struct objdb_iface_ver0 *objdb)
 {
 	char *logstr;
-	char *logfacility;
-	char *loglevel;
+	const char *logfacility;
+	const char *loglevel;
 	hdb_handle_t object_handle;
 	hdb_handle_t find_handle;
 
@@ -880,7 +880,11 @@ static void add_logging_overrides(struct objdb_iface_ver0 *objdb)
 	objdb->object_find_destroy(find_handle);
 
 	logfacility = facility_name_get(SYSLOGFACILITY);
+	if (!logfacility)
+		logfacility = "LOG_LOCAL4";
 	loglevel = priority_name_get(SYSLOGLEVEL);
+	if (!loglevel)
+		loglevel = "LOG_INFO";
 
 	/* enable timestamps on logging */
 	if (objdb_get_string(objdb, object_handle, "timestamp", &logstr)) {
