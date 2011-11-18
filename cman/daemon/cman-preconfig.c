@@ -305,6 +305,10 @@ static int add_ifaddr(struct objdb_iface_ver0 *objdb, char *mcast, char *ifaddr,
 		return -1;
 	}
 
+	memset(&mcast_addr, 0, sizeof(mcast_addr));
+	memset(&localhost, 0, sizeof(localhost));
+	memset(&if_addr, 0, sizeof(if_addr));
+
 	/* Check the families match */
 	if (address_family(mcast, &mcast_addr, 0) !=
 	    address_family(ifaddr, &if_addr, mcast_addr.ss_family)) {
