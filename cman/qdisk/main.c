@@ -1995,6 +1995,11 @@ main(int argc, char **argv)
 		case 'Q':
 			/* Make qdisk very quiet */
 			nfd = open("/dev/null", O_RDWR);
+			if (nfd < 0) {
+				fprintf(stderr, "Could not open /dev/null!\n");
+				ret = -1;
+				goto out;
+			}
 			close(0);
 			close(1);
 			close(2);
