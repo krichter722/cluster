@@ -136,7 +136,7 @@ static void lockfile(void)
 		exit(EXIT_FAILURE);
 	}
 
-	sprintf(buf, "%d\n", getpid());
+	snprintf(buf, sizeof(buf) - 1, "%d\n", getpid());
 
 	error = write(fd, buf, strlen(buf));
 	if (error <= 0) {
@@ -182,7 +182,7 @@ static void init_logging(int reconf)
 	int logfile_priority = SYSLOGLEVEL;
 
 	memset(logfile, 0, PATH_MAX);
-	sprintf(logfile, LOGDIR "/cmannotifyd.log");
+	snprintf(logfile, sizeof(logfile) - 1, LOGDIR "/cmannotifyd.log");
 
 	ccs_handle = ccs_connect();
 	if (ccs_handle > 0) {
