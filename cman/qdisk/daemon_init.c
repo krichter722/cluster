@@ -54,10 +54,9 @@ check_pid_valid(pid_t pid, char *prog)
 	memset(dirpath, 0, PATH_MAX);
 
 	snprintf(dirpath, sizeof (dirpath) - 1, "/proc/%d", pid);
-	if ((dir = opendir(dirpath)) == NULL) {
-		closedir(dir);
-		return 0;	/* Pid has gone away. */
-	}
+	dir = opendir(dirpath);
+	if (!dir)
+		return 0; /* Pid has gone away. */
 	closedir(dir);
 
 	/*
