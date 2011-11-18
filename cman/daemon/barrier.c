@@ -256,7 +256,7 @@ static int barrier_setattr_enabled(struct cl_barrier *barrier,
 	int status;
 
 	/* Can't disable a barrier */
-	if (!arg) {
+	if ((!barrier) || (!arg)) {
 		return -EINVAL;
 	}
 
@@ -285,7 +285,7 @@ static int barrier_setattr_enabled(struct cl_barrier *barrier,
 			return status;
 		}
 	}
-	if (barrier && barrier->state == BARRIER_STATE_COMPLETE) {
+	if (barrier->state == BARRIER_STATE_COMPLETE) {
 		return barrier->endreason;
 	}
 	return 0;	/* Nothing to propogate */
