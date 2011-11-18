@@ -270,13 +270,12 @@ static struct cluster_node *add_new_node(char *name, int nodeid, int votes, int 
 			newnode->incarnation = incarnation;
 	}
 	if (!newnode->name) {
-		newnode->name = malloc(strlen(name)+1);
+		newnode->name = strdup(name);
 		if (!newnode->name) {
 			if (newalloc)
 				free(newnode);
 			return NULL;
 		}
-		strcpy(newnode->name, name);
 	}
 
 	if (!newnode->node_id) /* Don't clobber existing nodeid */
