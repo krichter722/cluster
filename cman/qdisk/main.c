@@ -146,9 +146,11 @@ check_self(qd_ctx *ctx, status_block_t *sb)
 	case S_EVICT:
 		/* Someone told us to die. */
 		reboot(RB_AUTOBOOT);
+		break;
 	default:
 		logt_print(LOG_EMERG, "Unhandled state: %d\n", sb->ps_state);
 		raise(SIGSTOP);
+		break;
 	}
 }
 
