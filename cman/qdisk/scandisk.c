@@ -252,11 +252,12 @@ static int scanprocpart(struct devlisthead *devlisthead)
 	unsigned long long blkcnt;
 	char device[128];
 	struct devnode *startnode;
+
 	fp = fopen("/proc/partitions", "r");
 	if (!fp)
 		return 0;
-	while (fgets(line, sizeof(line), fp)
-	       != NULL) {
+
+	while (fgets(line, sizeof(line) - 1, fp) != NULL) {
 
 		if (strlen(line) > 128 + (22))
 			continue;
@@ -270,16 +271,19 @@ static int scanprocpart(struct devlisthead *devlisthead)
 		 */
 		if (!strlen(device))
 			continue;
+
 		startnode =
 		    find_dev_by_majmin(devlisthead->devnode, major, minor);
 		if (!startnode) {
 			startnode = alloc_list_obj(devlisthead, major, minor);
-			if (!startnode)
+			if (!startnode) {
+				fclose(fp);
 				return -2;
+			}
 		}
 
 		startnode->procpart = 1;
-		strcpy(startnode->procname, device);
+		strncpy(startnode->procname, device, sizeof(startnode->procname) - 1);
 	}
 
 	fclose(fp);
