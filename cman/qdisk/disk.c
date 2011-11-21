@@ -629,7 +629,8 @@ qdisk_write(target_info_t *disk, __off64_t offset, const void *buf, int count)
 	shared_header_t *hdrp;
 	void *ptr;
 	char *data;
-	size_t total = 0, rv = -1, psz = disk->d_blksz; //sysconf(_SC_PAGESIZE);
+	size_t total = 0, psz = disk->d_blksz; //sysconf(_SC_PAGESIZE);
+	int rv = -1;
 
 	maxsize = psz - (sizeof(shared_header_t));
 	if (count >= (maxsize + sizeof(shared_header_t))) {
@@ -678,7 +679,7 @@ qdisk_write(target_info_t *disk, __off64_t offset, const void *buf, int count)
 
 	if (rv == -1)
 		logt_print(LOG_ERR, "diskRawWriteShadow");
-	
+
 	free((char *)hdrp);
 	if (rv == -1)
 		return -1;
