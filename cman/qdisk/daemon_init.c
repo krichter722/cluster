@@ -113,6 +113,11 @@ check_process_running(char *prog, pid_t * pid)
 
 	*pid = -1;
 
+	if (!prog) {
+		errno = EINVAL;
+		return -1;
+	}
+
 	/*
 	 * Now see if there is a pidfile associated with this cmd in /var/run
 	 */
@@ -120,7 +125,10 @@ check_process_running(char *prog, pid_t * pid)
 	memset(filename, 0, PATH_MAX);
 
 	cmd = basename(prog);
-	snprintf(filename, sizeof (filename), "/var/run/%s.pid", cmd);
+	if (!cmd)
+		return -1;
+
+	snprintf(filename, sizeof (filename) - 1, "/var/run/%s.pid", cmd);
 
 	ret = stat(filename, &st);
 	if ((ret < 0) || (!st.st_size))
@@ -130,9 +138,8 @@ check_process_running(char *prog, pid_t * pid)
 	 * Read the pid from the file.
 	 */
 	fp = fopen(filename, "r");
-	if (fp == NULL) {	/* error */
+	if (fp == NULL)		/* error */
 		return 0;
-	}
 
 	ret = fscanf(fp, "%d\n", &oldpid);
 	fclose(fp);
@@ -144,6 +151,7 @@ check_process_running(char *prog, pid_t * pid)
 		*pid = oldpid;
 		return 1;
 	}
+
 	return 0;
 }
 
@@ -200,22 +208,12 @@ setup_sigmask(void)
 void
 daemon_init(char *prog)
 {
-	uid_t uid;
-	pid_t pid;
-
-	uid = getuid();
-	if (uid) {
+	if (getuid()) {
 		logt_print(LOG_ERR,
 			"daemon_init: Sorry, only root wants to run this.\n");
 		exit(1);
 	}
 
-	if (check_process_running(prog, &pid) && (pid != getpid())) {
-		logt_print(LOG_ERR,
-			"daemon_init: Process \"%s\" already running.\n",
-			prog);
-		exit(1);
-	}
 	if (setup_sigmask() < 0) {
 		logt_print(LOG_ERR, "daemon_init: Unable to set signal mask.\n");
 		exit(1);
@@ -225,7 +223,6 @@ daemon_init(char *prog)
 		logt_print(LOG_ERR, "daemon_init: Unable to daemonize.\n");
 		exit(1);
 	}
-
 
 	update_pidfile(prog);
 }

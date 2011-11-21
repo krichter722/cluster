@@ -1980,7 +1980,14 @@ main(int argc, char **argv)
 	quorum_header_t qh;
 	qd_priv_t qp;
 
-	if (check_process_running(argv[0], &pid) && pid !=getpid()) {
+
+	rv = check_process_running(argv[0], &pid);
+	if (rv < 0) {
+		fprintf(stderr, "Unable to determin if %s is already running: %s\n",
+			argv[0], strerror(errno));
+		return -1;
+	}
+	if (rv && pid !=getpid()) {
 		printf("QDisk services already running\n");
 		return 0;
 	}
