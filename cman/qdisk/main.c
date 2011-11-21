@@ -73,6 +73,7 @@ static void update_local_status(qd_ctx *ctx, node_info_t *ni, int max, int score
 static int get_config_data(qd_ctx *ctx, struct h_data *h, int maxh, int *cfh);
 static int cman_wait(cman_handle_t ch, struct timeval *_tv);
 
+static int fake_cfh = 0;
 
 static void
 int_handler(int sig)
@@ -934,7 +935,7 @@ process_cman_event(cman_handle_t handle, void *private, int reason, int arg)
 		_cman_shutdown = 1;
 		break;
 	case CMAN_REASON_CONFIG_UPDATE:
-		get_config_data(ctx, NULL, 0, NULL);
+		get_config_data(ctx, NULL, 0, &fake_cfh);
 		break;
 	case CMAN_REASON_PORTCLOSED:
 		break;
@@ -978,7 +979,7 @@ quorum_loop(qd_ctx *ctx, node_info_t *ni, int max)
 	_running = 1;
 	while (_running) {
 		if (_reconfig) {
-			get_config_data(ctx, NULL, 0, NULL);
+			get_config_data(ctx, NULL, 0, &fake_cfh);
 			_reconfig = 0;
 		}
 
