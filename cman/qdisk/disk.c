@@ -605,6 +605,7 @@ qdisk_read(target_info_t *disk, __off64_t offset, void *bufin, int count)
 	rv = diskRawReadShadow(disk, offset, (char *)hdrp, disk->d_blksz);
 	
 	if (rv == -1) {
+		free(hdrp);
 		return -1;
 	}
 	
