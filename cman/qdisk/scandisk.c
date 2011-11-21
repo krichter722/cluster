@@ -311,7 +311,7 @@ static int scanmdstat(struct devlisthead *devlisthead)
 	if (!fp)
 		return 0;
 
-	while (fgets(line, sizeof(line), fp) != NULL) {
+	while (fgets(line, sizeof(line) - 1, fp) != NULL) {
 
 		/* i like things to be absolutely clean */
 		memset(device, 0, sizeof(device));
@@ -321,7 +321,7 @@ static int scanmdstat(struct devlisthead *devlisthead)
 		memset(firstdevice, 0, sizeof(firstdevice));
 		memset(devices, 0, sizeof(devices));
 
-		if (strlen(line) > sizeof(line))
+		if (strlen(line) >= sizeof(line))
 			continue;
 
 		/* we only parse stuff that starts with ^md
@@ -347,8 +347,15 @@ static int scanmdstat(struct devlisthead *devlisthead)
 
 		/* trunkate the string from sdaX[Y] to sdaX and
 		 * copy the whole device string over */
-		memset(strstr(firstdevice, "["), 0, 1);
-		strcpy(devices, strstr(line, firstdevice));
+		tmp = strstr(firstdevice, "[");
+		if (!tmp)
+			continue;
+		memset(tmp, 0, 1);
+
+		tmp = strstr(line, firstdevice);
+		if (!tmp)
+			continue;
+		strncpy(devices, tmp, sizeof(devices) - 1);
 
 		/* if we don't find any slave (for whatever reason)
 		 * keep going */
@@ -357,8 +364,11 @@ static int scanmdstat(struct devlisthead *devlisthead)
 
 		tmp = devices;
 		while ((tmp) && ((next = strstr(tmp, " ")) || strlen(tmp))) {
+			char *tmp2;
 
-			memset(strstr(tmp, "["), 0, 1);
+			tmp2 = strstr(tmp, "[");
+			if (tmp2)
+				memset(tmp2, 0, 1);
 
 			startnode =
 			    find_dev_by_path(devlisthead->devnode, tmp, 1);
