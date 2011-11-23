@@ -757,19 +757,10 @@ qdisk_init(char *partname, char *label)
 
 	time(&t);
 
+	memset(&ps, 0, sizeof(status_block_t));
+
 	ps.ps_magic = STATE_MAGIC_NUMBER;
-	ps.ps_updatenode = 0;
-	ps.pad0 = 0;
 	ps.ps_timestamp = (uint64_t)t;
-	ps.ps_state = (uint8_t)S_NONE;
-	ps.pad1[0] = 0;
-	ps.ps_flags = 0;
-	ps.ps_score = 0;
-	ps.ps_scoremax = 0;
-	ps.ps_ca_sec = 0;
-	ps.ps_ca_usec = 0;
-	ps.ps_lc_sec = 0;
-	ps.ps_ca_usec = 0;
 
 	/* Node IDs 1..N */
 	for (nid = 1; nid <= MAX_NODES_DISK; nid++) {
