@@ -642,7 +642,7 @@ static int sysfs_is_disk(char *path)
 static int scansysfs(struct devlisthead *devlisthead, const char *path, int level, int parent_holder)
 {
 	struct devnode *startnode;
-	int i, n, maj, min, has_holder;
+	int i, n, maj = -1, min = -1, has_holder;
 	struct dirent **namelist;
 	struct stat sb;
 	char newpath[MAXPATHLEN];
