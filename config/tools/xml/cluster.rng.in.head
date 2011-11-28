@@ -785,31 +785,10 @@ To validate your cluster.conf against this schema, run:
         dlm_controld(8)"/>
    </optional>
 
-   <optional>
-    <element name="altname" rha:description="Defines a second network
-        interface to use for corosync redundant ring mode. cman(5)">
-
-     <attribute name="name" rha:description="A second hostname or IP
-        address of the node. cman(5)"/>
-
-     <optional>
-      <attribute name="port" rha:description="The network port to use
-          on the second interface. cman(5)"/>
-     </optional>
-
-     <optional>
-      <attribute name="mcast" rha:description="The multicast address
-          to use on the second interface. cman(5)"/>
-     </optional>
-
-     <optional>
-      <attribute name="ttl" rha:description="The multicast TTL 
-          to use on the second interface. cman(5)"/>
-     </optional>
-    </element>
-   </optional>
-
    <interleave>
+    <optional>
+     <ref name="ALTNAME"/>
+    </optional>
     <optional>
      <ref name="FENCE"/>
     </optional>
@@ -1033,6 +1012,34 @@ To validate your cluster.conf against this schema, run:
 
 </element> <!-- cluster end -->
 </start>
+
+<!-- begin node altname definitions -->
+
+ <define name="ALTNAME">
+    <element name="altname" rha:description="Defines a second network
+        interface to use for corosync redundant ring mode. cman(5)">
+
+     <attribute name="name" rha:description="A second hostname or IP
+        address of the node. cman(5)"/>
+
+     <optional>
+      <attribute name="port" rha:description="The network port to use
+          on the second interface. cman(5)"/>
+     </optional>
+
+     <optional>
+      <attribute name="mcast" rha:description="The multicast address
+          to use on the second interface. cman(5)"/>
+     </optional>
+
+     <optional>
+      <attribute name="ttl" rha:description="The multicast TTL 
+          to use on the second interface. cman(5)"/>
+     </optional>
+    </element>
+ </define>
+
+<!-- end node altname definitions -->
 
 <!-- begin node fence definitions -->
 
