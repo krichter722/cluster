@@ -101,6 +101,7 @@ filter_fence_list() {
 		[ "${i}" = "$fasdir/fence_legacy" ] && continue
 		[ "${i}" = "$fasdir/fence_node" ] && continue
 		[ "${i}" = "$fasdir/fence_nss_wrapper" ] && continue
+		[ "${i}" = "$fasdir/fence_pcmk" ] && continue
 		[ "${i}" = "$fasdir/fence_tool" ] && continue
 		[ "${i}" = "$fasdir/fence_vmware_helper" ] && continue
 		echo "$i"
