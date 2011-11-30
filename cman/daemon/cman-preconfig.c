@@ -50,14 +50,19 @@ static char nodename[MAX_CLUSTER_MEMBER_NAME_LEN];
 static int nodeid;
 static int two_node;
 static unsigned int disable_openais;
-static unsigned int portnum;
 static int num_nodenames;
 static char *key_filename=NULL;
-static char *mcast_name;
 static char *cluster_name;
 static char error_reason[1024] = { '\0' };
 static hdb_handle_t cluster_parent_handle;
 static int use_hashed_cluster_id = 0;
+static unsigned int portnum = 0;
+static unsigned int altportnum = 0;
+static char *mcast_name = NULL;
+static char *altmcast_name = NULL;
+static unsigned int ttl = 1;
+static unsigned int altttl = 1;
+
 
 /*
  * Exports the interface for the service
@@ -279,7 +284,7 @@ static int add_udpu_members(struct objdb_iface_ver0 *objdb, hdb_handle_t interfa
 #define PRIMARY_IFACE	0
 #define ALT_IFACE	1
 
-static int add_ifaddr(struct objdb_iface_ver0 *objdb, char *mcast, char *ifaddr, int port, int ttl, int altiface, enum tx_mech transport)
+static int add_ifaddr(struct objdb_iface_ver0 *objdb, char *mcast, char *ifaddr, int port, int intttl, int altiface, enum tx_mech transport)
 {
 	hdb_handle_t totem_object_handle;
 	hdb_handle_t find_handle;
@@ -294,6 +299,11 @@ static int add_ifaddr(struct objdb_iface_ver0 *objdb, char *mcast, char *ifaddr,
 		[TX_MECH_UDPU] = "udpu",
 		[TX_MECH_RDMA] = "iba",
 	};
+
+	if (num_interfaces >= 2) {
+		snprintf(error_reason, sizeof(error_reason) - 1, "Configuration of more than 2 rings is not supported");
+		return -1;
+	}
 
 	/* Check the families match */
 	if (address_family(mcast, &mcast_addr, 0) !=
@@ -364,14 +374,14 @@ static int add_ifaddr(struct objdb_iface_ver0 *objdb, char *mcast, char *ifaddr,
 					       tmp, strlen(tmp)+1, OBJDB_VALUETYPE_STRING);
 
 		/* paranoia check. corosync already does it */
-		if ((ttl < 0) || (ttl > 255)) {
-			sprintf(error_reason, "TTL value (%u) out of range (0 - 255)", ttl);
+		if ((intttl < 0) || (intttl > 255)) {
+			sprintf(error_reason, "TTL value (%u) out of range (0 - 255)", intttl);
 			return -1;
 		}
 
 		/* add the key to the objdb only if value is not default */
-		if (ttl != 1) {
-			sprintf(tmp, "%d", ttl);
+		if (intttl != 1) {
+			sprintf(tmp, "%d", intttl);
 			objdb->object_key_create_typed(interface_object_handle, "ttl",
 						       tmp, strlen(tmp)+1, OBJDB_VALUETYPE_STRING);
 		}
@@ -418,11 +428,11 @@ static char *default_mcast(char *node, int altiface)
 
 	if (family == AF_INET) {
 		snprintf(addr, sizeof(addr), "239.192.%d.%d", clusterid >> 8, clusterid % 0xFF);
-		return addr;
+		return strdup(addr);
 	}
 	if (family == AF_INET6) {
 		snprintf(addr, sizeof(addr), "ff15::%x", clusterid);
-		return addr;
+		return strdup(addr);
 	}
 
 	return NULL;
@@ -568,6 +578,11 @@ static int get_env_overrides(void)
 		portnum = atoi(getenv("CMAN_IP_PORT"));
 	}
 
+	/* optional alternate port */
+	if (getenv("CMAN_IP_ALTPORT")) {
+		altportnum = atoi(getenv("CMAN_IP_ALTPORT"));
+	}
+
 	/* optional security key filename */
 	if (getenv("CMAN_KEYFILE")) {
 		key_filename = strdup(getenv("CMAN_KEYFILE"));
@@ -591,6 +606,10 @@ static int get_env_overrides(void)
 		mcast_name = getenv("CMAN_MCAST_ADDR");
 	}
 
+	if (getenv("CMAN_ALTMCAST_ADDR")) {
+		altmcast_name = getenv("CMAN_ALTMCAST_ADDR");
+	}
+
 	if (getenv("CMAN_2NODE")) {
 		two_node = 1;
 		expected_votes = 1;
@@ -612,11 +631,15 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 	hdb_handle_t object_handle;
 	hdb_handle_t find_handle;
 	hdb_handle_t node_object_handle;
+	hdb_handle_t mcast_handle;
 	hdb_handle_t alt_object;
 	enum tx_mech transport = TX_MECH_UDP;
 	char *str;
 	int error;
-	unsigned int ttl = 1;
+	unsigned int mcast_portnum = DEFAULT_PORT;
+	unsigned int altmcast_portnum = DEFAULT_PORT;
+	char *altmcast_name_tmp = NULL;
+	int broadcast = 0;
 
 	if (!getenv("CMAN_NOCONFIG")) {
 		/* our nodename */
@@ -665,7 +688,7 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 	}
 
 	/* Add <cman> bits to pass down to the main module*/
-	if ( (node_object_handle = nodelist_byname(objdb, cluster_parent_handle, nodename))) {
+	if ((node_object_handle = nodelist_byname(objdb, cluster_parent_handle, nodename))) {
 		if (objdb_get_string(objdb, node_object_handle, "nodeid", &nodeid_str)) {
 			sprintf(error_reason, "This node has no nodeid in cluster.conf");
 			write_cman_pipe("This node has no nodeid in cluster.conf");
@@ -674,85 +697,103 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 	}
 
 	objdb->object_find_create(cluster_parent_handle, "cman", strlen("cman"), &find_handle);
-
-	if (objdb->object_find_next(find_handle, &object_handle) == 0) {
-
-		hdb_handle_t mcast_handle;
-		hdb_handle_t find_handle2;
-
-		if (!mcast_name) {
-
-			objdb->object_find_create(object_handle, "multicast", strlen("multicast"), &find_handle2);
-			if (objdb->object_find_next(find_handle2, &mcast_handle) == 0) {
-
-				objdb_get_string(objdb, mcast_handle, "addr", &mcast_name);
-				objdb_get_int(objdb, mcast_handle, "ttl", &ttl, ttl);
-			}
-			objdb->object_find_destroy(find_handle2);
-		}
-
-		if (!mcast_name) {
-			mcast_name = default_mcast(nodename, PRIMARY_IFACE);
-
-		}
-		if (!mcast_name)
-			return -1;
-
-		/* See if the user wants our default set of openais services (default=yes) */
-		objdb_get_int(objdb, object_handle, "disable_openais", &disable_openais, 0);
-
-		objdb->object_key_create_typed(object_handle, "nodename",
-					       nodename, strlen(nodename)+1, OBJDB_VALUETYPE_STRING);
+	if (objdb->object_find_next(find_handle, &object_handle)) {
+		sprintf(error_reason, "Unable to find cman in config db");
+		write_cman_pipe(error_reason);
+		return -1;
 	}
 	objdb->object_find_destroy(find_handle);
-
-	nodeid = atoi(nodeid_str);
-	error = 0;
-
-	/* optional port */
-	if (!portnum) {
-		objdb_get_int(objdb, object_handle, "port", &portnum, DEFAULT_PORT);
-	}
 
 	/* Check for broadcast */
 	if (!objdb_get_string(objdb, object_handle, "broadcast", &str)) {
 		if (strcmp(str, "yes") == 0) {
-			mcast_name = strdup("255.255.255.255");
-			if (!mcast_name)
-				return -1;
+			broadcast = 1;
 			transport = TX_MECH_UDPB;
 		}
 	}
 
 	/* Check for transport */
 	if (!objdb_get_string(objdb, object_handle, "transport", &str)) {
-		if (strcmp(str, "udp") == 0) {
-			if (transport != TX_MECH_UDPB) {
-				transport = TX_MECH_UDP;
-			}
-		} else if (strcmp(str, "udpb") == 0) {
-			transport = TX_MECH_UDPB;
-		} else if (strcmp(str, "udpu") == 0) {
-			if (transport != TX_MECH_UDPB) {
-				transport = TX_MECH_UDPU;
-			} else {
-				sprintf(error_reason, "Transport and broadcast option are mutually exclusive");
-				write_cman_pipe("Transport and broadcast option are mutually exclusive");
-				return -1;
-			}
-		} else if (strcmp(str, "rdma") == 0) {
-			if (transport != TX_MECH_UDPB) {
-				transport = TX_MECH_RDMA;
-			} else {
-				sprintf(error_reason, "Transport and broadcast option are mutually exclusive");
-				write_cman_pipe("Transport and broadcast option are mutually exclusive");
-				return -1;
-			}
-		} else {
-			sprintf(error_reason, "Transport option value can be one of udp, udpb, udpu, rdma");
-			write_cman_pipe("Transport option value can be one of udp, udpb, udpu, rdma");
+		if ((broadcast) && (strcmp(str, "udpb"))) {
+			sprintf(error_reason, "Transport and broadcast option are mutually exclusive");
+			write_cman_pipe(error_reason);
 			return -1;
 		}
+		if (strcmp(str, "udp") == 0) {
+			transport = TX_MECH_UDP;
+		} else if (strcmp(str, "udpb") == 0) {
+			broadcast = 1;
+			transport = TX_MECH_UDPB;
+		} else if (strcmp(str, "udpu") == 0) {
+			transport = TX_MECH_UDPU;
+		} else if (strcmp(str, "rdma") == 0) {
+			transport = TX_MECH_RDMA;
+		} else {
+			sprintf(error_reason, "Transport option value can be one of udp, udpb, udpu, rdma");
+			write_cman_pipe(error_reason);
+			return -1;
+		}
+	}
+
+	if (broadcast) {
+		mcast_name = strdup("255.255.255.255");
+		if (!mcast_name) {
+			sprintf(error_reason, "Unable to set mcast_name");
+			write_cman_pipe(error_reason);
+			return -1; 
+		}
+		altmcast_name = strdup("255.255.255.255");
+		if (!altmcast_name) {
+			sprintf(error_reason, "Unable to set altmcast_name");
+			write_cman_pipe(error_reason);
+			return -1;
+		}
+		altmcast_portnum = DEFAULT_PORT + 2;
+	}
+
+	objdb->object_find_create(object_handle, "multicast", strlen("multicast"), &find_handle);
+	if (objdb->object_find_next(find_handle, &mcast_handle) == 0) {
+		if (!mcast_name)
+			objdb_get_string(objdb, mcast_handle, "addr", &mcast_name);
+		objdb_get_int(objdb, mcast_handle, "ttl", &ttl, ttl);
+		objdb_get_int(objdb, mcast_handle, "port", &mcast_portnum, DEFAULT_PORT);
+	}
+	objdb->object_find_destroy(find_handle);
+
+	if (!mcast_name) {
+		mcast_name = default_mcast(nodename, PRIMARY_IFACE);
+	}
+
+	if (!mcast_name) {
+		sprintf(error_reason, "Unable to set mcast_name");
+		write_cman_pipe(error_reason);
+		return -1;
+	}
+
+	objdb->object_find_create(object_handle, "altmulticast", strlen("altmulticast"), &find_handle);
+	if (objdb->object_find_next(find_handle, &mcast_handle) == 0) {
+		objdb_get_string(objdb, mcast_handle, "addr", &altmcast_name_tmp);
+		objdb_get_int(objdb, mcast_handle, "ttl", &altttl, ttl);
+		if (!broadcast) {
+			objdb_get_int(objdb, mcast_handle, "port", &altmcast_portnum, DEFAULT_PORT);
+		} else {
+			objdb_get_int(objdb, mcast_handle, "port", &altmcast_portnum, DEFAULT_PORT + 2);
+		}
+	}
+	objdb->object_find_destroy(find_handle);
+
+	/* See if the user wants our default set of openais services (default=yes) */
+	objdb_get_int(objdb, object_handle, "disable_openais", &disable_openais, 0);
+
+	objdb->object_key_create_typed(object_handle, "nodename",
+				       nodename, strlen(nodename)+1, OBJDB_VALUETYPE_STRING);
+
+	nodeid = atoi(nodeid_str);
+	error = 0;
+
+	/* optional port */
+	if (!portnum) {
+		objdb_get_int(objdb, object_handle, "port", &portnum, mcast_portnum);
 	}
 
 	if (add_ifaddr(objdb, mcast_name, nodename, portnum, ttl,
@@ -765,24 +806,43 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 	num_nodenames = 1;
 	objdb->object_find_create(node_object_handle,"altname", strlen("altname"), &find_handle);
 	while (objdb->object_find_next(find_handle, &alt_object) == 0) {
-		unsigned int port;
-		unsigned int altttl = 1;
 		char *node;
-		char *mcast;
 
 		if (objdb_get_string(objdb, alt_object, "name", &node)) {
 			continue;
 		}
 
-		objdb_get_int(objdb, alt_object, "port", &port, portnum);
+		objdb_get_int(objdb, alt_object, "port", &altportnum, altmcast_portnum);
 
-		objdb_get_int(objdb, alt_object, "ttl", &altttl, ttl);
+		objdb_get_int(objdb, alt_object, "ttl", &altttl, altttl);
 
-		if (objdb_get_string(objdb, alt_object, "mcast", &mcast)) {
-			mcast = default_mcast(nodename, ALT_IFACE);
+		if (!altmcast_name) {
+			if (objdb_get_string(objdb, alt_object, "mcast", &altmcast_name)) {
+				if (altmcast_name_tmp) {
+					altmcast_name = altmcast_name_tmp;
+				} else {
+					altmcast_name = default_mcast(nodename, ALT_IFACE);
+				}
+			}
 		}
 
-		if (add_ifaddr(objdb, mcast, node, portnum, altttl,
+		if (!altmcast_name) {
+			sprintf(error_reason, "Unable to determine alternate multicast name");
+			write_cman_pipe(error_reason);
+			return -1;
+		}
+
+		if (!strcmp(altmcast_name, mcast_name) &&
+		    ((altportnum == portnum) || (altportnum == portnum - 1) || (portnum == altportnum - 1))) {
+			sprintf(error_reason, "Alternate communication channel (mcast: %s ports: %d,%d) cannot use\n"
+					      "same address and ports of primary channel (mcast: %s ports: %d,%d)",
+					      altmcast_name, altportnum, altportnum - 1,
+					      mcast_name, portnum, portnum - 1);
+			write_cman_pipe(error_reason);
+			return -1;
+		}
+
+		if (add_ifaddr(objdb, altmcast_name, node, altportnum, altttl,
 			       ALT_IFACE, transport)) {
 			write_cman_pipe(error_reason);
 			return -1;
@@ -1310,9 +1370,6 @@ static int get_cman_globals(struct objdb_iface_ver0 *objdb)
 	/* Get the <cman> bits that override <totem> bits */
 	objdb->object_find_create(cluster_parent_handle, "cman", strlen("cman"), &find_handle);
 	if (objdb->object_find_next(find_handle, &object_handle) == 0) {
-		if (!portnum)
-			objdb_get_int(objdb, object_handle, "port", &portnum, DEFAULT_PORT);
-
 		if (!key_filename)
 			objdb_get_string(objdb, object_handle, "keyfile", &key_filename);
 
