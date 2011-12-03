@@ -254,13 +254,14 @@ sub kernel_version {
     }
     close MAKEFILE;
     # Warn and continue if kernel version was not found
-    if (!$build_version || !$build_patchlevel || !$build_sublevel) {
+    if (not defined $build_version || not defined $build_patchlevel || not defined $build_sublevel) {
 	print " WARNING: Could not determine kernel version.\n";
 	print "          Build might fail!\n";
 	return 1;
     }
     # checking VERSION, PATCHLEVEL and SUBLEVEL for the supplied kernel
-    if ($build_version >= $version[0] &&
+    if (($build_version > $version[0]) ||
+        $build_version == $version[0] &&
         $build_patchlevel >= $version[1] &&
         $build_sublevel >= $version[2]) {
       print " Current kernel version appears to be OK\n";
