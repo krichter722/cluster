@@ -465,6 +465,10 @@ res_exec(resource_node_t *node, int op, const char *arg, int depth)
 
 		ret = WEXITSTATUS(ret);
 
+		if (node->rn_state == RES_STOPPED &&
+		    op == RS_STOP && ret == OCF_RA_NOT_INSTALLED)
+			ret = 0;
+
 #ifndef NO_CCS
 		if ((op == RS_STATUS &&
 		     node->rn_state == RES_STARTED && ret) ||
@@ -1467,7 +1471,8 @@ _res_op_internal(resource_node_t __attribute__ ((unused)) **tree,
 		}
 		node->rn_flags &= ~(RF_NEEDSTART | RF_RECONFIG);
 		if (rv != 0) {
-			node->rn_state = RES_FAILED;
+			if (rv != OCF_RA_NOT_INSTALLED)
+				node->rn_state = RES_FAILED;
 			pthread_mutex_unlock(&node->rn_resource->r_mutex);
 			return SFL_FAILURE;
 		}
