@@ -193,7 +193,7 @@ poll_cluster_messages(int timeout)
 
 		if (cman_dispatch(ch, 0) < 0) {
 			process_cman_event(ch, NULL,
-					   CMAN_REASON_TRY_SHUTDOWN, 0);
+					   CMAN_REASON_TRY_SHUTDOWN, 1);
 		}
 		ret = 0;
 	}
@@ -985,6 +985,11 @@ process_cman_event(cman_handle_t handle, void *private, int reason, int arg)
 #if 0
 	printf("EVENT: %p %p %d %d\n", handle, private, reason, arg);
 #endif
+
+	if (reason == CMAN_REASON_TRY_SHUTDOWN && !arg) {
+		cman_replyto_shutdown(handle, 0);
+		return;
+	}
 
 	/* Allocate queue node */
 	while ((node = malloc(sizeof(*node))) == NULL) {
