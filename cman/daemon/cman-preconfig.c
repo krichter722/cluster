@@ -702,7 +702,7 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 
 	objdb->object_find_create(cluster_parent_handle, "cman", strlen("cman"), &find_handle);
 	if (objdb->object_find_next(find_handle, &object_handle)) {
-		sprintf(error_reason, "Unable to find cman in config db");
+		snprintf(error_reason, sizeof(error_reason) - 1, "Unable to find cman in config db");
 		write_cman_pipe(error_reason);
 		return -1;
 	}
@@ -719,7 +719,7 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 	/* Check for transport */
 	if (!objdb_get_string(objdb, object_handle, "transport", &str)) {
 		if ((broadcast) && (strcmp(str, "udpb"))) {
-			sprintf(error_reason, "Transport and broadcast option are mutually exclusive");
+			snprintf(error_reason, sizeof(error_reason) - 1, "Transport and broadcast option are mutually exclusive");
 			write_cman_pipe(error_reason);
 			return -1;
 		}
@@ -733,7 +733,7 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 		} else if (strcmp(str, "rdma") == 0) {
 			transport = TX_MECH_RDMA;
 		} else {
-			sprintf(error_reason, "Transport option value can be one of udp, udpb, udpu, rdma");
+			snprintf(error_reason, sizeof(error_reason) - 1, "Transport option value can be one of udp, udpb, udpu, rdma");
 			write_cman_pipe(error_reason);
 			return -1;
 		}
@@ -742,13 +742,13 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 	if (broadcast) {
 		mcast_name = strdup("255.255.255.255");
 		if (!mcast_name) {
-			sprintf(error_reason, "Unable to set mcast_name");
+			snprintf(error_reason, sizeof(error_reason) - 1, "Unable to set mcast_name");
 			write_cman_pipe(error_reason);
 			return -1; 
 		}
 		altmcast_name = strdup("255.255.255.255");
 		if (!altmcast_name) {
-			sprintf(error_reason, "Unable to set altmcast_name");
+			snprintf(error_reason, sizeof(error_reason) - 1, "Unable to set altmcast_name");
 			write_cman_pipe(error_reason);
 			return -1;
 		}
@@ -769,7 +769,7 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 	}
 
 	if (!mcast_name) {
-		sprintf(error_reason, "Unable to set mcast_name");
+		snprintf(error_reason, sizeof(error_reason) - 1, "Unable to set mcast_name");
 		write_cman_pipe(error_reason);
 		return -1;
 	}
@@ -878,14 +878,14 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 		}
 
 		if (!altmcast_name) {
-			sprintf(error_reason, "Unable to determine alternate multicast name");
+			snprintf(error_reason, sizeof(error_reason) - 1, "Unable to determine alternate multicast name");
 			write_cman_pipe(error_reason);
 			return -1;
 		}
 
 		if (!strcmp(altmcast_name, mcast_name) &&
 		    ((altportnum == portnum) || (altportnum == portnum - 1) || (portnum == altportnum - 1))) {
-			sprintf(error_reason, "Alternate communication channel (mcast: %s ports: %d,%d) cannot use\n"
+			snprintf(error_reason, sizeof(error_reason) - 1, "Alternate communication channel (mcast: %s ports: %d,%d) cannot use\n"
 					      "same address and ports of primary channel (mcast: %s ports: %d,%d)",
 					      altmcast_name, altportnum, altportnum - 1,
 					      mcast_name, portnum, portnum - 1);
