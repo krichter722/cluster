@@ -294,7 +294,7 @@ static cman_handle_t open_socket(const char *name, int namelen, void *privdata)
 		return NULL;
 	}
 
-	fcntl(h->fd, F_SETFD, 1); /* Set close-on-exec */
+	fcntl(h->fd, F_SETFD, FD_CLOEXEC); /* Set close-on-exec */
 	memset(&sockaddr, 0, sizeof(sockaddr));
 	memcpy(sockaddr.sun_path, name, namelen);
 	sockaddr.sun_family = AF_UNIX;
@@ -319,7 +319,7 @@ static cman_handle_t open_socket(const char *name, int namelen, void *privdata)
 		h = NULL;
 		errno = saved_errno;
 	} else
-		fcntl(h->zero_fd, F_SETFD, 1); /* Set close-on-exec */
+		fcntl(h->zero_fd, F_SETFD, FD_CLOEXEC); /* Set close-on-exec */
 
 	return (cman_handle_t)h;
 }
