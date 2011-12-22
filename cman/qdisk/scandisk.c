@@ -257,7 +257,7 @@ static int scanprocpart(struct devlisthead *devlisthead)
 	if (!fp)
 		return 0;
 
-	while (fgets(line, sizeof(line) - 1, fp) != NULL) {
+	while (fgets(line, sizeof(line), fp) != NULL) {
 
 		if (strlen(line) > 128 + (22))
 			continue;
@@ -315,7 +315,7 @@ static int scanmdstat(struct devlisthead *devlisthead)
 	if (!fp)
 		return 0;
 
-	while (fgets(line, sizeof(line) - 1, fp) != NULL) {
+	while (fgets(line, sizeof(line), fp) != NULL) {
 
 		/* i like things to be absolutely clean */
 		memset(device, 0, sizeof(device));

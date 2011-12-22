@@ -70,7 +70,7 @@ check_pid_valid(pid_t pid, char *prog)
 		return 0;	/* Who cares.... Let's boogy on. */
 	}
 
-	if (!fgets(proc_cmdline, sizeof (proc_cmdline) - 1, fp)) {
+	if (!fgets(proc_cmdline, sizeof (proc_cmdline), fp)) {
 		/*
 		 * Okay, we've seen processes keep a reference to a
 		 * /proc/PID/stat file and not let go.  Then when
