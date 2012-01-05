@@ -209,7 +209,8 @@ get_service_state_internal(const char *svcName, rg_state_t *svcStatus)
 		service_status(servicename)
 
 For extra information (flags, transition time)
-   (transition_time, flags, rte, restarts, owner, state) = 
+   (transition_time, flags, rte, restarts, last_owner, 
+    owner, state) = 
                 service_status(servicename, 1);
  */
 static void
@@ -273,7 +274,7 @@ sl_service_status(void)
 			     (char *)"%s: Failed to get status for %s",
 			     __FUNCTION__,
 			     svcName);
-		return;
+		goto out_free;
 	}
 
 	if (extra) {
@@ -285,7 +286,7 @@ sl_service_status(void)
 				     (char *)"%s: Failed to push mtime %s",
 				     __FUNCTION__,
 				     svcName);
-			return;
+			goto out_free;
 		}
 
 		flags = (int)svcStatus.rs_flags;
@@ -294,7 +295,7 @@ sl_service_status(void)
 				     (char *)"%s: Failed to push flags %s",
 				     __FUNCTION__,
 				     svcName);
-			return;
+			goto out_free;
 		}
 	}
 
@@ -304,7 +305,7 @@ sl_service_status(void)
 			     (char *)"%s: Failed to push restarts_exceeded %s",
 			     __FUNCTION__,
 			     svcName);
-		return;
+		goto out_free;
 	}
 
 	if (SLang_push_integer(svcStatus.rs_restarts) < 0) {
@@ -312,7 +313,7 @@ sl_service_status(void)
 			     (char *)"%s: Failed to push restarts for %s",
 			     __FUNCTION__,
 			     svcName);
-		return;
+		goto out_free;
 	}
 
 	if (SLang_push_integer(svcStatus.rs_last_owner) < 0) {
@@ -320,7 +321,7 @@ sl_service_status(void)
 			     (char *)"%s: Failed to push last owner of %s",
 			     __FUNCTION__,
 			     svcName);
-		return;
+		goto out_free;
 	}
 
 	switch(svcStatus.rs_state) {
@@ -338,7 +339,7 @@ sl_service_status(void)
 			     (char *)"%s: Failed to push owner of %s",
 			     __FUNCTION__,
 			     svcName);
-		return;
+		goto out_free;
 	}
 
 	if (svcStatus.rs_flags & RG_FLAG_FROZEN) {
@@ -354,7 +355,7 @@ sl_service_status(void)
 			     (char *)"%s: Failed to duplicate state of %s",
 			     __FUNCTION__,
 			     svcName);
-		return;
+		goto out_free;
 	}
 
 	if (SLang_push_malloced_string(state_str) < 0) {
@@ -364,6 +365,10 @@ sl_service_status(void)
 			     svcName);
 		free(state_str);
 	}
+
+out_free:
+	if (svcName)
+		free(svcName);
 }
 
 
