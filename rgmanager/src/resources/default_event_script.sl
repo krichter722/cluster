@@ -520,7 +520,7 @@ define default_service_event_handler()
 			continue;
 		}
 
-		(d_trans,,,, owner, state) = service_status(services[x], 1);
+		(d_trans,,,,, owner, state) = service_status(services[x], 1);
 		if ((service_state == "started") and (owner < 0) and
 		    (state == "stopped")) {
 			info("Dependency met; starting ", services[x]);
@@ -538,9 +538,12 @@ define default_service_event_handler()
 			% as above is running and the dependent service was
 			% started at or after the service, then stopping it
 			% will result in unwanted service outage.
-			(s_trans,,,, s_state) = service_status(service_name);
+			(s_trans,,,,,, s_state) = service_status(service_name, 1);
 			if ((s_state == "started") and (state == "started") and
 			    (d_trans >= s_trans)) {
+				%debug("S:", service_name, " trans ", s_trans);
+				%debug("D:", services[x], " trans ", d_trans);
+
 				debug("Skipping ", services[x],
 				      "; restart not needed");
 				continue;
