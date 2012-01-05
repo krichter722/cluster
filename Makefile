@@ -1,5 +1,6 @@
 include make/defines.mk
 
+
 REALSUBDIRS = common config cman dlm fence/libfenced group \
 	      fence rgmanager bindings doc contrib
 
