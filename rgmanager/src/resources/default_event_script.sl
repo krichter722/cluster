@@ -464,6 +464,8 @@ define default_service_event_handler()
 	variable tmp;
 	variable owner;
 	variable state;
+	variable d_trans, s_trans;
+	variable s_state;
 
 	debug("Executing default service event handler");
 
@@ -518,17 +520,32 @@ define default_service_event_handler()
 			continue;
 		}
 
-		(,,, owner, state) = service_status(services[x]);
+		(d_trans,,,, owner, state) = service_status(services[x], 1);
 		if ((service_state == "started") and (owner < 0) and
 		    (state == "stopped")) {
 			info("Dependency met; starting ", services[x]);
 			nodes = allowed_nodes(services[x]);
 			()=move_or_start(services[x], nodes);
+			continue;
 		}
 
 		% service died - stop service(s) that depend on the dead
 		if ((service_owner < 0) and (owner >= 0) and
 		    (depend_mode != "soft")) {
+
+			% grab the -current- state of the service here
+			% If the service is running, and its dependent service
+			% as above is running and the dependent service was
+			% started at or after the service, then stopping it
+			% will result in unwanted service outage.
+			(s_trans,,,, s_state) = service_status(service_name);
+			if ((s_state == "started") and (state == "started") and
+			    (d_trans >= s_trans)) {
+				debug("Skipping ", services[x],
+				      "; restart not needed");
+				continue;
+			}
+
 			info("Dependency lost; stopping ", services[x]);
 			()=service_stop(services[x]);
 		}
