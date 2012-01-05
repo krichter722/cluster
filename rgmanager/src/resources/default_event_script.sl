@@ -176,7 +176,9 @@ define move_or_start(service, node_list)
 	depends = service_property(service, "depend");
 	if (depends != "") {
 		(,,, owner, state) = service_status(depends);
-		if (owner < 0) {
+		if ((owner < 0) or
+                    ((event_type == EVENT_NODE) and (owner == node_id) and
+		     (node_state == 0))) {
 			debug(service, " is not runnable; dependency not met");
 			()=service_stop(service);
 			return ERR_DEPEND;
