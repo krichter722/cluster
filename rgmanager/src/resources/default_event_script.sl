@@ -176,9 +176,7 @@ define move_or_start(service, node_list)
 	depends = service_property(service, "depend");
 	if (depends != "") {
 		(,,, owner, state) = service_status(depends);
-		if ((owner < 0) or
-                    ((event_type == EVENT_NODE) and (owner == node_id) and
-		     (node_state == 0))) {
+		if (owner < 0) {
 			debug(service, " is not runnable; dependency not met");
 			()=service_stop(service);
 			return ERR_DEPEND;
@@ -543,8 +541,8 @@ define default_service_event_handler()
 			(s_trans,,,,,, s_state) = service_status(service_name, 1);
 			if ((s_state == "started") and (state == "started") and
 			    (d_trans >= s_trans)) {
-				debug("S:", service_name, " trans ", s_trans);
-				debug("D:", services[x], " trans ", d_trans);
+				%debug("S:", service_name, " trans ", s_trans);
+				%debug("D:", services[x], " trans ", d_trans);
 
 				debug("Skipping ", services[x],
 				      "; restart not needed");
