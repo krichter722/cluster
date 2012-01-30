@@ -20,7 +20,7 @@ cluster
 - rm
 - clvmd
 
-Element defnitions:
+Element definitions:
 - Resource
 - Fence
 
