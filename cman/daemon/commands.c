@@ -1331,19 +1331,21 @@ static void ccsd_timer_fn(void *arg)
 static void quorum_device_timer_fn(void *arg)
 {
 	struct timeval now;
+	unsigned long long timediff_us;
 	if (!quorum_device || quorum_device->state == NODESTATE_DEAD)
 		return;
 
 	log_printf(LOGSYS_LEVEL_DEBUG, "memb: quorum_device_timer_fn\n");
 	gettimeofday(&now, NULL);
-	if (quorum_device->last_hello.tv_sec + quorumdev_poll/1000 < now.tv_sec) {
+	timediff_us=((now.tv_sec - quorum_device->last_hello.tv_sec)*1000000 + (now.tv_usec - quorum_device->last_hello.tv_usec));
+	if (timediff_us >= quorumdev_poll*1000) {
 		quorum_device->state = NODESTATE_DEAD;
 		log_printf(LOG_INFO, "lost contact with quorum device\n");
 		recalculate_quorum(0, 0);
 	}
 	else {
-		corosync->timer_add_duration((unsigned long long)quorumdev_poll*1000000, quorum_device,
-					   quorum_device_timer_fn, &quorum_device_timer);
+		corosync->timer_add_duration(1000*(quorumdev_poll*1000 - timediff_us),
+			quorum_device, quorum_device_timer_fn, &quorum_device_timer); 	
 	}
 }
 
