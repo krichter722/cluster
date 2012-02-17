@@ -68,6 +68,7 @@
 #define CLUSTER_PORT_SERVICES    2
 #define CLUSTER_PORT_SYSMAN      10	/* Remote execution daemon */
 #define CLUSTER_PORT_CLVMD       11	/* Cluster LVM daemon */
+#define CLUSTER_PORT_QDISKD      178	/* Quorum disk daemon */
 
 /* Port numbers above this will be blocked when the cluster is inquorate or in
  * transition */

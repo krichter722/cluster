@@ -25,6 +25,7 @@
 #include <liblogthread.h>
 #include "score.h"
 #include "../daemon/cman.h"
+#include "../daemon/cnxman-socket.h"
 #include <sys/syslog.h>
 
 #define LOG_DAEMON_NAME  "qdiskd"
@@ -2063,7 +2064,7 @@ main(int argc, char **argv)
 		goto out;
 	}
 
-	if (cman_start_recv_data(ch_user, qdisk_whine, 178) != 0) {
+	if (cman_start_recv_data(ch_user, qdisk_whine, CLUSTER_PORT_QDISKD) != 0) {
 		logt_print(LOG_CRIT, "Could not register with CMAN: %s\n",
 			   strerror(errno));
 		goto out;
