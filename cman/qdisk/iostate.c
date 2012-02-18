@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include "platform.h"
 #include "iostate.h"
+#include "../daemon/cnxman-socket.h"
 
 static iostate_t main_state = 0;
 static int main_incarnation = 0;
@@ -104,7 +105,7 @@ io_nanny_thread(void *arg)
 		/* Whine on CMAN api */
 		whine_state = (int32_t)current_main_state;
 		swab32(whine_state);
-		cman_send_data(ch, &whine_state, sizeof(int32_t), 0, 178, 0);
+		cman_send_data(ch, &whine_state, sizeof(int32_t), 0, CLUSTER_PORT_QDISKD , 0);
 
 		/* Don't log things twice */
 		if (logged_incarnation == current_main_incarnation)
