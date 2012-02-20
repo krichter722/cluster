@@ -806,47 +806,6 @@ static int get_nodename(struct objdb_iface_ver0 *objdb)
 		objdb_get_int(objdb, object_handle, "port", &portnum, mcast_portnum);
 	}
 
-	/* Check for broadcast */
-	if (!objdb_get_string(objdb, object_handle, "broadcast", &str)) {
-		if (strcmp(str, "yes") == 0) {
-			mcast_name = strdup("255.255.255.255");
-			if (!mcast_name)
-				return -1;
-			transport = TX_MECH_UDPB;
-		}
-	}
-
-	/* Check for transport */
-	if (!objdb_get_string(objdb, object_handle, "transport", &str)) {
-		if (strcmp(str, "udp") == 0) {
-			if (transport != TX_MECH_UDPB) {
-				transport = TX_MECH_UDP;
-			}
-		} else if (strcmp(str, "udpb") == 0) {
-			transport = TX_MECH_UDPB;
-		} else if (strcmp(str, "udpu") == 0) {
-			if (transport != TX_MECH_UDPB) {
-				transport = TX_MECH_UDPU;
-			} else {
-				snprintf(error_reason, sizeof(error_reason) - 1, "Transport and broadcast option are mutually exclusive");
-				write_cman_pipe("Transport and broadcast option are mutually exclusive");
-				return -1;
-			}
-		} else if (strcmp(str, "rdma") == 0) {
-			if (transport != TX_MECH_UDPB) {
-				transport = TX_MECH_RDMA;
-			} else {
-				snprintf(error_reason, sizeof(error_reason) - 1, "Transport and broadcast option are mutually exclusive");
-				write_cman_pipe("Transport and broadcast option are mutually exclusive");
-				return -1;
-			}
-		} else {
-			snprintf(error_reason, sizeof(error_reason) - 1, "Transport option value can be one of udp, udpb, udpu, rdma");
-			write_cman_pipe("Transport option value can be one of udp, udpb, udpu, rdma");
-			return -1;
-		}
-	}
-
 	if (add_ifaddr(objdb, mcast_name, nodename, portnum, ttl,
 		       PRIMARY_IFACE, transport)) {
 		write_cman_pipe(error_reason);
