@@ -6,7 +6,7 @@
 % Author:       Marc Grimme, Mark Hlawatschek, October 2008
 % Support:      support@atix.de
 % License:      GNU General Public License (GPL), version 2 or later
-% Copyright:    (c) 2008-2010 ATIX AG
+% Copyright:    (c) 2008-2012 ATIX AG
 
 
 debug("*** follow-service.sl");
@@ -21,7 +21,13 @@ define nodelist_online(service_name) {
    
    (nofailback, restricted, ordered, node_list) = service_domain_info(service_name);
    
-   return intersection(nodes, node_list);
+   if ((node_list == NULL) or (node_list == 0)) {
+      debug("service ",service_name, " has no failover domain. Taking all available nodes: ", nodes);
+      return nodes;
+   } else {
+      debug("service ",service_name, " has a failover domain. Taking intersection with available nodes: ", nodes, " => ", node_list);
+      return intersection(nodes, node_list);
+   }
 }
 
 %
