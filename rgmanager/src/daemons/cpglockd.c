@@ -176,7 +176,7 @@ old_msg(struct cpg_lock_msg *m)
 	n = do_alloc(sizeof(*n));
 	memcpy(&n->m, m, sizeof(n->m));
 	list_append(&messages, n);
-	if (message_count < 10) {
+	if (message_count < 20) {
 		++message_count;
 	} else {
 		n = messages;
@@ -781,8 +781,8 @@ process_unlock(struct cpg_lock_msg *m, uint32_t nodeid)
 		    l->l.owner_pid == m->owner_pid) {
 			printf("UNLOCK %s: %d:%d:%d\n", m->resource, m->owner_nodeid, m->owner_pid, m->owner_tid);
 			l->l.state = LOCK_FREE;
-			if (grant_next(m) != 0)
-				l->l.state = LOCK_PENDING;
+			//if (grant_next(m) != 0)
+				//l->l.state = LOCK_PENDING;
 		}
 	}
 
@@ -1055,11 +1055,8 @@ main(int argc, char **argv)
 	int afd = -1;
 	int n,x;
 
-	struct cpg_lock l;
 	struct cpg_lock_msg m;
 	struct client_node *client;
-
-	l.state = 0;
 
 	signal(SIGPIPE, SIG_IGN);
 
