@@ -12,7 +12,7 @@ include $(OBJDIR)/make/uninstall.mk
 OBJS1=	logging.o daemon_init.o signals.o msgsimple.o \
 	gettid.o rg_strings.o message.o members.o fdops.o \
 	lock.o cman.o vft.o msg_cluster.o msg_socket.o \
-	wrap_lock.o sets.o
+	wrap_lock.o sets.o sock.o libcpglock.o dlm_lock.o cpg_lock.o
 
 OBJS2= msgtest.o
 

@@ -1,11 +1,12 @@
 TARGET1= rgmanager
 TARGET2= rg_test
 TARGET3= clurgmgrd
+TARGET4= cpglockd
 
-SBINDIRT=$(TARGET1) $(TARGET2)
+SBINDIRT=$(TARGET1) $(TARGET2) $(TARGET4)
 SBINSYMT=$(TARGET3)
 
-all: depends ${TARGET1} ${TARGET2} ${TARGET3}
+all: depends ${TARGET1} ${TARGET2} ${TARGET3} $(TARGET4)
 
 include ../../../make/defines.mk
 include $(OBJDIR)/make/cobj.mk
@@ -41,6 +42,8 @@ OBJS2=	test-noccs.o \
 	rg_locks-noccs.o \
 	event_config-noccs.o
 
+OBJS4=  cpglockd.o
+
 CFLAGS += -DSHAREDIR=\"${sharedir}\" -D_GNU_SOURCE
 CFLAGS += -fPIC
 CFLAGS += -I${ccsincdir} -I${cmanincdir} -I${dlmincdir} -I${logtincdir}
@@ -57,6 +60,7 @@ CCS_LDFLAGS += -L${ccslibdir} -lccs
 CMAN_LDFLAGS += -L${cmanlibdir} -lcman
 LOGSYS_LDFLAGS += -L${logtlibdir} -llogthread
 DLM_LDFLAGS += -L${dlmlibdir} -ldlm
+CPG_LDFLAGS += -lcpg
 XML2_LDFLAGS += `xml2-config --libs`
 SLANG_LDFLAGS += -L${slanglibdir} -lslang
 EXTRA_LDFLAGS += -lpthread
@@ -95,6 +99,10 @@ ${TARGET2}: ${OBJS2} ${LDDEPS}
 
 ${TARGET3}: ${TARGET1}
 	ln -sf ${TARGET1} ${TARGET3}
+
+${TARGET4}: ${OBJS4} ${LDDEPS}
+	$(CC) -o $@ $^ $(CPG_LDFLAGS) $(EXTRA_LDFLAGS) $(LDFLAGS)
+
 
 check: rg_test
 	cd tests && ./runtests.sh

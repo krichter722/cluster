@@ -987,14 +987,14 @@ int
 main(int argc, char **argv)
 {
 	int rv, do_init = 1;
-	char foreground = 0, wd = 1;
+	char foreground = 0, wd = 1, cpg_locks = 0;
 	cman_node_t me;
 	msgctx_t *cluster_ctx;
 	msgctx_t *local_ctx;
 	pthread_t th;
 	cman_handle_t clu = NULL;
 
-	while ((rv = getopt(argc, argv, "wfdNq")) != EOF) {
+	while ((rv = getopt(argc, argv, "wfdNqC")) != EOF) {
 		switch (rv) {
 		case 'w':
 			wd = 0;
@@ -1010,6 +1010,9 @@ main(int argc, char **argv)
 			break;
 		case 'q':
 			rgm_dbus_notify = 0;
+			break;
+		case 'C':
+			cpg_locks = 1;
 			break;
 		default:
 			return 1;
@@ -1057,10 +1060,19 @@ main(int argc, char **argv)
 		return -1;
 	}
 
-	if (clu_lock_init(rgmanager_lsname) != 0) {
-		printf("Locks not working!\n");
-		cman_finish(clu);
-		return -1;
+	if (!cpg_locks) {
+		if (clu_lock_init(rgmanager_lsname) != 0) {
+			printf("Locks not working!\n");
+			cman_finish(clu);
+			return -1;
+		}
+	} else {
+		if (cpg_lock_initialize() != 0) {
+			printf("Locks not working!\n");
+			cman_finish(clu);
+			return -1;
+		}
+		logt_print(LOG_INFO, "Using CPG for locking (EXPERIMENTAL)\n");
 	}
 
 	memset(&me, 0, sizeof(me));

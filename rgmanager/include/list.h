@@ -36,6 +36,7 @@ do { \
 	*list = newnode; \
 } while (0)
 
+#define list_append list_insert 
 
 #define list_remove(list, oldnode) \
 do { \
