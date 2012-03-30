@@ -255,6 +255,15 @@ To validate your cluster.conf against this schema, run:
       calculated from retransmits_before_loss and token." rha:default="4"
       rha:sample="5"/>
    </optional>
+   <optional>
+    <attribute name="miss_count_const"
+      rha:description="This constant defines the maximum number of times
+      on receipt of a token a message is checked for retransmission before
+      retransmission occurs. This parameter is useful to modify for switches
+      that delay multicast packets compared to unicast packets.
+      The default setting works well for nearly all modern switches."
+      rha:default="5" rha:sample="10"/>
+   </optional>
    <!-- FIXME: The following description was adapted from the man page.
    It may be tool long for the schema document. Consider cutting text
    after the second sentence and referring the reader to the openais.conf
