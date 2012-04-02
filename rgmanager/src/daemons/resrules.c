@@ -556,9 +556,10 @@ store_childtype(resource_child_t **childp, char *name, int start,
 
 
 /**
-   Print a resource_t structure to stdout
+   Print a resource_t structure to specified stream
 
    @param rr		Resource rule to print.
+   @param fp		Destination stream.
  */
 void
 print_resource_rule(FILE *fp, resource_rule_t *rr)
