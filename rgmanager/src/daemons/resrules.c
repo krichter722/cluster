@@ -711,27 +711,19 @@ static int
 _get_rule_attrs(xmlDocPtr doc, xmlXPathContextPtr ctx, char *base,
 		resource_rule_t *rr)
 {
-	char *ret, *attrname, *dflt = NULL, xpath[256];
+	char *ret, *attrname, xpath[256];
 	int x, flags, primary_found = 0;
 
 	for (x = 1; 1; x++) {
 		snprintf(xpath, sizeof(xpath), "%s/parameter[%d]/@name",
  			 base, x);
 
-		ret = xpath_get_one(doc,ctx,xpath);
-		if (!ret)
+		attrname = xpath_get_one(doc,ctx,xpath);
+		if (!attrname)
 			break;
 
 		flags = 0;
-		attrname = ret;
 		
-		/*
-		   See if there's a default value.
-		 */
-		snprintf(xpath, sizeof(xpath),
-			 "%s/parameter[%d]/content/@default", base, x);
-		dflt = xpath_get_one(doc,ctx,xpath);
-
 		/*
 		   See if this is either the primary identifier or
 		   a required field.
@@ -761,6 +753,7 @@ _get_rule_attrs(xmlDocPtr doc, xmlXPathContextPtr ctx, char *base,
 			if ((atoi(ret) != 0) || (ret[0] == 'y')) {
 				if (primary_found) {
 					free(ret);
+					free(attrname);
 					printf("Multiple primary "
 					       "definitions for "
 					       "resource type %s\n",
@@ -786,7 +779,8 @@ _get_rule_attrs(xmlDocPtr doc, xmlXPathContextPtr ctx, char *base,
 		}
 
 		/*
-		   See if this is supposed to be inherited
+		   See if this is supposed to be inherited;
+		   inheritance supercedes a specified default value
 		 */
 		snprintf(xpath, sizeof(xpath), "%s/parameter[%d]/@inherit",
 			 base, x);
@@ -795,31 +789,32 @@ _get_rule_attrs(xmlDocPtr doc, xmlXPathContextPtr ctx, char *base,
 
 			if (flags & (RA_REQUIRED | RA_PRIMARY | RA_UNIQUE)) {
 				free(ret);
+				free(attrname);
 				printf("Can not inherit and be primary, "
 				       "unique, or required\n");
 				return -1;
 			}
-			/*
-			   don't free ret.  Store as attr value.  If we had
-			   a default value specified from above, free it;
-			   inheritance supercedes a specified default value.
-			 */
-			if (dflt)
-				free(dflt);
+
+			/* Don't free ret */
+
 		} else {
 			/*
 			   Use default value, if specified, as the attribute
 			   value.
 			 */
-			ret = dflt;
+			snprintf(xpath, sizeof(xpath),
+				 "%s/parameter[%d]/content/@default", base, x);
+			ret = xpath_get_one(doc,ctx,xpath);
 		}
 
 		/*
 		   Store the attribute.  We'll ensure all required
 		   attributes are present soon.
 		 */
-		if (attrname)
-			store_attribute(&rr->rr_attrs, attrname, ret, flags);
+		if (store_attribute(&rr->rr_attrs, attrname, ret, flags) != 0) {
+			free(attrname);
+			free(ret);
+		}
 	}
 
 	return 0;
