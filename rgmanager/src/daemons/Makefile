@@ -3,6 +3,7 @@ TARGET2= rg_test
 TARGET3= clurgmgrd
 TARGET4= cpglockd
 TARGET5= cpglockdump
+TARGET6= test-expand-time
 
 SBINDIRT=$(TARGET1) $(TARGET2) $(TARGET4) $(TARGET5)
 SBINSYMT=$(TARGET3)
@@ -46,6 +47,11 @@ OBJS2=	test-noccs.o \
 OBJS4=  cpglockd.o
 
 OBJS5=	cpglockdump.o
+
+OBJS6=	test-expand-time.o \
+	reslist.o \
+	resrules.o \
+	rg_locks.o
 
 CFLAGS += -DSHAREDIR=\"${sharedir}\" -D_GNU_SOURCE
 CFLAGS += -fPIC
@@ -93,7 +99,7 @@ ${TARGET1}: ${OBJS1} ${LDDEPS}
 #
 # The data in the 'tests' directory is hand-crafted; so running 'gentests.sh'
 # will require that the developer hand-verify the correctness of the
-# resulting output prior to committing back to CVS.
+# resulting output prior to committing back to VCS.
 #
 # This is NOT meant to be an installed binary.  Rather, RPMs and/or other
 # packages should run 'make check' as part of the build process.
@@ -111,6 +117,11 @@ ${TARGET4}: ${OBJS4} ${LDDEPS}
 
 ${TARGET5}: ${OBJS5} ${LDDEPS}
 	$(CC) -o $@ $^ $(CPG_LDFLAGS)
+
+# This is a test of a specific parsing function;  after top-level "configure",
+# compile it locally as "CFLAGS=-DNO_CCS make test-expand-time disable_dbus=1".
+${TARGET6}: ${OBJS6}
+	$(CC) -o $@ $^ $(XML2_LDFLAGS)
 
 check: rg_test
 	cd tests && ./runtests.sh

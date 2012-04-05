@@ -136,7 +136,7 @@ int res_condstart(resource_node_t **tree, resource_t *res, void *ret);
 int res_condstop(resource_node_t **tree, resource_t *res, void *ret);
 int res_exec(resource_node_t *node, int op, const char *arg, int depth);
 /*int res_resinfo(resource_node_t **tree, resource_t *res, void *ret);*/
-int expand_time(char *val);
+int expand_time(const char *val);
 int store_action(resource_act_t **actsp, char *name, int depth, int timeout, int interval);
 
 
