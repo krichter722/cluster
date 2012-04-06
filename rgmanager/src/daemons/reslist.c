@@ -70,7 +70,7 @@ _attr_value(resource_node_t *node, const char *attrname, const char *ptype)
 	resource_t *res;
 	resource_attr_t *ra;
 	char *c, p_type[32];
-	ssize_t len;
+	size_t len;
 	int x;
 
 	if (!node)
@@ -99,11 +99,13 @@ _attr_value(resource_node_t *node, const char *attrname, const char *ptype)
 		c = strchr(ra->ra_value, '%');
 		if (!c) {
 			/* Someone doesn't care or uses older
-			   semantics on inheritance */
+			   semantics of inheritance */
 			return _attr_value(node->rn_parent, ra->ra_value,
 					   NULL);
 		}
 		
+		/* Difference guaranteed to be non-negative
+		   (for x >= 0: &ra->ra_value[x] >= &ra->ra_value[0]) */
 		len = (c - ra->ra_value);
 		memset(p_type, 0, sizeof(p_type));
 		memcpy(p_type, ra->ra_value, len);
