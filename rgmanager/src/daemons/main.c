@@ -52,7 +52,7 @@ segfault(int __attribute__ ((unused)) sig)
 	char ow[64];
 	int err; // dumb error checking... will be replaced by logsys
 
-	snprintf(ow, sizeof(ow)-1, "PID %d Thread %d: SIGSEGV\n", getpid(),
+	snprintf(ow, sizeof(ow), "PID %d Thread %d: SIGSEGV\n", getpid(),
 		 gettid());
 	err = write(2, ow, strlen(ow));
 	while(1)

@@ -105,6 +105,7 @@ add_ocf_stuff(resource_t *res, char **env, int depth, int refcnt, int timeout)
 		strncpy(ver, OCF_API_VERSION, sizeof(ver)-1);
 	else 
 		strncpy(ver, res->r_rule->rr_version, sizeof(ver)-1);
+	ver[sizeof(ver)-1] = '\0';
 
 	minor = strchr(ver, '.');
 	if (minor) {

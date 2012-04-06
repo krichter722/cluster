@@ -1140,7 +1140,8 @@ _group_property(const char *groupname, const char *property,
 	for (; res->r_attrs[x].ra_name; x++) {
 		if (strcasecmp(res->r_attrs[x].ra_name, property))
 			continue;
-		strncpy(ret, res->r_attrs[x].ra_value, len);
+		strncpy(ret, res->r_attrs[x].ra_value, len-1);
+		ret[len-1] = '\0';
 		return 0;
 	}
 
@@ -1837,14 +1838,19 @@ get_recovery_policy(const char *rg_name, char *buf, size_t buflen)
 	resource_t *res;
 	const char *val;
 
+	assert(buflen >= 1);  /* and expect partial result if doesn't fit */
+
 	pthread_rwlock_rdlock(&resource_lock);
 
-	strncpy(buf, "restart", buflen);
+	strncpy(buf, "restart", buflen-1);
+	buf[buflen-1] = '\0';
+
 	res = find_root_by_ref(&_resources, rg_name);
 	if (res) {
 		val = res_attr_value(res, "recovery");
 		if (val) {
-			strncpy(buf, val, buflen);
+			strncpy(buf, val, buflen-1);
+			/* Already terminated */
 		}
 	}
 

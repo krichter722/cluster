@@ -179,7 +179,8 @@ resgroup_thread_main(void *arg)
 
 	rg_inc_threads();
 
-	strncpy(myname, arg, 256);
+	strncpy(myname, arg, sizeof(myname)-1);
+	myname[sizeof(myname)-1] = '\0';
 	dbg_printf("Thread %s (tid %d) starting\n",myname,gettid());
 
 	pthread_mutex_init(&my_queue_mutex, NULL);

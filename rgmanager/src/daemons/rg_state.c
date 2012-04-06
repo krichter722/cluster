@@ -207,8 +207,10 @@ set_rg_state(const char *name, rg_state_t *svcblk)
 	int ret, tries = 0;
 #endif
 
-	if (name)
-		strncpy(svcblk->rs_name, name, sizeof(svcblk->rs_name));
+	if (name) {
+		strncpy(svcblk->rs_name, name, sizeof(svcblk->rs_name)-1);
+		svcblk->rs_name[sizeof(svcblk->rs_name)-1] = '\0';
+	}
 
 	snprintf(res, sizeof(res), "rg=\"%s\"", name);
 
@@ -270,7 +272,8 @@ get_rg_state(const char *name, rg_state_t *svcblk)
 		return -1;
 	}
 
-	strncpy(svcblk->rs_name, name, sizeof(svcblk->rs_name));
+	strncpy(svcblk->rs_name, name, sizeof(svcblk->rs_name)-1);
+	svcblk->rs_name[sizeof(svcblk->rs_name)-1];
 
 	snprintf(res, sizeof(res),"rg=\"%s\"", svcblk->rs_name);
 
@@ -367,7 +370,8 @@ get_rg_state_local(const char *name, rg_state_t *svcblk)
 		errno = EINVAL;
 		return -1;
 	}
-	strncpy(svcblk->rs_name, name, sizeof(svcblk->rs_name));
+	strncpy(svcblk->rs_name, name, sizeof(svcblk->rs_name)-1);
+	svcblk->rs_name[sizeof(svcblk->rs_name)-1] = '\0';
 
 	snprintf(res, sizeof(res),"rg=\"%s\"", svcblk->rs_name);
 
