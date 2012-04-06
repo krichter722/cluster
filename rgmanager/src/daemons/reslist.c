@@ -626,10 +626,10 @@ print_resources(resource_t **resources)
 }
 
 
-void *
+resource_act_t *
 act_dup(resource_act_t *acts)
 {
-	int x;
+	size_t x;
 	resource_act_t *newacts;
 
 	for (x = 0; acts[x].ra_name; x++);
