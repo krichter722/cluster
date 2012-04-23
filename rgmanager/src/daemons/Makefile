@@ -2,11 +2,12 @@ TARGET1= rgmanager
 TARGET2= rg_test
 TARGET3= clurgmgrd
 TARGET4= cpglockd
+TARGET5= cpglockdump
 
-SBINDIRT=$(TARGET1) $(TARGET2) $(TARGET4)
+SBINDIRT=$(TARGET1) $(TARGET2) $(TARGET4) $(TARGET5)
 SBINSYMT=$(TARGET3)
 
-all: depends ${TARGET1} ${TARGET2} ${TARGET3} $(TARGET4)
+all: depends ${TARGET1} ${TARGET2} ${TARGET3} $(TARGET4) $(TARGET5)
 
 include ../../../make/defines.mk
 include $(OBJDIR)/make/cobj.mk
@@ -43,6 +44,8 @@ OBJS2=	test-noccs.o \
 	event_config-noccs.o
 
 OBJS4=  cpglockd.o
+
+OBJS5=	cpglockdump.o
 
 CFLAGS += -DSHAREDIR=\"${sharedir}\" -D_GNU_SOURCE
 CFLAGS += -fPIC
@@ -104,6 +107,9 @@ ${TARGET3}: ${TARGET1}
 ${TARGET4}: ${OBJS4} ${LDDEPS}
 	$(CC) -o $@ $^ $(CPG_LDFLAGS) $(CMAN_LDFLAGS) $(CCS_LDFLAGS) \
 			$(FENCED_LDFLAGS) $(EXTRA_LDFLAGS) $(LDFLAGS)
+
+${TARGET5}: ${OBJS5} ${LDDEPS}
+	$(CC) -o $@ $^ $(CPG_LDFLAGS)
 
 check: rg_test
 	cd tests && ./runtests.sh
