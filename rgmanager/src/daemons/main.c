@@ -1057,14 +1057,15 @@ int
 main(int argc, char **argv)
 {
 	int rv, do_init = 1;
-	char foreground = 0, wd = 1, cpg_locks = 0;
+	int cpg_locks = 0;
+	char foreground = 0, wd = 1, cpg_lock_opt = 0;
 	cman_node_t me;
 	msgctx_t *cluster_ctx;
 	msgctx_t *local_ctx;
 	pthread_t th;
 	cman_handle_t clu = NULL;
 
-	while ((rv = getopt(argc, argv, "wfdNqC")) != EOF) {
+	while ((rv = getopt(argc, argv, "wfdNqC::")) != EOF) {
 		switch (rv) {
 		case 'w':
 			wd = 0;
@@ -1082,7 +1083,22 @@ main(int argc, char **argv)
 			rgm_dbus_notify = 0;
 			break;
 		case 'C':
-			cpg_locks = 1;
+			if (optarg) {
+				if (!strcmp(optarg, "0")) {
+					/* force disable */
+					cpg_lock_opt = -1;
+				} else if (!strcmp(optarg, "1")) {
+					/* force enable */
+					cpg_lock_opt = 1;
+				} else {
+					fprintf(stderr,
+						"Unknown argument for -C: argument must be 1 or 0\n");
+					return -1;
+				}
+			} else {
+				/* auto handling: enable when RRP mode is enabled */
+				cpg_lock_opt = 0;
+			}
 			break;
 		default:
 			return 1;
@@ -1131,8 +1147,11 @@ main(int argc, char **argv)
 	}
 
 	xmlInitParser();
-	if (cpg_locks || cpglockd_needed() == 1)
+	if (cpg_lock_opt == 1 || (cpg_lock_opt != -1 && cpglockd_needed() == 1)) {
 		cpglockd_start();
+		cpg_locks = 1;
+	} else
+		cpg_locks = 0;
 
 	if (!cpg_locks) {
 		if (clu_lock_init(rgmanager_lsname) != 0) {
