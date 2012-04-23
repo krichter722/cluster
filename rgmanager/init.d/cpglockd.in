@@ -1,0 +1,142 @@
+#!/bin/bash
+#
+# chkconfig: - 99 01
+# description: Starts and stops the CPG lock daemon
+#
+#
+### BEGIN INIT INFO
+# Provides:		cpglockd
+# Required-Start:	cman
+# Required-Stop:	cman
+# Default-Start:
+# Default-Stop:
+# Short-Description:	Starts and stops the CPG lock daemon
+# Description:		Starts and stops the CPG lock daemon
+### END INIT INFO
+
+ID="CPG lock daemon"
+CPGLOCKD="cpglockd"
+
+# set secure PATH
+PATH="/sbin:/bin:/usr/sbin:/usr/bin:@SBINDIR@"
+
+success()
+{
+	echo -ne "[  OK  ]\r"
+}
+
+failure()
+{
+	echo -ne "[FAILED]\r"
+}
+
+status()
+{
+	pid=$(pidof $1 2>/dev/null)
+	statusrtrn=$?
+	if [ $statusrtrn -ne 0 ]; then
+		echo "$1 is stopped"
+	else
+		echo "$1 (pid $pid) is running..."
+	fi
+	return $statusrtrn
+}
+
+# rpm based distros
+if [ -d /etc/sysconfig ]; then
+	[ -f @INITDDIR@/functions ] && . @INITDDIR@/functions
+	[ -f /etc/sysconfig/cluster ] && . /etc/sysconfig/cluster
+	[ -f /etc/sysconfig/rgmanager ] && . /etc/sysconfig/rgmanager
+	[ -f /etc/sysconfig/cpglockd ] && . /etc/sysconfig/cpglockd
+	[ -z "$LOCK_FILE" ] && LOCK_FILE="/var/lock/subsys/cpglockd"
+fi
+
+# deb based distros
+if [ -d /etc/default ]; then
+	[ -f /etc/default/cluster ] && . /etc/default/cluster
+	[ -f /etc/default/rgmanager ] && . /etc/default/rgmanager
+	[ -f /etc/default/cpglockd ] && . /etc/default/cpglockd
+	[ -z "$LOCK_FILE" ] && LOCK_FILE="/var/lock/cpglockd"
+fi
+
+#
+# Stop cpglockd
+#
+stop_cpglockd()
+{
+	kill -TERM $(pidof $CPGLOCKD)
+}
+
+rtrn=0
+
+if [ "$EUID" != "0" ]; then
+	echo "Only root can execute $0 script"
+	exit 4
+fi
+
+case "$1" in
+start)
+	echo -n "Starting $ID: "
+
+	# most recent distributions use tmpfs for /var/run
+	# to avoid to clean it up on every boot.
+	# they also assume that init scripts will create
+	# required subdirectories for proper operations
+	mkdir -p /var/run/cluster
+
+	if status $CPGLOCKD > /dev/null 2>&1; then
+		success
+	else
+		if $CPGLOCKD $CPGLOCKD_OPTS; then
+			touch $LOCK_FILE
+			success
+		else
+			failure
+			rtrn=1
+		fi
+	fi
+	echo
+;;
+restart)
+	$0 stop
+	$0 start
+;;
+condrestart|try-restart)
+	if status $CPGLOCKD > /dev/null 2>&1; then
+		$0 stop
+		$0 start
+		rtrn=$?
+	fi
+;;
+reload|force-reload)
+	# not required anymore
+	# return not implemented
+	rtrn=3
+;;
+status)
+	status $CPGLOCKD
+	rtrn=$?
+;;
+stop)
+	echo -n "Stopping $ID: "
+
+	if status $CPGLOCKD > /dev/null 2>&1; then
+		if stop_cpglockd; then
+			success
+		else
+			failure
+			rtrn=1
+		fi
+	else
+		success
+	fi
+	echo
+	rm -f $LOCK_FILE
+;;
+*)
+	echo "usage: $0 {start|stop|restart|condrestart|try-restart|reload|force-reload|status}"
+	rtrn=2
+;;
+esac
+
+exit $rtrn
