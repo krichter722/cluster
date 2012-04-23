@@ -61,6 +61,7 @@ CMAN_LDFLAGS += -L${cmanlibdir} -lcman
 LOGSYS_LDFLAGS += -L${logtlibdir} -llogthread
 DLM_LDFLAGS += -L${dlmlibdir} -ldlm
 CPG_LDFLAGS += -lcpg
+FENCED_LDFLAGS += -lfenced
 XML2_LDFLAGS += `xml2-config --libs`
 SLANG_LDFLAGS += -L${slanglibdir} -lslang
 EXTRA_LDFLAGS += -lpthread
@@ -101,8 +102,8 @@ ${TARGET3}: ${TARGET1}
 	ln -sf ${TARGET1} ${TARGET3}
 
 ${TARGET4}: ${OBJS4} ${LDDEPS}
-	$(CC) -o $@ $^ $(CPG_LDFLAGS) $(EXTRA_LDFLAGS) $(LDFLAGS)
-
+	$(CC) -o $@ $^ $(CPG_LDFLAGS) $(CMAN_LDFLAGS) $(CCS_LDFLAGS) \
+			$(FENCED_LDFLAGS) $(EXTRA_LDFLAGS) $(LDFLAGS)
 
 check: rg_test
 	cd tests && ./runtests.sh
