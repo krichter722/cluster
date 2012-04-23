@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <signal.h>
+#include <signals.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/select.h>
@@ -71,13 +72,20 @@ static int local_lockid = 0;
 static int message_count = 0;
 static int joined = 0;
 static int cluster_quorate = 0;
-static int shutdown_requested = 0;
+static int cman_shutdown_requested = 0;
+static int shutdown_pending = 0;
 
 static cman_node_t cman_nodes[CPG_MEMBERS_MAX];
 static int cman_node_count;
 
 static cman_node_t old_cman_nodes[CPG_MEMBERS_MAX];
 static int old_cman_node_count;
+
+static void
+flag_shutdown(int __attribute__ ((unused)) sig)
+{
+	shutdown_pending = 1;
+}
 
 static int
 cman_nodes_lost(cman_node_t *old_nodes,
@@ -211,7 +219,7 @@ cman_callback(cman_handle_t ch, void *privdata, int reason, int arg)
 			}
 		}
 	} else if (reason == CMAN_REASON_TRY_SHUTDOWN) {
-		shutdown_requested = 1;
+		cman_shutdown_requested = 1;
 	}
 }
 
@@ -220,7 +228,7 @@ wait_for_fencing_join(int nodeid)
 {
 	if (node_has_fencing(nodeid)) {
 		cpgl_debug("Waiting for fence domain join operation to complete\n");
-		while (!fence_domain_joined())
+		while (!shutdown_pending && !fence_domain_joined())
 			sleep(1);
 		cpgl_debug("Fence domain joined\n");
 	} else
@@ -230,7 +238,7 @@ wait_for_fencing_join(int nodeid)
 static void
 wait_for_quorum_formation(cman_handle_t ch) {
 	cpgl_debug("Waiting for quorum to form\n");
-	while (!(cluster_quorate = cman_is_quorate(ch)))
+	while (!shutdown_pending && !(cluster_quorate = cman_is_quorate(ch)))
 		sleep(1);
 	cpgl_debug("Quorum formed\n");
 }
@@ -243,7 +251,7 @@ cman_connect(cman_handle_t *ch)
 	*ch = cman_init(NULL);
 	if (!*ch) {
 		cpgl_debug("Waiting for CMAN to start\n");
-		while (!(*ch = cman_init(NULL)))
+		while (!shutdown_pending && !(*ch = cman_init(NULL)))
 			sleep(1);
 		cpgl_debug("CMAN started\n");
 	}
@@ -407,7 +415,7 @@ send_lock_msg(struct cpg_lock_msg *m)
 			cpgl_debug("send_lock_msg() failed\n");
 			usleep(250000);
 		}
-	} while (ret != CPG_OK);
+	} while (ret != CPG_OK && !shutdown_pending);
 
 	return 0;
 }
@@ -1325,6 +1333,7 @@ main(int argc, char **argv)
 	int wait_for_fencing = 1;
 	int opt;
 	int ret;
+	int exit_status = 0;
 	struct cpg_lock_msg m;
 	struct client_node *client;
 	cman_handle_t cman_handle = NULL;
@@ -1354,28 +1363,42 @@ main(int argc, char **argv)
 		}
 	}
 
-	signal(SIGPIPE, SIG_IGN);
+	if (!nofork)
+		daemon_init((char *) "cpglockd");
+
+	setup_signal(SIGPIPE, SIG_IGN);
+	setup_signal(SIGTERM, flag_shutdown);
 
 	cman_connect(&cman_handle);
 	if (cman_handle == NULL) {
 		fprintf(stderr, "Unable to connect to cman\n");
-		return -1;
+		exit_status = -1;
+		goto out4;
 	}
+
+	if (shutdown_pending)
+		goto out3;
 
 	if (wait_for_quorum)
 		wait_for_quorum_formation(cman_handle);
+
+	if (shutdown_pending)
+		goto out3;
 
 	memset(&my_node, 0, sizeof(my_node));
 	cman_get_node(cman_handle, CMAN_NODEID_US, &my_node);
 
 	if (my_node.cn_nodeid == 0) {
 		fprintf(stderr, "Unable to get our cluster node ID\n");
-		cman_finish(cman_handle);
-		return -1;
+		exit_status = -1;
+		goto out3;
 	}
 
 	if (wait_for_fencing)
 		wait_for_fencing_join(my_node.cn_nodeid);
+
+	if (shutdown_pending)
+		goto out3;
 
 	memset(&cman_nodes, 0, sizeof(cman_nodes));
 	cman_node_count = 0;
@@ -1385,24 +1408,23 @@ main(int argc, char **argv)
 			&cman_node_count, cman_nodes);
 	if (ret < 0) {
 		fprintf(stderr, "Unable to get cman nodes list\n");
-		cman_finish(cman_handle);
-		return -1;
+		exit_status = -1;
+		goto out3;
 	}
 
 	cman_fd = cman_get_fd(cman_handle);
 	if (cman_fd < 0) {
 		fprintf(stderr, "Error: cman fd is %d\n", cman_fd);
-		cman_finish(cman_handle);
-		return -1;
+		exit_status = -1;
+		goto out3;
 	}
 
 	cman_start_notification(cman_handle, cman_callback);
 
 	if (cpg_init() < 0) {
 		fprintf(stderr, "Unable to join CPG group\n");
-		cman_stop_notification(cman_handle);
-		cman_finish(cman_handle);
-		return -1;
+		exit_status = -1;
+		goto out2;
 	}
 
 	assert(my_node.cn_nodeid == my_node_id);
@@ -1411,21 +1433,17 @@ main(int argc, char **argv)
 	if (fd < 0) {
 		fprintf(stderr, "Error connecting to %s: %s\n",
 			CPG_LOCKD_SOCK, strerror(errno));
-		cman_stop_notification(cman_handle);
-		cman_finish(cman_handle);
-		cpg_fin();
-		return -1;
+		exit_status = -1;
+		goto out1;
 	}
 
-	if (!nofork)
-		daemon_init((char *) "cpglockd");
-
-	cpg_local_get(cpg, &my_node_id);
 	cpg_fd_get(cpg, &cpgfd);
-	if (send_join() < 0)
-		return -1;
+	if (cpgfd < 0 || send_join() < 0) {
+		exit_status = -1;
+		goto out;
+	}
 
-	while (1) {
+	while (!shutdown_pending) {
 		struct timeval tv;
 		struct pending_fence_node *pf_node;
 
@@ -1448,22 +1466,24 @@ main(int argc, char **argv)
 		n = select_retry(x+1, &rfds, NULL, NULL, &tv);
 		if (n < 0) {
 			fprintf(stderr, "Error: select: %s\n", strerror(errno));
-			return -1;
+			exit_status = -1;
+			goto out;
 		}
 
 		if (FD_ISSET(cman_fd, &rfds)) {
 			if (cman_dispatch(cman_handle, CMAN_DISPATCH_ALL) < 0) {
 				fprintf(stderr, "Fatal: cman_dispatch() failed: %s\n",
 					strerror(errno));
-				return -1;
+				exit_status = -1;
+				goto out;
 			}
 			--n;
 		}
 
-		if (shutdown_requested) {
-			cman_replyto_shutdown(cman_handle, 1);
+		if (cman_shutdown_requested) {
 			fprintf(stderr, "Fatal: cman requested shutdown.\n");
-			return -1;
+			cman_replyto_shutdown(cman_handle, 1);
+			goto out;
 		}
 
 		fence_check:
@@ -1525,6 +1545,9 @@ main(int argc, char **argv)
 				goto fence_check;
 			}
 		}
+
+		if (shutdown_pending)
+			goto out;
 
 		/* While fencing is pending for any nodes pause lock activity. */
 		if (pending_fencing != NULL) {
@@ -1590,9 +1613,17 @@ main(int argc, char **argv)
 		} while (n);
 	}
 
-	cman_stop_notification(cman_handle);
-	cman_finish(cman_handle);
+out:
+	close(fd);
+	unlink(CPG_LOCKD_SOCK);
+out1:
 	cpg_fin();
-
-	return 0;
+out2:
+	cman_stop_notification(cman_handle);
+out3:
+	cman_finish(cman_handle);
+out4:
+	if (!nofork)
+		daemon_cleanup();
+	return exit_status;
 }
