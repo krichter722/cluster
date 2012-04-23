@@ -11,6 +11,10 @@
 #define CPG_LOCKD_SOCK "/var/run/cpglockd.sk"
 #endif
 
+#ifndef CPGLOCKD_BIN_PATH
+#	define CPGLOCKD_BIN_PATH "/usr/sbin/cpglockd"
+#endif
+
 #include <stdint.h>
 
 typedef enum {

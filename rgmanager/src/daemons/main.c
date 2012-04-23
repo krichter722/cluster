@@ -25,6 +25,8 @@
 #include <groups.h>
 #include <rg_dbus.h>
 
+#include <cpglock-internal.h>
+
 #ifdef WRAP_THREADS
 void dump_thread_states(FILE *);
 #endif
@@ -796,6 +798,74 @@ statedump(int __attribute__ ((unused)) sig)
 	signalled++;
 }
 
+static int
+cpglockd_needed(void)
+{
+	char *v;
+	int ccsfd;
+	int start_cpglockd = 0;
+
+	ccsfd = ccs_force_connect(NULL, 0);
+	if (ccsfd < 0)
+		return -1;
+
+	if (ccs_get(ccsfd, "/cluster/cman/altmulticast/@addr", &v) == 0) {
+		if (v != NULL) {
+			int ret;
+			free(v);
+
+			ret = ccs_get(ccsfd,
+					"/cluster/clusternodes/clusternode/altname/@name", &v);
+			if (ret == 0) {
+				if (v != NULL) {
+					free(v);
+					start_cpglockd = 1;
+				}
+			}
+		}
+	}
+
+	if (start_cpglockd) {
+		if (ccs_get(ccsfd, "/cluster/totem/@rrp_mode", &v) == 0) {
+			if (v != NULL) {
+				if (!strcasecmp(v, "none"))
+					start_cpglockd = 0;
+				free(v);
+			}
+		}
+	}
+
+	ccs_disconnect(ccsfd);
+	return start_cpglockd;
+}
+
+static int
+cpglockd_start(void) {
+	int pid;
+	int status;
+
+	pid = fork();
+	if (pid == -1)
+		return -1;
+
+	if (pid) {
+		waitpid(pid, &status, 0);
+		if (!WIFEXITED(status) || WEXITSTATUS(status)) {
+			logt_print(LOG_NOTICE, "Unable to start cpglockd\n");
+			return -1;
+		}
+	} else {
+		int i;
+
+		for (i = 3 ; i < __FD_SETSIZE ; i++)
+			close(i);
+
+		execl(CPGLOCKD_BIN_PATH, "cpglockd", NULL);
+		exit(-1);
+	}
+
+	return 0;
+}
 
 static int
 rgmanager_disabled(int ccsfd)
@@ -1060,6 +1130,10 @@ main(int argc, char **argv)
 		return -1;
 	}
 
+	xmlInitParser();
+	if (cpg_locks || cpglockd_needed() == 1)
+		cpglockd_start();
+
 	if (!cpg_locks) {
 		if (clu_lock_init(rgmanager_lsname) != 0) {
 			printf("Locks not working!\n");
@@ -1096,7 +1170,6 @@ main(int argc, char **argv)
 	   We know we're quorate.  At this point, we need to
 	   read the resource group trees from ccsd.
 	 */
-	xmlInitParser();
 	configure_rgmanager(-1, debug, &cluster_timeout);
 	if (shutdown_pending == 1)
 		goto out_ls;
