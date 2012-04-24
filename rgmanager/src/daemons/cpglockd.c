@@ -1363,8 +1363,17 @@ main(int argc, char **argv)
 		}
 	}
 
-	if (!nofork)
+	if (!nofork) {
 		daemon_init((char *) "cpglockd");
+	} else {
+		pid_t pid;
+		if (check_process_running((char *) "cpglockd", &pid) && (pid != getpid())) {
+			fprintf(stderr,
+				"cpglockd is already running\n");
+			return -1;
+		}
+		update_pidfile((char *) "cpglockd");
+	}
 
 	setup_signal(SIGPIPE, SIG_IGN);
 	setup_signal(SIGTERM, flag_shutdown);

@@ -30,7 +30,6 @@
 /*
  * Local prototypes.
  */
-static void update_pidfile(char *prog);
 static int setup_sigmask(void);
 static char pid_filename[PATH_MAX];
 
@@ -138,7 +137,7 @@ check_process_running(char *prog, pid_t * pid)
 }
 
 
-static void
+void
 update_pidfile(char *prog)
 {
 	FILE *fp = NULL;
