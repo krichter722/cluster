@@ -49,7 +49,8 @@ OBJS5=	cpglockdump.o
 
 CFLAGS += -DSHAREDIR=\"${sharedir}\" -D_GNU_SOURCE
 CFLAGS += -fPIC
-CFLAGS += -I${ccsincdir} -I${cmanincdir} -I${dlmincdir} -I${logtincdir}
+CFLAGS += -I${ccsincdir} -I${cmanincdir} -I${corosyncincdir}
+CFLAGS += -I${dlmincdir} -I${fencedincdir} -I${logtincdir}
 CFLAGS += `xml2-config --cflags` -I${slangincdir}
 CFLAGS += -I$(S)/../../include
 CFLAGS += -I${incdir}
@@ -63,8 +64,8 @@ CCS_LDFLAGS += -L${ccslibdir} -lccs
 CMAN_LDFLAGS += -L${cmanlibdir} -lcman
 LOGSYS_LDFLAGS += -L${logtlibdir} -llogthread
 DLM_LDFLAGS += -L${dlmlibdir} -ldlm
-CPG_LDFLAGS += -lcpg
-FENCED_LDFLAGS += -lfenced
+CPG_LDFLAGS += -L${corosynclibdir} -lcpg
+FENCED_LDFLAGS += -L${fencedlibdir} -lfenced
 XML2_LDFLAGS += `xml2-config --libs`
 SLANG_LDFLAGS += -L${slanglibdir} -lslang
 EXTRA_LDFLAGS += -lpthread
