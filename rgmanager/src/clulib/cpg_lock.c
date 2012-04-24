@@ -12,6 +12,7 @@
 #include <sys/types.h>
 #include <sys/select.h>
 #include <pthread.h>
+#include <signal.h>
 
 #include <cpglock.h>
 
@@ -69,9 +70,13 @@ _cpg_lock(int mode,
 		ret = cpg_lock(_cpgh, resource, 1, &l);
 	else
 		ret = cpg_lock(_cpgh, resource, 0, &l);
-	
+
 	if (ret == 0) {
 		cpg2dlm(&l, lksb);
+	} else {
+		if (errno == EPIPE) {
+			raise(SIGSEGV);
+		}
 	}
 
 	return ret;
