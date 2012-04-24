@@ -1,0 +1,7 @@
+# CPGLOCKD_WAIT_FOR_QUORUM -- Wait for cluster quorum formation
+#     at startup.
+#CPGLOCKD_WAIT_FOR_QUORUM=yes
+#
+# CPGLOCKD_WAIT_FOR_FENCE_JOIN -- Wait for the current node to join the
+#     fence domain at startup.
+#CPGLOCKD_WAIT_FOR_FENCE_JOIN=yes
