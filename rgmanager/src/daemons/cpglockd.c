@@ -1094,8 +1094,16 @@ process_join(struct cpg_lock_msg *m, uint32_t nodeid, uint32_t pid)
 
 	list_for(&group_members, n, x) {
 		if (n->nodeid == nodeid) {
-			logt_print(LOG_DEBUG, "IGNORING JOIN from existing member %d.%d (%d.%d)\n",
-				nodeid, pid, nodeid, n->pid);
+			if (n->pid == pid) {
+				logt_print(LOG_DEBUG, "Saw JOIN from self (%d.%d)\n",
+					nodeid, pid);
+				list_remove(&group_members, n);
+				list_append(&group_members, n);
+			} else {
+				logt_print(LOG_DEBUG,
+					"IGNORING JOIN from existing member %d.%d (%d.%d)\n",
+					nodeid, pid, nodeid, n->pid);
+			}
 			return 0;
 		}
 	}
