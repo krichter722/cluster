@@ -1309,10 +1309,12 @@ cpg_init(void)
 
 	for (i = 0 ; i < cpg_member_list_len ; i++) {
 		if (member_list[i].nodeid == my_node_id) {
-			fprintf(stderr, "nodeid %d already in group with PID %u\n",
-				member_list[i].nodeid, member_list[i].pid);
-			cpg_fin();
-			return -1;
+			if (member_list[i].pid != getpid()) {
+				fprintf(stderr, "nodeid %d already in group with PID %u %u\n",
+					member_list[i].nodeid, member_list[i].pid, getpid());
+				cpg_fin();
+				return -1;
+			}
 		}
 	}
 
