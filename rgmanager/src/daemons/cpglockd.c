@@ -1649,7 +1649,6 @@ out2:
 out3:
 	cman_finish(cman_handle);
 out4:
-	if (!nofork)
-		daemon_cleanup();
+	daemon_cleanup();
 	return exit_status;
 }
