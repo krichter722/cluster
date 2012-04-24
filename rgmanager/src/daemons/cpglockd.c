@@ -1314,12 +1314,12 @@ cpg_init(void)
 
 	memset(&cpg, 0, sizeof(cpg));
 	if (cpg_initialize(&cpg, &my_callbacks) != CPG_OK) {
-		perror("cpg_initialize");
+		logt_print(LOG_DEBUG, "cpg_initialize failed");
 		return -1;
 	}
 
 	if (cpg_join(cpg, &gname) != CPG_OK) {
-		perror("cpg_join");
+		logt_print(LOG_DEBUG, "cpg_join failed");
 		return -1;
 	}
 
@@ -1327,7 +1327,8 @@ cpg_init(void)
 
 	ret = cpg_membership_get(cpg, &gname, member_list, &cpg_member_list_len);
 	if (ret != CPG_OK) {
-		fprintf(stderr, "cpg_membership_get() failed: %s", strerror(errno));
+		logt_print(LOG_DEBUG,
+			"cpg_membership_get() failed: %s", strerror(errno));
 		cpg_fin();
 		return -1;
 	}
@@ -1335,7 +1336,7 @@ cpg_init(void)
 	for (i = 0 ; i < cpg_member_list_len ; i++) {
 		if (member_list[i].nodeid == my_node_id) {
 			if (member_list[i].pid != getpid()) {
-				fprintf(stderr, "nodeid %d already in group with PID %u %u\n",
+				logt_print(LOG_DEBUG, "nodeid %d already in group with PID %u %u\n",
 					member_list[i].nodeid, member_list[i].pid, getpid());
 				cpg_fin();
 				return -1;
@@ -1437,7 +1438,7 @@ main(int argc, char **argv)
 
 	cman_connect(&cman_handle);
 	if (cman_handle == NULL) {
-		fprintf(stderr, "Unable to connect to cman\n");
+		logt_print(LOG_ERR, "Unable to connect to cman\n");
 		exit_status = -1;
 		goto out4;
 	}
@@ -1455,7 +1456,7 @@ main(int argc, char **argv)
 	cman_get_node(cman_handle, CMAN_NODEID_US, &my_node);
 
 	if (my_node.cn_nodeid == 0) {
-		fprintf(stderr, "Unable to get our cluster node ID\n");
+		logt_print(LOG_ERR, "Unable to get our cluster node ID\n");
 		exit_status = -1;
 		goto out3;
 	}
@@ -1473,14 +1474,14 @@ main(int argc, char **argv)
 			sizeof(cman_nodes) / sizeof(cman_nodes[0]),
 			&cman_node_count, cman_nodes);
 	if (ret < 0) {
-		fprintf(stderr, "Unable to get cman nodes list\n");
+		logt_print(LOG_ERR, "Unable to get cman nodes list\n");
 		exit_status = -1;
 		goto out3;
 	}
 
 	cman_fd = cman_get_fd(cman_handle);
 	if (cman_fd < 0) {
-		fprintf(stderr, "Error: cman fd is %d\n", cman_fd);
+		logt_print(LOG_ERR, "Error: cman fd is %d\n", cman_fd);
 		exit_status = -1;
 		goto out3;
 	}
@@ -1488,16 +1489,21 @@ main(int argc, char **argv)
 	cman_start_notification(cman_handle, cman_callback);
 
 	if (cpg_init() < 0) {
-		fprintf(stderr, "Unable to join CPG group\n");
+		logt_print(LOG_ERR, "Unable to join CPG group\n");
 		exit_status = -1;
 		goto out2;
 	}
 
-	assert(my_node.cn_nodeid == my_node_id);
+	if (my_node.cn_nodeid != my_node_id) {
+		logt_print(LOG_ERR, "cman nodeid and CPG node id differ: %d != %d\n",
+			my_node.cn_nodeid, my_node_id);
+		exit_status = -1;
+		goto out1;
+	}
 
 	fd = sock_listen(CPG_LOCKD_SOCK);
 	if (fd < 0) {
-		fprintf(stderr, "Error connecting to %s: %s\n",
+		logt_print(LOG_ERR, "Error connecting to %s: %s\n",
 			CPG_LOCKD_SOCK, strerror(errno));
 		exit_status = -1;
 		goto out1;
@@ -1505,10 +1511,12 @@ main(int argc, char **argv)
 
 	cpg_fd_get(cpg, &cpgfd);
 	if (cpgfd < 0 || send_join() < 0) {
+		logt_print(LOG_ERR, "Unable to complete join to CPG group\n");
 		exit_status = -1;
 		goto out;
 	}
 
+	logt_print(LOG_INFO, "cpglockd entering normal operation\n");
 	while (!shutdown_pending) {
 		struct timeval tv;
 		struct pending_fence_node *pf_node;
@@ -1531,14 +1539,14 @@ main(int argc, char **argv)
 
 		n = select_retry(x+1, &rfds, NULL, NULL, &tv);
 		if (n < 0) {
-			fprintf(stderr, "Error: select: %s\n", strerror(errno));
+			logt_print(LOG_ERR, "Error: select: %s\n", strerror(errno));
 			exit_status = -1;
 			goto out;
 		}
 
 		if (FD_ISSET(cman_fd, &rfds)) {
 			if (cman_dispatch(cman_handle, CMAN_DISPATCH_ALL) < 0) {
-				fprintf(stderr, "Fatal: cman_dispatch() failed: %s\n",
+				logt_print(LOG_ERR, "Fatal: cman_dispatch() failed: %s\n",
 					strerror(errno));
 				exit_status = -1;
 				goto out;
@@ -1547,7 +1555,7 @@ main(int argc, char **argv)
 		}
 
 		if (cman_shutdown_requested) {
-			fprintf(stderr, "Fatal: cman requested shutdown.\n");
+			logt_print(LOG_INFO, "cman requested shutdown. Exiting.\n");
 			cman_replyto_shutdown(cman_handle, 1);
 			goto out;
 		}
@@ -1629,7 +1637,7 @@ main(int argc, char **argv)
 
 		if (FD_ISSET(cpgfd, &rfds)) {
 			if (cpg_dispatch(cpg, CPG_DISPATCH_ALL) != CPG_OK) {
-				fprintf(stderr, "Fatal: Lost CPG connection.\n");
+				logt_print(LOG_ERR, "Fatal: Lost CPG connection.\n");
 				return -1;
 			}
 			--n;
