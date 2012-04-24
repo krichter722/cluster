@@ -798,73 +798,43 @@ statedump(int __attribute__ ((unused)) sig)
 	signalled++;
 }
 
+/*
+ * return -1 on error
+ *         0 cpglock is not needed
+ *         1 cpglock is needed
+ */
 static int
 cpglockd_needed(void)
 {
 	char *v;
 	int ccsfd;
-	int start_cpglockd = 0;
-
+	int need = 0;
 	ccsfd = ccs_force_connect(NULL, 0);
 	if (ccsfd < 0)
 		return -1;
 
-	if (ccs_get(ccsfd, "/cluster/cman/altmulticast/@addr", &v) == 0) {
-		if (v != NULL) {
-			int ret;
-			free(v);
 
-			ret = ccs_get(ccsfd,
-					"/cluster/clusternodes/clusternode/altname/@name", &v);
-			if (ret == 0) {
-				if (v != NULL) {
-					free(v);
-					start_cpglockd = 1;
-				}
-			}
+	if (ccs_get(ccsfd,
+		    "/cluster/clusternodes/clusternode/altname/@name", &v) == 0) {
+		if (v) {
+			need = 1;
+			free(v);
 		}
 	}
 
-	if (start_cpglockd) {
+	if (need) {
 		if (ccs_get(ccsfd, "/cluster/totem/@rrp_mode", &v) == 0) {
 			if (v != NULL) {
-				if (!strcasecmp(v, "none"))
-					start_cpglockd = 0;
+				if (!strcasecmp(v, "none")) {
+					need = 0;
+				}
 				free(v);
 			}
 		}
 	}
 
 	ccs_disconnect(ccsfd);
-	return start_cpglockd;
-}
-
-static int
-cpglockd_start(void) {
-	int pid;
-	int status;
-
-	pid = fork();
-	if (pid == -1)
-		return -1;
-
-	if (pid) {
-		waitpid(pid, &status, 0);
-		if (!WIFEXITED(status) || WEXITSTATUS(status)) {
-			logt_print(LOG_NOTICE, "Unable to start cpglockd\n");
-			return -1;
-		}
-	} else {
-		int i;
-
-		for (i = 3 ; i < __FD_SETSIZE ; i++)
-			close(i);
-
-		execl(CPGLOCKD_BIN_PATH, "cpglockd", NULL);
-		exit(-1);
-	}
-
-	return 0;
+	return need;
 }
 
 static int
@@ -1147,11 +1117,18 @@ main(int argc, char **argv)
 	}
 
 	xmlInitParser();
-	if (cpg_lock_opt == 1 || (cpg_lock_opt != -1 && cpglockd_needed() == 1)) {
-		cpglockd_start();
+
+	cpg_locks = 0;
+	if (cpg_lock_opt == 1) { /* force enable */
 		cpg_locks = 1;
-	} else
-		cpg_locks = 0;
+	} else if (cpg_lock_opt == 0) { /* autodetect */
+		cpg_locks = cpglockd_needed();
+		if (cpg_locks < 0) {
+			printf("Unable to determine if cpglock is required!\n");
+			cman_finish(clu);
+			return -1;
+		}
+	}
 
 	if (!cpg_locks) {
 		if (clu_lock_init(rgmanager_lsname) != 0) {
@@ -1160,12 +1137,12 @@ main(int argc, char **argv)
 			return -1;
 		}
 	} else {
+		logt_print(LOG_INFO, "Using CPG for locking (EXPERIMENTAL)\n");
 		if (cpg_lock_initialize() != 0) {
 			printf("Locks not working!\n");
 			cman_finish(clu);
 			return -1;
 		}
-		logt_print(LOG_INFO, "Using CPG for locking (EXPERIMENTAL)\n");
 	}
 
 	memset(&me, 0, sizeof(me));

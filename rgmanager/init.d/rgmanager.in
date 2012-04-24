@@ -6,8 +6,8 @@
 #
 ### BEGIN INIT INFO
 # Provides:		rgmanager
-# Required-Start:	cman
-# Required-Stop:	cman
+# Required-Start:	cman cpglockd
+# Required-Stop:	cman cpglockd
 # Default-Start:
 # Default-Stop:
 # Short-Description:	Starts and stops Red Hat Service (resource group) Manager
@@ -72,6 +72,15 @@ stop_cluster()
 	done
 }
 
+#
+# start cpglock if necessary
+#
+start_cpglockd()
+{
+	rings="$(corosync-objctl 2>/dev/null |grep ringnumber | wc -l)"
+	[ "$rings" -gt "1" ] && service cpglockd start
+}
+
 rtrn=0
 
 if [ "$EUID" != "0" ]; then
@@ -88,6 +97,11 @@ start)
 	# they also assume that init scripts will create
 	# required subdirectories for proper operations
 	mkdir -p /var/run/cluster
+
+	# failure to start cpglockd should not be fatal here
+	# rgmanager will take care to report the correct errors
+	# later
+	start_cpglockd || true
 
 	if status $RGMGRD > /dev/null 2>&1; then
 		success
