@@ -24,15 +24,34 @@ dlm2cpg(struct dlm_lksb *dlm, struct cpg_lock *cpg)
 {
 	memset(cpg, 0, sizeof(*cpg));
 	cpg->local_id = dlm->sb_lkid;
-	cpg->state = dlm->sb_status;
+	switch(dlm->sb_status) {
+	case 0:
+		cpg->state = LOCK_HELD;
+		break;
+	case EINPROG:
+		cpg->state = LOCK_PENDING;
+		break;
+	default:
+		cpg->state = LOCK_FREE;
+		break;
+	}
 }
 
 static void
 cpg2dlm(struct cpg_lock *cpg, struct dlm_lksb *dlm)
 {
 	memset(dlm, 0, sizeof(*dlm));
-	dlm->sb_status = cpg->state;
 	dlm->sb_lkid = cpg->local_id;
+	switch(cpg->state) {
+	case LOCK_HELD:
+		dlm->sb_status = 0;
+		break;
+	case LOCK_PENDING:
+	default:
+		/* XXX LOCK_FREE -> DLM state? */
+		dlm->sb_status = EINPROG;
+		break;
+	}
 }
 
 
