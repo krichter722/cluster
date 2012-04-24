@@ -24,6 +24,7 @@
 #include "cpglock.h"
 #include "cpglock-internal.h"
 #include "list.h"
+#include "platform.h"
 
 struct request_node {
 	list_head();
@@ -398,6 +399,16 @@ insert_client(int fd)
 	list_append(&clients, n);
 }
 
+static void
+swab_cpg_lock_msg(struct cpg_lock_msg *m)
+{
+	swab32(m->request);
+	swab32(m->owner_nodeid);
+	swab32(m->owner_pid);
+	swab32(m->flags);
+	swab32(m->lockid);
+	swab32(m->owner_tid);
+}
 
 /* forward request from client */
 static int
@@ -405,6 +416,8 @@ send_lock_msg(struct cpg_lock_msg *m)
 {
 	struct iovec iov;
 	int ret;
+
+	swab_cpg_lock_msg(m);
 
 	iov.iov_base = m;
 	iov.iov_len = sizeof (*m);
@@ -1096,6 +1109,8 @@ process_join(struct cpg_lock_msg *m, uint32_t nodeid, uint32_t pid)
 static int
 process_request(struct cpg_lock_msg *m, uint32_t nodeid, uint32_t pid)
 {
+	swab_cpg_lock_msg(m);
+
 	if (m->request == MSG_HALT) {
 		cpgl_debug("FAULT: Halting operations; see node %d\n", m->owner_nodeid);
 		while (1) 

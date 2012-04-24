@@ -26,16 +26,16 @@ typedef enum {
 } cpg_lock_req_t;
 
 /* Mixed architecture not supported yet */
-struct __attribute__((packed)) cpg_lock_msg {
-	char resource[96];
+struct cpg_lock_msg {
 	int32_t request;
 	uint32_t owner_nodeid;
 	uint32_t owner_pid;
 	uint32_t flags;
 	uint32_t lockid;
 	uint32_t owner_tid;
+	char resource[96];
 	char pad[8];
-}; /* 128 */
+} __attribute__((packed)); /* 128 */
 
 #define CPG_LOCKD_NAME "cpglockd"
 
