@@ -37,8 +37,6 @@ struct __attribute__((packed)) cpg_lock_msg {
 	char pad[8];
 }; /* 128 */
 
-pid_t _gettid (void);
-
 #define CPG_LOCKD_NAME "cpglockd"
 
 #endif

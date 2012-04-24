@@ -226,7 +226,6 @@ cpg_unlock(void *handle, struct cpg_lock *lock)
 	l.owner_nodeid = lock->owner_nodeid;
 	l.owner_pid = lock->owner_pid;
 	l.lockid = lock->local_id;
-	//l.owner_tid = _gettid();
 	l.owner_tid = 0;
 	lock->state = LOCK_FREE;
 	
