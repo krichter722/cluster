@@ -89,6 +89,10 @@ static void init_logging(int reconf);
 static void
 flag_shutdown(int __attribute__ ((unused)) sig)
 {
+	if (clients) {
+		logt_print(LOG_INFO, "Clients are connected to cpglockd. Refusing to shutdown\n");
+		return;
+	}
 	shutdown_pending = 1;
 }
 
@@ -1429,6 +1433,7 @@ main(int argc, char **argv)
 
 	setup_signal(SIGPIPE, SIG_IGN);
 	setup_signal(SIGTERM, flag_shutdown);
+	setup_signal(SIGINT, flag_shutdown);
 
 	cman_connect(&cman_handle);
 	if (cman_handle == NULL) {
