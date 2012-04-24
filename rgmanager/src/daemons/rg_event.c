@@ -247,7 +247,7 @@ static int
 find_master(void)
 {
 	event_master_t *masterinfo = NULL;
-	void *data;
+	void *data = NULL;
 	uint32_t sz;
 	cluster_member_list_t *m;
 	uint64_t vn;
