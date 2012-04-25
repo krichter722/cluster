@@ -478,6 +478,8 @@ send_grant(struct request_node *n)
 static int  
 send_nak(struct cpg_lock_msg *m)
 {
+	logt_print(LOG_DEBUG, "-> sending NAK %s to %d:%d:%d\n",
+		m->resource, m->owner_nodeid, m->owner_pid, m->owner_tid);
 	m->request = MSG_NAK;
 
 	return send_lock_msg(m);
@@ -1012,6 +1014,9 @@ process_nak(struct cpg_lock_msg *m, uint32_t nodeid)
 
 	if (!joined)
 		return 0;
+
+	logt_print(LOG_DEBUG, "NAK %s for %d:%d:%d\n", m->resource,
+	       m->owner_nodeid, m->owner_pid, m->owner_tid);
 
 	list_for(&requests, r, y) {
 		if (strcmp(r->l.resource, m->resource))
