@@ -588,15 +588,20 @@ del_client(int fd)
 
 	logt_print(LOG_DEBUG, "RECOVERY: Looking for locks held by PID %d\n", pid);
 
-	/* This may not be needed */
-	purge_requests(my_node_id, pid);
+	if (cluster_quorate) {
+		/* This may not be needed */
+		purge_requests(my_node_id, pid);
 
-	memset(&m, 0, sizeof(m));
-	m.request = MSG_PURGE;
-	m.owner_nodeid = my_node_id;
-	m.owner_pid = pid;
+		memset(&m, 0, sizeof(m));
+		m.request = MSG_PURGE;
+		m.owner_nodeid = my_node_id;
+		m.owner_pid = pid;
 
-	send_lock_msg(&m);
+		send_lock_msg(&m);
+	}
+
+	if (!cluster_quorate && locks != NULL)
+		logt_print(LOG_DEBUG, "RECOVERY: not quorate but locks exist\n");
 
 	list_for(&locks, l, x) {
 		if (l->l.owner_nodeid != my_node_id ||
@@ -1385,6 +1390,36 @@ static void init_logging(int reconf)
 		logt_conf("cpglockd", mode, syslog_facility, syslog_priority, logfile_priority, logfile);
 }
 
+static void
+clear_local_state(void)
+{
+	struct request_node *cur_req = NULL;
+	struct lock_node *cur_lock = NULL;
+
+	while ((cur_lock = locks) != NULL) {
+		logt_print(LOG_DEBUG,
+			"CLEAR STATE: Dropping lock %s [%d:%d]\n",
+			cur_lock->l.resource,
+			cur_lock->l.owner_nodeid, cur_lock->l.owner_pid);
+		list_remove(&locks, cur_lock);
+		free(cur_lock);
+	}
+
+	while ((cur_req = requests) != NULL) {
+		if (cur_req->l.owner_nodeid == my_node_id) {
+			nak_client(cur_req);
+			logt_print(LOG_DEBUG, "CLEAR STATE: sent NAK %s [%d:%d:%d]\n",
+				cur_req->l.resource, cur_req->l.owner_nodeid,
+				cur_req->l.owner_pid, cur_req->l.owner_tid);
+		}
+		logt_print(LOG_DEBUG, "CLEAR STATE: Dropping request %s [%d:%d:%d]\n",
+			cur_req->l.resource, cur_req->l.owner_nodeid,
+			cur_req->l.owner_pid, cur_req->l.owner_tid);
+		list_remove(&requests, cur_req);
+		free(cur_req);
+	}
+}
+
 int
 main(int argc, char **argv)
 {
@@ -1394,6 +1429,7 @@ main(int argc, char **argv)
 	int afd = -1;
 	int cman_fd;
 	int n,x;
+	int quorate_last = 0;
 	int wait_for_quorum = 1;
 	int wait_for_fencing = 1;
 	int opt;
@@ -1525,6 +1561,10 @@ main(int argc, char **argv)
 		goto out;
 	}
 
+	if (wait_for_quorum)
+		wait_for_quorum_formation(cman_handle);
+	quorate_last = cluster_quorate;
+
 	logt_print(LOG_INFO, "cpglockd entering normal operation\n");
 	while (!shutdown_pending) {
 		struct timeval tv;
@@ -1568,6 +1608,16 @@ main(int argc, char **argv)
 			cman_replyto_shutdown(cman_handle, 1);
 			goto out;
 		}
+
+		if (!quorate_last && cluster_quorate)
+			logt_print(LOG_INFO, "Cluster quorum regained\n");
+
+		if (quorate_last && !cluster_quorate) {
+			logt_print(LOG_INFO,
+				"Cluster lost quorum. Clearing local state.\n");
+			clear_local_state();
+		}
+		quorate_last = cluster_quorate;
 
 		fence_check:
 		list_for(&pending_fencing, pf_node, x) {
@@ -1640,16 +1690,23 @@ main(int argc, char **argv)
 
 		if (FD_ISSET(fd, &rfds)) {
 			afd = accept(fd, NULL, NULL);
-			insert_client(afd);
+			if (afd < 0) {
+				logt_print(LOG_DEBUG, "Error accepting new client: %s\n",
+					strerror(errno));
+			} else {
+				insert_client(afd);
+			}
 			--n;
 		}
 
 		if (FD_ISSET(cpgfd, &rfds)) {
-			if (cpg_dispatch(cpg, CPG_DISPATCH_ALL) != CPG_OK) {
+			--n;
+			if (cluster_quorate &&
+				cpg_dispatch(cpg, CPG_DISPATCH_ALL) != CPG_OK)
+			{
 				logt_print(LOG_ERR, "Fatal: Lost CPG connection.\n");
 				return -1;
 			}
-			--n;
 		}
 
 		if (n <= 0)
@@ -1660,9 +1717,10 @@ main(int argc, char **argv)
 				if (!FD_ISSET(client->fd, &rfds))
 					continue;
 				--n;
+
 				if (read_retry(client->fd, &m, sizeof(m), NULL) < 0) {
 					logt_print(LOG_DEBUG, "Closing client fd %d pid %d: %d\n",
-					       client->fd, client->pid, errno);
+						client->fd, client->pid, errno);
 			
 					del_client(client->fd);
 					break;
@@ -1671,15 +1729,35 @@ main(int argc, char **argv)
 				/* send lock request */
 				/* XXX check for dup connection */
 				if (m.request == MSG_LOCK) {
-					client->pid = m.owner_pid;
-					send_lock(&m);
+					if (!cluster_quorate) {
+						logt_print(LOG_DEBUG, "Sending NAK for new lock request while not quorate (%s [%d:%d:%d])\n",
+							m.resource, m.owner_nodeid,
+							m.owner_pid, m.owner_tid);
+
+						m.request = MSG_NAK;
+						if (write_retry(client->fd, &m, sizeof(m), NULL) < 0) {
+							logt_print(LOG_DEBUG,
+								"Error sending NAK for %s [%d:%d:%d]: %s\n",
+								m.resource, m.owner_nodeid,
+								m.owner_pid, m.owner_tid, strerror(errno));
+						}
+					} else {
+						client->pid = m.owner_pid;
+						send_lock(&m);
+					}
 				}
 
 				if (m.request == MSG_UNLOCK) {
 					//logt_print(LOG_DEBUG, "Unlock from fd %d\n", client->fd);
-					find_lock(&m);
-					if (grant_next(&m) == 0)
-						send_unlock(&m);
+					/*
+ 					** When not quorate, all locks and requests have already
+ 					** been dropped.
+ 					*/
+					if (cluster_quorate) {
+						find_lock(&m);
+						if (grant_next(&m) == 0)
+							send_unlock(&m);
+					}
 				}
 	
 				if (m.request == MSG_DUMP) {
