@@ -1736,11 +1736,13 @@ main(int argc, char **argv)
 				/* XXX check for dup connection */
 				if (m.request == MSG_LOCK) {
 					if (!cluster_quorate) {
+						m.request = MSG_NAK;
+						m.owner_nodeid = my_node_id;
+
 						logt_print(LOG_DEBUG, "Sending NAK for new lock request while not quorate (%s [%d:%d:%d])\n",
 							m.resource, m.owner_nodeid,
 							m.owner_pid, m.owner_tid);
 
-						m.request = MSG_NAK;
 						if (write_retry(client->fd, &m, sizeof(m), NULL) < 0) {
 							logt_print(LOG_DEBUG,
 								"Error sending NAK for %s [%d:%d:%d]: %s\n",
