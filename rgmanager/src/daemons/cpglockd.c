@@ -436,7 +436,8 @@ send_lock_msg(struct cpg_lock_msg *m)
 	do {
 		ret = cpg_mcast_joined(cpg, CPG_TYPE_AGREED, &iov, 1);
 		if (ret != CPG_OK) {
-			logt_print(LOG_DEBUG, "send_lock_msg() failed\n");
+			logt_print(LOG_DEBUG, "send_lock_msg() failed %d: %s\n",
+				ret, strerror(errno));
 			usleep(250000);
 		}
 	} while (ret != CPG_OK && !shutdown_pending);
