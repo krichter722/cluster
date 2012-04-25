@@ -248,9 +248,10 @@ wait_for_fencing_join(int nodeid)
 
 static void
 wait_for_quorum_formation(cman_handle_t ch) {
-	logt_print(LOG_DEBUG, "Waiting for quorum to form\n");
-	while (!shutdown_pending && !(cluster_quorate = cman_is_quorate(ch)))
+	while (!shutdown_pending && !(cluster_quorate = cman_is_quorate(ch))) {
+		logt_print(LOG_DEBUG, "Waiting for quorum to form\n");
 		sleep(1);
+	}
 	logt_print(LOG_DEBUG, "Quorum formed\n");
 }
 
