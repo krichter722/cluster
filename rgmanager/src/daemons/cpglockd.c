@@ -1675,17 +1675,14 @@ main(int argc, char **argv)
 			** don't need to wait for it.
 			*/
 			if (!victim && !x && !pf_node->force_wait) {
-				int retries = 0;
 				/* Wait up to 1s for fenced to set victim */
-				do {
-					usleep(250000);
-					if (fenced_node_info(pf_node->nodeid, &fn) < 0) {
-						logt_print(LOG_DEBUG,
-							"Unable to get fenced data for node %d\n",
-							pf_node->nodeid);
-					} else
-						victim = fn.victim;
-				} while (!victim && retries++ < 4);
+				sleep(1);
+				if (fenced_node_info(pf_node->nodeid, &fn) < 0) {
+					logt_print(LOG_DEBUG,
+						"Unable to get fenced data for node %d\n",
+						pf_node->nodeid);
+				} else
+					victim = fn.victim;
 
 				if (!victim) {
 					logt_print(LOG_DEBUG, "First entry in list and victim == 0, removing %d from pending fencing\n", pf_node->nodeid);
