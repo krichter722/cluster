@@ -427,11 +427,13 @@ send_lock_msg(struct cpg_lock_msg *m)
 {
 	struct iovec iov;
 	int ret;
+	struct cpg_lock_msg out_msg;
 
-	swab_cpg_lock_msg(m);
+	memcpy(&out_msg, m, sizeof(out_msg));
+	swab_cpg_lock_msg(&out_msg);
 
-	iov.iov_base = m;
-	iov.iov_len = sizeof (*m);
+	iov.iov_base = &out_msg;
+	iov.iov_len = sizeof(out_msg);
 
 	do {
 		ret = cpg_mcast_joined(cpg, CPG_TYPE_AGREED, &iov, 1);
