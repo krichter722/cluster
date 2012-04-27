@@ -12,6 +12,7 @@
 #include <sys/types.h>
 #include <sys/select.h>
 #include <pthread.h>
+#include <logging.h>
 
 /* Default lockspace stuff */
 static dlm_lshandle_t _default_ls = NULL;
@@ -50,9 +51,8 @@ clu_ls_lock(dlm_lshandle_t ls,
         int ret;
 
 	if (!ls || !lksb || !resource || !strlen(resource)) {
-		printf("%p %p %p %d\n", ls, lksb, resource,
-		       (int)strlen(resource));
-		printf("INVAL...\n");
+		logt_print(LOG_DEBUG, "Invalid lock request: %p %p %p %d\n",
+			ls, lksb, resource, resource ? strlen(resource) : 0);
 		errno = EINVAL;
 		return -1;
 	}
@@ -69,8 +69,8 @@ clu_ls_lock(dlm_lshandle_t ls,
         }
 
         if ((ret = (wait_for_dlm_event(ls) < 0))) {
-                fprintf(stderr, "wait_for_dlm_event: %d / %d\n",
-                        ret, errno);
+				logt_print(LOG_DEBUG, "wait_for_dlm_event: %d / %d\n",
+					ret, errno);
                 return -1;
         }
 
@@ -108,7 +108,7 @@ clu_open_lockspace(const char *lsname)
                 if (errno == ENOENT)
                         continue;
 
-                fprintf(stderr, "failed acquiring lockspace: %s\n",
+                logt_print(LOG_DEBUG, "failed acquiring lockspace: %s\n",
                         strerror(errno));
 
                 return NULL;
