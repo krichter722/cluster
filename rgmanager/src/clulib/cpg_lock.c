@@ -105,18 +105,27 @@ _cpg_lock_finished(const char *name)
 int
 cpg_lock_initialize(void)
 {
-	int ret, err;
+	int ret, err, retries = 0;
 
-	pthread_mutex_lock(&_default_lock);
-	if (_cpgh) {
+	while (retries < 10) {
+		pthread_mutex_lock(&_default_lock);
+		if (_cpgh) {
+			pthread_mutex_unlock(&_default_lock);
+			return 0;
+		}
+
+		cpg_lock_init(&_cpgh);
+		ret = (_cpgh == NULL);
+		err = errno;
 		pthread_mutex_unlock(&_default_lock);
-		return 0;
-	}
 
-	cpg_lock_init(&_cpgh);
-	ret = (_cpgh == NULL);
-	err = errno;
-	pthread_mutex_unlock(&_default_lock);
+		if (ret == 0)
+			break;
+		else {
+			sleep(1);
+			++retries;
+		}
+	}
 
 	/* Set up function pointers */
 	clu_lock = _cpg_lock;
