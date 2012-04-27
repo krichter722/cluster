@@ -643,6 +643,7 @@ del_client(int fd)
 
 		l->l.state = LOCK_FREE;
 		strncpy(m.resource, l->l.resource, sizeof(m.resource));
+		++recovered;
 		if (grant_next(&m) == 0)
 			send_unlock(&m);
 	}
