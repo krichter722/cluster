@@ -1,0 +1,21 @@
+.TH "cpglockd" "8" "May 2012" "" "Red Hat High Availability"
+.SH "NAME"
+cpglockd \- CPG lock server for rgmanager
+.SH "DESCRIPTION"
+.PP 
+.B cpglockd
+utilizes the extended virtual synchrony features of the Corosync
+Cluster Engine to implement a simplistic, distributed lock server
+for rgmanager.
+.SH "COMMAND LINE OPTIONS"
+.IP \-F
+Don't wait for the current node to join the fencing domain at startup
+.IP \-Q
+Don't wait for quorum formation at startup
+.IP \-f
+Operate in the foreground mode; do not daemonize
+.IP \-h
+Print command line usage.
+
+.SH "SEE ALSO"
+rgmanager(8), corosync(8)

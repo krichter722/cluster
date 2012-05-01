@@ -380,8 +380,13 @@ Do not perform stop-before-start.  Combined with the
 .I -Z
 flag to clusvcadm, this can be used to allow rgmanager to be upgraded
 without stopping a given user service or set of services.
+.IP \-C [0|1]
+Explicitly disable or enable CPG-based locking.  The default is to
+enable this when RRP is turned on (which requires a cluster outage).
+This option MUST be the same on all hosts in the cluster and must
+only be enabled or disabled with all instances of rgmanager turned off.
 
 .SH "SEE ALSO"
 http://sources.redhat.com/cluster/wiki/RGManager
 
-clusvcadm(8), cluster.conf(5)
+clusvcadm(8), cluster.conf(5), cpglockd(8)
