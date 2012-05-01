@@ -5,7 +5,8 @@ MANTARGET= \
 	rgmanager.8 \
 	clurgmgrd.8 \
 	clustat.8 \
-	clusvcadm.8
+	clusvcadm.8 \
+	cpglockd.8
 
 include ../../make/defines.mk
 include $(OBJDIR)/make/install.mk
