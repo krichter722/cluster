@@ -458,7 +458,13 @@ dispatch_msg(msgctx_t *ctx, int nodeid, int need_close)
 			/* Centralized processing or request is from
 			   clusvcadm */
 			nid = event_master();
-			if (nid != my_id()) {
+			if (nid < 0) {
+				logt_print(LOG_ERR, "#40b: Unable to determine "
+					"event master\n");
+				ret = -1;
+				goto out;
+			}
+			else if (nid != my_id()) {
 				/* Forward the message to the event master */
 				forward_message(ctx, msg_sm, nid);
 			} else {

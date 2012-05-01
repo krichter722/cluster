@@ -255,7 +255,7 @@ find_master(void)
 
 	m = member_list();
 	if (vf_read(m, "Transition-Master", &vn,
-		    (void **)(&data), &sz) < 0) {
+		    (void **)(&data), &sz) != VFR_OK) {
 		logt_print(LOG_ERR, "Unable to discover master"
 		       " status\n");
 		masterinfo = NULL;
