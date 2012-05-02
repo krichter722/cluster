@@ -27,7 +27,7 @@ static inline int _res_op_internal(resource_node_t **tree, resource_t *first,
 		 resource_node_t *node);
 
 /* XXX from reslist.c */
-void * act_dup(resource_act_t *acts);
+resource_act_t *act_dup(resource_act_t *acts);
 time_t get_time(char *action, int depth, resource_node_t *node);
 
 

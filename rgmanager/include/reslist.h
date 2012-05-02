@@ -175,7 +175,7 @@ void print_resource_tree(resource_node_t **tree);
 void dump_resource_tree(FILE *fp, resource_node_t **tree);
 void destroy_resource_tree(resource_node_t **tree);
 
-void *act_dup(resource_act_t *acts);
+resource_act_t *act_dup(resource_act_t *acts);
 void dump_resource_info(FILE *fp);
 
 
