@@ -399,12 +399,14 @@ check_depend_safe(const char *rg_name)
 
 	pthread_rwlock_rdlock(&resource_lock);
 	res = find_root_by_ref(&_resources, rg_name);
-	if (!res)
-		return -1;
+	if (!res) {
+		ret = -1;
+		goto out_unlock;
+	}
 
 	ret = check_depend(res);
+out_unlock:
 	pthread_rwlock_unlock(&resource_lock);
-
 	return ret;
 }
 
@@ -933,7 +935,7 @@ group_migratory(const char *groupname, int lock)
 	res = find_root_by_ref(&_resources, groupname);
 	if (!res) {
 		/* Nonexistent or non-TL RG cannot be migrated */
-		return 0;
+		goto out_unlock;
 	}
 
 	for (x = 0; res->r_rule->rr_actions[x].ra_name; x++) {
