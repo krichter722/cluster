@@ -2107,6 +2107,8 @@ handle_start_req(char *svcName, int req, int *new_owner)
 
 			_svc_stop_finish(svcName, 0, RG_STATE_STOPPED);
 		}
+		if (need_check)
+			pthread_mutex_unlock(&exclusive_mutex);
 		return RG_EDEPEND;
 	}
 	
