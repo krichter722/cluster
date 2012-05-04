@@ -500,8 +500,6 @@ define default_service_event_handler()
 		}
 
 		()=move_or_start(service_name, nodes);
-
-		return;
 	}
 
 	%
@@ -554,6 +552,10 @@ define default_service_event_handler()
 			info("Dependency lost; stopping ", services[x]);
 			()=service_stop(services[x]);
 		}
+	}
+
+	if (service_state == "recovering") {
+		return;
 	}
 
 	%
