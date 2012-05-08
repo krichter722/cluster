@@ -189,6 +189,10 @@ static void init_logging(int reconf)
 		ccs_read_logging(ccs_handle, "cmannotifyd", &debug, &mode,
 				 &syslog_facility, &syslog_priority, &logfile_priority, logfile);
 		ccs_disconnect(ccs_handle);
+	} else {
+		if (debug) {
+			logfile_priority = LOG_DEBUG;
+		}
 	}
 
 	if (!daemonize)
@@ -311,6 +315,8 @@ static void byebye_cman(void)
 static void setup_cman(int forever)
 {
 	int init = 0, active = 0;
+	int quorate;
+	const char *str = NULL;
 
 retry_init:
 	cman_handle = cman_init(NULL);
@@ -345,6 +351,14 @@ retry_active:
 		cman_finish(cman_handle);
 		exit(EXIT_FAILURE);
 	}
+
+	logt_print(LOG_DEBUG, "Dispatching first cluster status\n");
+	init_logging(1);
+	str = "CMAN_REASON_CONFIG_UPDATE";
+	dispatch_notification(str, 0);
+	str = "CMAN_REASON_STATECHANGE";
+	quorate = cman_is_quorate(cman_handle);
+	dispatch_notification(str, &quorate);
 
 	return;
 
