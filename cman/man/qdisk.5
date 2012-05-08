@@ -479,11 +479,11 @@ by the qdiskd timeout.
 .br
 <quorumd interval="1" tko="10" votes="3" label="testing">
 .in 12
-<heuristic program="ping A -c1 -t1" score="1" interval="2" tko="3"/>
+<heuristic program="ping A -c1 -w1" score="1" interval="2" tko="3"/>
 .br
-<heuristic program="ping B -c1 -t1" score="1" interval="2" tko="3"/>
+<heuristic program="ping B -c1 -w1" score="1" interval="2" tko="3"/>
 .br
-<heuristic program="ping C -c1 -t1" score="1" interval="2" tko="3"/>
+<heuristic program="ping C -c1 -w1" score="1" interval="2" tko="3"/>
 .br
 .in 8
 </quorumd>
