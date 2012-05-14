@@ -1655,9 +1655,9 @@ main(int argc, char **argv)
 				lft = fn.last_fenced_time;
 			}
 
-			if (lft > pf_node->fail_time) {
+			if (lft >= pf_node->fail_time) {
 				logt_print(LOG_DEBUG,
-					"Fencing for node %d finished at %ld (>%ld)\n",
+					"Fencing for node %d finished at %ld (lost at %ld)\n",
 					pf_node->nodeid, lft, pf_node->fail_time);
 				list_remove(&pending_fencing, pf_node);
 				free(pf_node);
