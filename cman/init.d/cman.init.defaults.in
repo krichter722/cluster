@@ -58,6 +58,9 @@
 #     set to "yes", then the script will attempt to join the fence domain.
 #     If FENCE_JOIN is set to any other value, the default behavior is
 #     to join the fence domain (equivalent to "yes").
+#     When setting FENCE_JOIN to "no", it is important to check
+#     DLM_CONTROLD_OPTS to reflect expected behavior regarding fencing
+#     and quorum.
 #FENCE_JOIN="yes"
 
 # FENCED_OPTS -- allow extra options to be passed to fence daemon.
