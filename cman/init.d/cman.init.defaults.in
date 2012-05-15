@@ -39,6 +39,9 @@
 # empty or any other value (default) | cman init will start the daemons
 #CMAN_DAEMONS_START= 
 
+# DLM_CONTROLD_OPTS -- allow extra options to be passed to dlm_controld daemon.
+#DLM_CONTROLD_OPTS=""
+
 # FENCE_JOIN_TIMEOUT -- seconds to wait for fence domain join to
 #     complete.  If the join hasn't completed in this time, fence_tool join
 #     exits with an error, and this script exits with an error.  To wait
