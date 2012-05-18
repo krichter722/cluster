@@ -69,6 +69,7 @@ rgm_dbus_init(void)
 		return 0;
 	}
 
+	dbus_threads_init_default();
 	dbus_error_init(&err);
 
 	dbc = dbus_bus_get_private(DBUS_BUS_SYSTEM, &err);
