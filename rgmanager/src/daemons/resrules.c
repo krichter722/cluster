@@ -205,8 +205,11 @@ _get_version(xmlDocPtr doc, xmlXPathContextPtr ctx, char *base,
 
 	snprintf(xpath, sizeof(xpath), "%s/@version", base);
 	ret = xpath_get_one(doc, ctx, xpath);
-	/* NULL or actual result of the query */
-	rr->rr_version = ret;
+	if (ret) {
+		rr->rr_version = ret;
+		free(ret);
+	}
+	rr->rr_version = NULL;
 }
 
 
