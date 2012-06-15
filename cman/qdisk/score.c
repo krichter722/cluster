@@ -215,6 +215,8 @@ check_heuristic(struct h_data *h, int block, struct timespec *now)
 		goto miss;
 	}
 	if (WEXITSTATUS(status) != 0) {
+		logt_print(LOG_DEBUG, "Heuristic: sh returned %d for '%s'\n",
+			   WEXITSTATUS(status), h->program);
 		ret = 0;
 		goto miss;
 	}
