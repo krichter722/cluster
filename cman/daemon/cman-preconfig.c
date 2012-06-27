@@ -451,7 +451,7 @@ static int verify_nodename(struct objdb_iface_ver0 *objdb, char *node)
 	struct sockaddr *sa;
 	hdb_handle_t nodes_handle;
 	hdb_handle_t find_handle = 0;
-	int error;
+	int found = 0;
 
 	/* nodename is either from commandline or from uname */
 	if (nodelist_byname(objdb, cluster_parent_handle, node))
@@ -497,12 +497,11 @@ static int verify_nodename(struct objdb_iface_ver0 *objdb, char *node)
 	}
 	objdb->object_find_destroy(find_handle);
 
-
-	/* The cluster.conf names may not be related to uname at all,
-	   they may match a hostname on some network interface.
-	   NOTE: This is IPv4 only */
-	error = getifaddrs(&ifa_list);
-	if (error)
+	/*
+	 * The cluster.conf names may not be related to uname at all,
+	 * they may match a hostname on some network interface.
+	 */
+	if (getifaddrs(&ifa_list))
 		return -1;
 
 	for (ifa = ifa_list; ifa; ifa = ifa->ifa_next) {
@@ -521,12 +520,13 @@ static int verify_nodename(struct objdb_iface_ver0 *objdb, char *node)
 		if (sa->sa_family == AF_INET6)
 			salen = sizeof(struct sockaddr_in6);
 
-		error = getnameinfo(sa, salen, nodename2,
-				    sizeof(nodename2), NULL, 0, 0);
-		if (!error) {
+		if (getnameinfo(sa, salen,
+				nodename2, sizeof(nodename2), 
+				NULL, 0, 0) == 0) {
 
 			if (nodelist_byname(objdb, cluster_parent_handle, nodename2)) {
 				strncpy(node, nodename2, sizeof(nodename) - 1);
+				found = 1;
 				goto out;
 			}
 
@@ -537,27 +537,88 @@ static int verify_nodename(struct objdb_iface_ver0 *objdb, char *node)
 
 				if (nodelist_byname(objdb, cluster_parent_handle, nodename2)) {
 					strncpy(node, nodename2, sizeof(nodename) - 1);
+					found = 1;
 					goto out;
 				}
 			}
 		}
 
 		/* See if it's the IP address that's in cluster.conf */
-		error = getnameinfo(sa, sizeof(*sa), nodename2,
-				    sizeof(nodename2), NULL, 0, NI_NUMERICHOST);
-		if (error)
+		if (getnameinfo(sa, sizeof(*sa),
+				nodename2, sizeof(nodename2), 
+				NULL, 0, NI_NUMERICHOST))
 			continue;
 
 		if (nodelist_byname(objdb, cluster_parent_handle, nodename2)) {
 			strncpy(node, nodename2, sizeof(nodename) - 1);
+			found = 1;
 			goto out;
 		}
 	}
 
-	error = -1;
  out:
+	if (found) {
+		freeifaddrs(ifa_list);
+		return 0;
+	}
+
+	/*
+	 * This section covers the usecase where the nodename specified in cluster.conf
+	 * is an alias specified in /etc/hosts. For example:
+	 * <ipaddr> hostname alias1 alias2
+	 * and <clusternode name="alias2">
+	 * the above calls use uname and getnameinfo does not return aliases.
+	 * here we take the name specified in cluster.conf, resolve it to an address
+	 * and then compare against all known local ip addresses.
+	 * if we have a match, we found our nodename. In theory this chunk of code
+	 * could replace all the checks above, but let's avoid any possible regressions
+	 * and use it as last.
+	 */
+
+	nodes_handle = nodeslist_init(objdb, cluster_parent_handle, &find_handle);
+	while (nodes_handle) {
+		char *dbnodename = NULL;
+		struct addrinfo hints;
+		struct addrinfo *result = NULL, *rp = NULL;
+
+		if (objdb_get_string(objdb, nodes_handle, "name", &dbnodename)) {
+			goto next;
+		}
+
+		memset(&hints, 0, sizeof(struct addrinfo));
+		hints.ai_family = AF_UNSPEC;
+		hints.ai_socktype = SOCK_DGRAM;
+		hints.ai_flags = 0;
+		hints.ai_protocol = IPPROTO_UDP;
+
+		if (getaddrinfo(dbnodename, NULL, &hints, &result))
+			goto next;
+
+		for (rp = result; rp != NULL; rp = rp->ai_next) {
+			for (ifa = ifa_list; ifa; ifa = ifa->ifa_next) {
+				if (ipaddr_equal((struct sockaddr_storage *)rp->ai_addr,
+						 (struct sockaddr_storage *)ifa->ifa_addr)) {
+					freeaddrinfo(result);
+					strncpy(node, dbnodename, sizeof(nodename) - 1);
+					found = 1;
+					goto out2;
+				}
+			}
+		}
+
+		freeaddrinfo(result);
+ next:
+		nodes_handle = nodeslist_next(objdb, find_handle);
+	}
+ out2:
+	objdb->object_find_destroy(find_handle);
 	freeifaddrs(ifa_list);
-	return error;
+
+	if (found) {
+		return 0;
+	}
+
+	return -1;
 }
 
 /* Get any environment variable overrides */
