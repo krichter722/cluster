@@ -1505,7 +1505,7 @@ auto_qdisk_votes(int desc)
 		logt_print(LOG_ERR, "Unable to determine qdiskd votes "
 			   "automatically\n");
 	else
-		logt_print(LOG_DEBUG, "Setting votes to %d\n", ret);
+		logt_print(LOG_DEBUG, "Setting autocalculated votes to %d\n", ret);
  
  	return (ret);
 }
@@ -1667,6 +1667,8 @@ get_dynamic_config_data(qd_ctx *ctx, int ccsfd)
 		ctx->qc_flags &= ~RF_AUTO_VOTES;
 	}
 
+	ctx->qc_auto_votes = auto_qdisk_votes(ccsfd);
+
 	snprintf(query, sizeof(query), "/cluster/quorumd/@votes");
 	if (ccs_get(ccsfd, query, &val) == 0) {
 		ctx->qc_votes = atoi(val);
@@ -1674,7 +1676,7 @@ get_dynamic_config_data(qd_ctx *ctx, int ccsfd)
 		if (ctx->qc_votes < 0)
 			ctx->qc_votes = 0;
 	} else {
-		ctx->qc_votes = auto_qdisk_votes(ccsfd);
+		ctx->qc_votes = ctx->qc_auto_votes;
 		if (ctx->qc_votes < 0) {
 			if (ctx->qc_config) {
 				logt_print(LOG_WARNING, "Unable to determine "
@@ -1940,15 +1942,21 @@ get_config_data(qd_ctx *ctx, struct h_data *h, int maxh, int *cfh)
 	*cfh = configure_heuristics(ccsfd, h, maxh,
 				    ctx->qc_interval * (ctx->qc_tko - 1));
 
-	if (*cfh) {
-		if (ctx->qc_flags & RF_MASTER_WINS) {
-			logt_print(LOG_WARNING, "Master-wins mode disabled\n");
+	if (ctx->qc_flags & RF_MASTER_WINS) {
+		if (*cfh) {
+			logt_print(LOG_WARNING, "Master-wins mode disabled "
+						"(not compatible with heuristics)\n");
+			ctx->qc_flags &= ~RF_MASTER_WINS;
+		}
+		if (ctx->qc_auto_votes != 1) {
+			logt_print(LOG_WARNING, "Master-wins mode disabled "
+						"(not compatible with more than 2 nodes)\n");
 			ctx->qc_flags &= ~RF_MASTER_WINS;
 		}
 	} else {
 		if (ctx->qc_flags & RF_AUTO_VOTES &&
-		    !(ctx->qc_flags & RF_MASTER_WINS) &&
-		    ctx->qc_votes == 1) { 
+		    !*cfh &&
+		    ctx->qc_auto_votes == 1) { 
 			/* Two node cluster, no heuristics, 1 vote for
 			 * quorum disk daemon.  Safe to enable master-wins.
 			 * In fact, qdiskd without master-wins in this config

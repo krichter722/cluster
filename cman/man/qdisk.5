@@ -297,8 +297,9 @@ and qdiskd's timeout (interval*tko) should be less than half of
 Totem's token timeout.  See section 3.3.1 for more information.
 
 This option only takes effect if there are no heuristics
-configured.  Usage of this option in configurations with more than
-two cluster nodes is undefined and should not be done.
+configured and it is valid only for 2 node cluster.
+This option is automatically disabled if heuristics are
+defined or cluster has more than 2 nodes configured.
 
 In a two-node cluster with no heuristics and no defined vote
 count (see above), this mode is turned by default.  If enabled in
