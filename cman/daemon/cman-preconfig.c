@@ -1478,6 +1478,7 @@ static int cmanpre_reloadconfig(struct objdb_iface_ver0 *objdb, int flush, const
 	hdb_handle_t cluster_parent_handle_new;
 	unsigned int config_version = 0, config_version_new = 0;
 	char *config_value = NULL;
+	char str[255];
 
 	/* don't reload if we've been told to run configless */
 	if (getenv("CMAN_NOCONFIG")) {
@@ -1489,16 +1490,16 @@ static int cmanpre_reloadconfig(struct objdb_iface_ver0 *objdb, int flush, const
 	/* find both /cluster entries */
 	objdb->object_find_create(OBJECT_PARENT_HANDLE, "cluster", strlen("cluster"), &find_handle);
 	objdb->object_find_next(find_handle, &cluster_parent_handle);
+	objdb->object_find_next(find_handle, &cluster_parent_handle_new);
+	objdb->object_find_destroy(find_handle);
 	if (!cluster_parent_handle) {
 		snprintf (error_reason, sizeof(error_reason) - 1, "Cannot find old /cluster/ key in configuration\n");
 		goto err;
 	}
-	objdb->object_find_next(find_handle, &cluster_parent_handle_new);
 	if (!cluster_parent_handle_new) {
 		snprintf (error_reason, sizeof(error_reason) - 1, "Cannot find new /cluster/ key in configuration\n");
 		goto err;
 	}
-	objdb->object_find_destroy(find_handle);
 
 	if (!objdb->object_key_get(cluster_parent_handle, "config_version", strlen("config_version"), (void *)&config_value, NULL)) {
 		if (config_value) {
@@ -1530,6 +1531,32 @@ static int cmanpre_reloadconfig(struct objdb_iface_ver0 *objdb, int flush, const
 
 	/* destroy the old one */
 	objdb->object_destroy(cluster_parent_handle);
+
+	/*
+	 * create cluster.cman in the new config if it doesn't exists
+	 */
+	objdb->object_find_create(cluster_parent_handle_new, "cman", strlen("cman"), &find_handle);
+	if (objdb->object_find_next(find_handle, &object_handle)) {
+		objdb->object_create(cluster_parent_handle_new, &object_handle,
+				     "cman", strlen("cman"));
+	}
+	objdb->object_find_destroy(find_handle);
+
+	/*
+	 * readd cluster_id/two_node/nodename
+	 */
+	snprintf(str, sizeof(str) - 1, "%d", cluster_id);
+	objdb->object_key_create_typed(object_handle, "cluster_id",
+				       str, strlen(str) + 1, OBJDB_VALUETYPE_STRING);
+
+	if (two_node) {
+		snprintf(str, sizeof(str) - 1, "%d", 1);
+		objdb->object_key_create_typed(object_handle, "two_node",
+					       str, strlen(str) + 1, OBJDB_VALUETYPE_STRING);
+	}
+
+	objdb->object_key_create_typed(object_handle, "nodename",
+				       nodename, strlen(nodename)+1, OBJDB_VALUETYPE_STRING);
 
 	/* update the reference to the new config */
 	cluster_parent_handle = cluster_parent_handle_new;
