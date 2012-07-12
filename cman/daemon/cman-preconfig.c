@@ -1533,7 +1533,7 @@ static int cmanpre_reloadconfig(struct objdb_iface_ver0 *objdb, int flush, const
 	objdb->object_destroy(cluster_parent_handle);
 
 	/*
-	 * create cluster.cman in the new config if it doesn't exists
+	 * create cluster.cman in the new config if it doesn't exist
 	 */
 	objdb->object_find_create(cluster_parent_handle_new, "cman", strlen("cman"), &find_handle);
 	if (objdb->object_find_next(find_handle, &object_handle)) {
@@ -1543,7 +1543,7 @@ static int cmanpre_reloadconfig(struct objdb_iface_ver0 *objdb, int flush, const
 	objdb->object_find_destroy(find_handle);
 
 	/*
-	 * readd cluster_id/two_node/nodename
+	 * write cluster_id/two_node/nodename
 	 */
 	snprintf(str, sizeof(str) - 1, "%d", cluster_id);
 	objdb->object_key_create_typed(object_handle, "cluster_id",
