@@ -24,9 +24,12 @@ typedef enum {
 	S_INIT	= 0x2,		// Initializing.  Hold your fire.
         /* vvv Fencing will kill a node */
 	S_RUN	= 0x5,		// I think I'm running.
-	S_MASTER= 0x6		// I know I'm running, and have advertised to
+	S_MASTER= 0x6,		// I know I'm running, and have advertised to
 				// CMAN the availability of the disk vote for my
 				// partition.
+	S_EXIT	= 0x7		// trigger master re-election before exit
+				// status is set only by master in master-win | auto-masterwin
+				// and next status _must_ be S_NONE
 } disk_node_state_t;
 
 

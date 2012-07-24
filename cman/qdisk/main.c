@@ -196,7 +196,8 @@ read_node_blocks(qd_ctx *ctx, node_info_t *ni, int max)
 			continue;
 
 		/* Unchanged timestamp: miss */
-		if (sb->ps_timestamp == ni[x].ni_last_seen) {
+		if ((sb->ps_timestamp == ni[x].ni_last_seen) &&
+		    (ni[x].ni_state != S_EXIT)) {
 			/* XXX check for average + allow grace */
 			ni[x].ni_misses++;
 			if (ni[x].ni_misses > 1) {
@@ -229,6 +230,22 @@ check_transitions(qd_ctx *ctx, node_info_t *ni, int max, memb_mask_t mask)
 		memset(mask, 0, sizeof(memb_mask_t));
 
 	for (x = 0; x < max; x++) {
+
+		/*
+		   Case 0: check if master node is about to leave
+		 */
+		if (ni[x].ni_state == S_EXIT) {
+			logt_print(LOG_NOTICE, "Node %d is about to leave\n", ni[x].ni_status.ps_nodeid);
+			ni[x].ni_evil_incarnation = 0;
+			ni[x].ni_incarnation = 0;
+			ni[x].ni_seen = 0;
+			ni[x].ni_misses = 0;
+			ni[x].ni_state = S_NONE;
+			if (mask) 
+				clear_bit(mask, (ni[x].ni_status.ps_nodeid-1),
+					  sizeof(memb_mask_t));
+			continue;
+		}
 
 		/*
 		   Case 1: check to see if the node is still up
@@ -1269,6 +1286,50 @@ quorum_loop(qd_ctx *ctx, node_info_t *ni, int max)
 
 
 /**
+  Tell the other nodes to elect a new master != me.
+ */
+static int
+quorum_reelect_master(qd_ctx *ctx, node_info_t *ni, int max)
+{
+	if (qd_write_status(ctx, ctx->qc_my_id, S_EXIT,
+			    NULL, NULL, NULL) != 0) {
+		logt_print(LOG_WARNING,
+		       "Error writing to quorum disk during reelect_master\n");
+	}
+
+	while (1) {
+		int master, x;
+		int found = 0;
+		int low_id, count;
+
+		read_node_blocks(ctx, ni, max);
+
+		for (x = 0; x < max; x++) {
+			if (ni[x].ni_state >= S_RUN) {
+				found = 1;
+			}
+		}
+
+		if (!found) {
+			logt_print(LOG_DEBUG, "No other nodes are active. Exiting\n");
+			break;
+		}
+
+		master = master_exists(ctx, ni, max, &low_id, &count);
+		if (master) {
+			logt_print(LOG_DEBUG, "New master elected: %d\n", master);
+			break;
+		}
+		/*
+		 * give time for message to be read
+		 */
+		sleep(1);
+	}
+
+	return 0;
+}
+
+/**
   Tell the other nodes we're done (safely!).
  */
 static int
@@ -2173,6 +2234,15 @@ main(int argc, char **argv)
 	io_nanny_start(ch_user, ctx.qc_tko * ctx.qc_interval);
 
 	if (quorum_loop(&ctx, ni, MAX_NODES_DISK) == 0) {
+		/*
+		 * if we are master and we are in master-win mode,
+		 * request other qdiskd to elect a new one
+		 */
+		if ((ctx.qc_status == S_MASTER) &&
+		    ((ctx.qc_flags & RF_MASTER_WINS) ||
+		     (ctx.qc_flags & RF_AUTO_MASTER_WINS))) {
+			quorum_reelect_master(&ctx, ni, MAX_NODES_DISK);
+		}
 		/* Only clean up if we're exiting w/o error) */
 		logt_print(LOG_NOTICE, "Unregistering quorum device.\n");
 		cman_unregister_quorum_device(ctx.qc_cman_admin);
