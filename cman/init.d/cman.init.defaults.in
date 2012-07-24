@@ -58,9 +58,10 @@
 #     set to "yes", then the script will attempt to join the fence domain.
 #     If FENCE_JOIN is set to any other value, the default behavior is
 #     to join the fence domain (equivalent to "yes").
-#     When setting FENCE_JOIN to "no", it is important to check
-#     DLM_CONTROLD_OPTS to reflect expected behavior regarding fencing
-#     and quorum.
+#     When setting FENCE_JOIN to "no", it is important to also set
+#     DLM_CONTROLD_OPTS="-f0" (at least) for correct operation.
+#     Please note that clusters without fencing are not 
+#     supported by Red Hat except for MRG installations.
 #FENCE_JOIN="yes"
 
 # FENCED_OPTS -- allow extra options to be passed to fence daemon.
