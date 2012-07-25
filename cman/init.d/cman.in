@@ -119,6 +119,13 @@ fi
 # DLM_CONTROLD_OPTS -- allow extra options to be passed to dlm_controld daemon.
 [ -z "$DLM_CONTROLD_OPTS" ] && DLM_CONTROLD_OPTS=""
 
+# DLM_LKBTBL_SIZE - DLM_RSBTBL_SIZE - DLM_DIRTBL_SIZE
+# Allow tuning of DLM kernel hash table sizes.
+# do NOT change unless instructed to do so.
+[ -z "$DLM_LKBTBL_SIZE" ] && DLM_LKBTBL_SIZE=""
+[ -z "$DLM_RSBTBL_SIZE" ] && DLM_RSBTBL_SIZE=""
+[ -z "$DLM_DIRTBL_SIZE" ] && DLM_DIRTBL_SIZE=""
+
 # FENCE_JOIN_TIMEOUT -- seconds to wait for fence domain join to
 #     complete.  If the join hasn't completed in this time, fence_tool join
 #     exits with an error, and this script exits with an error.  To wait
@@ -755,6 +762,23 @@ leave_fence_domain()
 	fi
 }
 
+tune_dlm_hash_sizes()
+{
+	dlmdir="/sys/kernel/config/dlm/cluster"
+
+	[ -n "$DLM_LKBTBL_SIZE" ] && [ -f $dlmdir/lkbtbl_size ] && \
+	  echo $DLM_LKBTBL_SIZE > $dlmdir/lkbtbl_size
+
+	[ -n "$DLM_RSBTBL_SIZE" ] && [ -f $dlmdir/rsbtbl_size ] && \
+	  echo $DLM_RSBTBL_SIZE > $dlmdir/rsbtbl_size
+
+	[ -n "$DLM_DIRTBL_SIZE" ] && [ -f $dlmdir/dirtbl_size ] && \
+	  echo $DLM_DIRTBL_SIZE > $dlmdir/dirtbl_size
+
+	return 0
+}
+	
+
 start()
 {
 	currentaction="start"
@@ -821,6 +845,10 @@ start()
 	runwrap start_dlm_controld \
 		dlm_controld_enabled \
 		"Starting dlm_controld"
+
+	runwrap tune_dlm_hash_sizes \
+		none \
+		"Tuning DLM kernel hash tables"
 
 	gfs_controld_enabled && cd @INITDDIR@ && ./gfs2-cluster start
 
