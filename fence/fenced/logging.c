@@ -39,8 +39,13 @@ void init_logging(void)
 		  logfile_priority, logfile);
 }
 
+#define DEFAULT_LOGFILE_MODE (S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)
+
 void setup_logging(void)
 {
+	struct stat buf;
+	int rv;
+
 	ccs_read_logging(ccs_handle, DAEMON_NAME,
 			 &cfgd_debug_logfile, &log_mode,
 			 &syslog_facility, &syslog_priority,
@@ -52,6 +57,32 @@ void setup_logging(void)
 
 	logt_conf(DAEMON_NAME, log_mode, syslog_facility, syslog_priority,
 		  logfile_priority, logfile);
+
+	/*
+	 * Previously fenced.log was created with mode 666,
+	 * so fix it to be 644.
+	 */
+
+	rv = stat(logfile, &buf);
+	if (rv)
+		return;
+
+	log_debug("logfile cur mode %lo", (unsigned long)buf.st_mode);
+
+	if ((buf.st_mode & (S_IRWXU|S_IRWXG|S_IRWXO)) == DEFAULT_LOGFILE_MODE)
+		return;
+
+	rv = chmod(logfile, DEFAULT_LOGFILE_MODE);
+	if (rv) {
+		log_error("chmod error %d", errno);
+		return;
+	}
+
+	rv = stat(logfile, &buf);
+	if (rv)
+		return;
+
+	log_debug("logfile new mode %lo", (unsigned long)buf.st_mode);
 }
 
 void close_logging(void)

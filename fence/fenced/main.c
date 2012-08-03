@@ -1027,7 +1027,6 @@ int main(int argc, char **argv)
 			perror("main: cannot fork");
 			exit(EXIT_FAILURE);
 		}
-		umask(0);
 	}
 	lockfile();
 	init_logging();
