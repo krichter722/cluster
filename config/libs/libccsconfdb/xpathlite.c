@@ -333,9 +333,12 @@ static int get_data(confdb_handle_t handle, hdb_handle_t connection_handle,
 			}
 
 			value--;
-			if (value != 0)
+			if (value != 0) {
 				free(keyval);
+				keyval = NULL;
+			}
 		}
+		datalen = strlen(data);
 		resval = malloc(datalen + keyvallen + 2);
 		if (!resval)
 			goto fail;
