@@ -37,5 +37,5 @@ ${TARGET2}: ${OBJS2} ${TARGET1}
 
 clean: generalclean
 
--include $(OBJS1:.o=.d)
--include $(OBJS2:.o=.d)
+-include $(OBJS1:.o=.Tpo)
+-include $(OBJS2:.o=.Tpo)

@@ -29,4 +29,4 @@ depends:
 	$(MAKE) -C ../libdlm all
 	$(MAKE) -C ../libdlmcontrol all
 
--include $(OBJS:.o=.d)
+-include $(OBJS:.o=.Tpo)

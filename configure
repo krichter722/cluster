@@ -317,7 +317,7 @@ if (!$cflags) {
   } else {
     $cflags="${cflags} -O0 -DDEBUG";
   }
-  $cflags="${cflags} -ggdb3 -MMD";
+  $cflags="${cflags} -ggdb3 -MD -MP -MF \$<.Tpo";
 }
 if ($extracflags) {
   $cflags="${cflags} ${extracflags}";

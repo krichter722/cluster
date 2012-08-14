@@ -1,5 +1,5 @@
 generalclean:
-	rm -rf *~* *.o *.a *.so *.so.* a.out *.po *.s *.d *.pyc
+	rm -rf *~* *.o *.a *.so *.so.* a.out *.po *.s *.Tpo *.pyc
 	rm -rf core core.* .depend cscope.* *.orig *.rej
 	rm -rf linux .*.o.cmd .*.ko.cmd *.mod.c .tmp_versions
 	rm -rf Module.symvers Module.markers .*.o.d modules.order

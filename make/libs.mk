@@ -56,4 +56,4 @@ $(STATICLIB): $(OBJS)
 
 clean: generalclean
 
--include $(OBJS:.o=.d)
+-include $(OBJS:.o=.Tpo)

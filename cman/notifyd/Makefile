@@ -34,4 +34,4 @@ depends:
 
 clean: generalclean
 
--include $(OBJS1:.o=.d)
+-include $(OBJS1:.o=.Tpo)
