@@ -704,9 +704,9 @@ static int get_config_variables(commandline_t *comline, char **config_modules)
 	int res;
 	int got_iface = 1;
 	char key_name[1024];
-	size_t key_name_len;
-	char key_value[1024];
+	char *key_value = NULL;
 	size_t key_value_len;
+	confdb_value_types_t type;
 	hdb_handle_t confdb_handle;
 	hdb_handle_t cmanp_handle;
 	confdb_callbacks_t callbacks = {
@@ -732,9 +732,8 @@ static int get_config_variables(commandline_t *comline, char **config_modules)
 	if (res != CS_OK)
 		goto finish;
 
-	while ( (res = confdb_key_iter(confdb_handle, cmanp_handle, key_name, &key_name_len,
-				       key_value, &key_value_len)) == CS_OK) {
-		key_name[key_name_len] = '\0';
+	while ( (res = confdb_key_iter_typed2(confdb_handle, cmanp_handle, key_name,
+					      (void**)&key_value, &key_value_len, &type)) == CS_OK) {
 		key_value[key_value_len] = '\0';
 
 		setenv(key_name, key_value, 1);
@@ -742,6 +741,8 @@ static int get_config_variables(commandline_t *comline, char **config_modules)
 			*config_modules = strdup(key_value);
 			got_iface = 0;
 		}
+		free(key_value);
+		key_value = NULL;
 	}
 
 finish:

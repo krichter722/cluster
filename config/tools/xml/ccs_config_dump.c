@@ -14,20 +14,21 @@ static int dump_objdb_buff(confdb_handle_t dump_handle, hdb_handle_t cluster_han
 			   hdb_handle_t parent_object_handle, int level)
 {
 	hdb_handle_t object_handle;
-	char object_name[PATH_MAX], key_name[PATH_MAX], key_value[PATH_MAX];
-	size_t key_value_len = 0, key_name_len = 0, object_name_len = 0;
+	char object_name[PATH_MAX], key_name[PATH_MAX];
+	char *key_value=NULL;
+	size_t key_value_len = 0, object_name_len = 0;
 	int current_level = level+1;
 	int has_children = 0;
+	confdb_value_types_t type;
 
 	if (confdb_key_iter_start(dump_handle, parent_object_handle) != CS_OK)
 		return -1;
 
-	while (confdb_key_iter(dump_handle, parent_object_handle, key_name,
-				&key_name_len, key_value,
-				&key_value_len) == CS_OK) {
+	while (confdb_key_iter_typed2(dump_handle, parent_object_handle, key_name,
+				      (void**)&key_value,
+				      &key_value_len, &type) == CS_OK) {
 		int char_pos = 0;
 
-		key_name[key_name_len] = '\0';
 		key_value[key_value_len] = '\0';
 		printf(" %s=\"", key_name);
 		for (char_pos = 0; char_pos < key_value_len-1; char_pos++) {
@@ -54,6 +55,8 @@ static int dump_objdb_buff(confdb_handle_t dump_handle, hdb_handle_t cluster_han
 			}
 		}
 		printf("\"");
+		free(key_value);
+		key_value = NULL;
 	}
 
 	if (confdb_object_iter_start(dump_handle, parent_object_handle) != CS_OK)
@@ -61,7 +64,7 @@ static int dump_objdb_buff(confdb_handle_t dump_handle, hdb_handle_t cluster_han
 
 	while (confdb_object_iter(dump_handle, parent_object_handle,
 				   &object_handle, object_name,
-				   &object_name_len) == CS_OK) {
+					 &object_name_len) == CS_OK) {
 		hdb_handle_t parent;
 		int i;
 		int found_children;

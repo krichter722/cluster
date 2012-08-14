@@ -41,8 +41,8 @@ static void print_config_tree(confdb_handle_t handle, hdb_handle_t parent_object
 	char object_name[1024];
 	size_t object_name_len;
 	char key_name[1024];
-	size_t key_name_len;
-	char key_value[1024];
+	char *key_value=NULL;
+	confdb_value_types_t type;
 	size_t key_value_len;
 	char cumulative_dn[4096];
 	int res;
@@ -57,13 +57,14 @@ static void print_config_tree(confdb_handle_t handle, hdb_handle_t parent_object
 		return;
 	}
 
-	while ( (res = confdb_key_iter(handle, parent_object_handle, key_name, &key_name_len,
-				       key_value, &key_value_len)) == CS_OK) {
-		key_name[key_name_len] = '\0';
+	while ( (res = confdb_key_iter_typed2(handle, parent_object_handle, key_name,
+					      (void**)&key_value, &key_value_len, &type)) == CS_OK) {
 		key_value[key_value_len] = '\0';
 
 		printf("%s: %s\n", ldap_attr_name(key_name), key_value);
 		keycount++;
+		free(key_value);
+		key_value=NULL;
 	}
 	if (strncmp(fulldn, "cn=", 3) == 0) {
 		printf("cn: %s\n", dn);
@@ -97,7 +98,7 @@ static void print_config_tree(confdb_handle_t handle, hdb_handle_t parent_object
 		object_name[object_name_len] = '\0';
 
 		/* Check for "name", and create dummy parent object */
-		res = confdb_key_get(handle, object_handle, "name", strlen("name"), key_value, &key_value_len);
+		res = confdb_key_get_typed2(handle, object_handle, "name",  (void **)&key_value, &key_value_len, &type);
 		if (res == CS_OK) {
 			snprintf(cumulative_dn, sizeof(cumulative_dn) - 1, "cn=%s,%s", object_name, fulldn);
 			printf("\n");
@@ -106,6 +107,8 @@ static void print_config_tree(confdb_handle_t handle, hdb_handle_t parent_object
 			printf("objectclass: %s\n", "nsContainer");
 
 			snprintf(cumulative_dn, sizeof(cumulative_dn) - 1, "name=%s,cn=%s,%s", key_value, object_name, fulldn);
+			free(key_value);
+			key_value = NULL;
 		}
 		else {
 			snprintf(cumulative_dn, sizeof(cumulative_dn) - 1, "cn=%s,%s", object_name, fulldn);

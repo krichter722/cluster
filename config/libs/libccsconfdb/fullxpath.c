@@ -52,8 +52,9 @@ static int dump_objdb_buff(confdb_handle_t dump_handle, hdb_handle_t cluster_han
 	char temp[PATH_MAX];
 	char object_name[PATH_MAX];
 	char key_name[PATH_MAX];
-	char key_value[PATH_MAX];
-	size_t key_value_len = 0, key_name_len = 0, object_name_len = 0;
+	char *key_value = NULL;
+	size_t key_value_len = 0, object_name_len = 0;
+	confdb_value_types_t type;
 	int res;
 
 	res = confdb_key_iter_start(dump_handle, parent_object_handle);
@@ -70,16 +71,17 @@ static int dump_objdb_buff(confdb_handle_t dump_handle, hdb_handle_t cluster_han
 	}
 
 	while ((res =
-		confdb_key_iter(dump_handle, parent_object_handle, key_name,
-				&key_name_len, key_value,
-				&key_value_len)) == CS_OK) {
+		confdb_key_iter_typed2(dump_handle, parent_object_handle, key_name,
+				       (void **)&key_value,
+				       &key_value_len, &type)) == CS_OK) {
 		int char_pos = 0;
-		key_name[key_name_len] = '\0';
 		key_value[key_value_len] = '\0';
 
 		snprintf(temp, PATH_MAX - 1, " %s=\"", key_name);
-		if (add_to_buffer(temp, buffer, bufsize))
+		if (add_to_buffer(temp, buffer, bufsize)) {
+			free(key_value);
 			return -1;
+		}
 
 		for (char_pos = 0; char_pos < key_value_len-1; char_pos++) {
 			switch (key_value[char_pos]) {
@@ -104,9 +106,13 @@ static int dump_objdb_buff(confdb_handle_t dump_handle, hdb_handle_t cluster_han
 				temp[1] = '\0';
 				break;
 			}
-			if (add_to_buffer(temp, buffer, bufsize))
+			if (add_to_buffer(temp, buffer, bufsize)) {
+				free(key_value);
 				return -1;
+			}
 		}
+		free(key_value);
+		key_value = NULL;
 
 		snprintf(temp, PATH_MAX - 1, "\"");
 		if (add_to_buffer(temp, buffer, bufsize))

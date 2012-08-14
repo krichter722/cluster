@@ -69,6 +69,7 @@ static int path_dive(confdb_handle_t handle, hdb_handle_t *query_handle,
 	char *pos = NULL, *next = NULL;
 	int i;
 	hdb_handle_t new_obj_handle;
+	confdb_value_types_t type;
 
 	pos = current_query + 1;
 
@@ -98,6 +99,8 @@ static int path_dive(confdb_handle_t handle, hdb_handle_t *query_handle,
 			 */
 
 			char *start = NULL, *middle = NULL, *end = NULL;
+			char *key_value = NULL;
+			size_t valuelen;
 			char data[PATH_MAX];
 			size_t datalen = 0;
 
@@ -201,17 +204,22 @@ static int path_dive(confdb_handle_t handle, hdb_handle_t *query_handle,
 					     &new_obj_handle) != CS_OK)
 						goto fail;
 					else {
-						if (confdb_key_get
+						key_value = NULL;
+						if (confdb_key_get_typed2
 						    (handle, new_obj_handle,
-						     middle, strlen(middle),
-						     data,
-						     &datalen) == CS_OK) {
+						     middle,
+						     (void **) &key_value,
+						     &valuelen, &type) == CS_OK) {
 							if (!strcmp
-							    (data, value))
+							    (key_value, value))
 								goout = 1;
+							free(key_value);
+							key_value = NULL;
 						}
 					}
 				}
+				free(key_value);
+				key_value = NULL;
 				confdb_object_find_destroy(handle,
 							   *query_handle);
 				*query_handle = new_obj_handle;
@@ -234,15 +242,14 @@ static int get_data(confdb_handle_t handle, hdb_handle_t connection_handle,
 {
 	int cmp;
 	char data[PATH_MAX];
-	char resval[PATH_MAX];
-	char keyval[PATH_MAX];
+	char *resval;
+	char *keyval;
 	hdb_handle_t new_obj_handle;
 	unsigned int value = 0;
+	confdb_value_types_t type;
 	size_t datalen = 0, keyvallen = PATH_MAX;
 
 	memset(data, 0, PATH_MAX);
-	memset(resval, 0, PATH_MAX);
-	memset(keyval, 0, PATH_MAX);
 
 	// we need to handle child::*[int value] in non list mode.
 	cmp = strcmp(curpos, "child::*");
@@ -293,8 +300,11 @@ static int get_data(confdb_handle_t handle, hdb_handle_t connection_handle,
 			value--;
 		}
 
-		snprintf(resval, sizeof(resval), "%s=%s", data, keyval);
-		*rtn = strndup(resval, datalen + keyvallen + 2);
+		resval = malloc(datalen + keyvallen + 2);
+		if (!resval)
+			goto fail;
+		snprintf(resval, datalen + keyvallen + 2, "%s=%s", data, keyval);
+		*rtn = resval;
 
 	} else if (!strncmp(curpos, "@*", strlen("@*"))) {
 
@@ -314,18 +324,24 @@ static int get_data(confdb_handle_t handle, hdb_handle_t connection_handle,
 
 		while (value != 0) {
 			memset(data, 0, PATH_MAX);
-			if (confdb_key_iter
-			    (handle, query_handle, data, &datalen, keyval,
-			     &keyvallen) != CS_OK) {
+			keyval = NULL;
+			if (confdb_key_iter_typed2
+			    (handle, query_handle, data, (void **)&keyval,
+			     &keyvallen, &type) != CS_OK) {
 				reset_iterator(handle, connection_handle);
 				goto fail;
 			}
 
 			value--;
+			if (value != 0)
+				free(keyval);
 		}
-
-		snprintf(resval, sizeof(resval), "%s=%s", data, keyval);
-		*rtn = strndup(resval, datalen + keyvallen + 2);
+		resval = malloc(datalen + keyvallen + 2);
+		if (!resval)
+			goto fail;
+		snprintf(resval, datalen + keyvallen + 2, "%s=%s", data, keyval);
+		*rtn = resval;
+		free(keyval);
 
 	} else {		/* pure data request */
 		char *query;
@@ -343,12 +359,13 @@ static int get_data(confdb_handle_t handle, hdb_handle_t connection_handle,
 
 		query = query + 1;
 
-		if (confdb_key_get
-		    (handle, query_handle, query, strlen(query), data,
-		     &datalen) != CS_OK)
+		keyval = NULL;
+		if (confdb_key_get_typed2
+		    (handle, query_handle, query, (void **)&keyval,
+		     &keyvallen, &type) != CS_OK)
 			goto fail;
 
-		*rtn = strndup(data, datalen);
+		*rtn = keyval;
 	}
 
 	return 0;
