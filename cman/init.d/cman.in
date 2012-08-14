@@ -203,6 +203,19 @@ cman_join_opts+=" -D$CONFIG_VALIDATION"
 # full            - show everything
 [ -z "$INITLOGLEVEL" ] && INITLOGLEVEL=terse
 
+# INITBREAKPOINT -- select cman init break point during startup
+# possible values:
+# setup   - exit before executing cman
+# join    - exit after executing cman
+# notify  - exit after starting up notifyd (if enabled) and before quorum
+# quorum  - exit after start qdiskd (if enabled) and wait for quorum
+# daemons - exit after starting all other daemons (if enabled)
+# all (default) - start all the stack
+# 
+# invoking cman init with /etc/init.d/cman start <selected_breakpoint>
+# overrides configured breakpoint from default settings
+[ -z "$INITBREAKPOINT" ] && INITBREAKPOINT=""
+
 ### generic wrapper functions
 
 ok() {
@@ -782,7 +795,8 @@ tune_dlm_hash_sizes()
 start()
 {
 	currentaction="start"
-	breakpoint="$1"
+	[ -n "$INITBREAKPOINT" ] && breakpoint="$INITBREAKPOINT"
+	[ -n "$1" ] && breakpoint="$1"
 
 	sshd_enabled && cd @INITDDIR@ && ./sshd start
 
@@ -824,6 +838,12 @@ start()
 
 	[ "$breakpoint" = "join" ] && exit 0
 
+	runwrap start_cmannotifyd \
+		cmannotifyd_enabled \
+		"Starting cmannotifyd"
+
+	[ "$breakpoint" = "notify" ] && exit 0
+
 	runwrap start_qdiskd \
 		qdiskd_enabled \
 		"Starting qdiskd"
@@ -855,10 +875,6 @@ start()
 	runwrap start_ocfs2_controld \
 		ocfs2_enabled \
 		"Starting ocfs2_controld"
-
-	runwrap start_cmannotifyd \
-		cmannotifyd_enabled \
-		"Starting cmannotifyd"
 
 	[ "$breakpoint" = "daemons" ] && exit 0
 

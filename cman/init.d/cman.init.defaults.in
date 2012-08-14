@@ -117,3 +117,16 @@
 # terse (default) - show only required activity
 # full            - show everything
 #INITLOGLEVEL=terse
+
+# INITBREAKPOINT -- select cman init break point during startup
+# possible values:
+# setup   - exit before executing cman
+# join    - exit after executing cman
+# notify  - exit after starting up notifyd (if enabled) and before quorum
+# quorum  - exit after start qdiskd (if enabled) and wait for quorum
+# daemons - exit after starting all other daemons (if enabled)
+# all (default) - start all the stack
+#
+# invoking cman init with /etc/init.d/cman start <selected_breakpoint>
+# overrides configured breakpoint from default settings
+#INITBREAKPOINT="all"
