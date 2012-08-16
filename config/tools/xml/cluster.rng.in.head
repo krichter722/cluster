@@ -283,10 +283,10 @@ To validate your cluster.conf against this schema, run:
         chosen." rha:sample="active"/>
    </optional>
    <optional>
-    <attribute name="rrp_problem_count_threshold"
-	rha:description="This specifies the number of times a problem is detected
-        with a link before setting the link faulty.  Once a link is set faulty, no
-        more data is transmitted upon it. Corosync default is 10, cman default is 3"
+    <attribute name="rrp_problem_count_threshold" rha:description="This
+        specifies the number of times a problem is detected with a link
+        before setting the link faulty.  Once a link is set faulty, no more
+        data is transmitted upon it. Corosync default is 10, cman default is 3"
         rha:default="3" rha:sample="5"/>
    </optional>
    <optional>
@@ -434,36 +434,36 @@ To validate your cluster.conf against this schema, run:
 <!-- fence_daemon block -->
  <optional>
   <element name="fence_daemon" rha:description="Configuration for fenced
-	daemon. fenced(8)">
+      daemon. fenced(8)">
    <optional>
     <attribute name="post_join_delay" rha:description="Number of seconds
-	the daemon will wait before fencing any victims after a node joins
-	the fence domain. fenced(8)"/>
+        the daemon will wait before fencing any victims after a node joins
+        the fence domain. fenced(8)"/>
    </optional>
    <optional>
     <attribute name="post_fail_delay" rha:description="Number of seconds
-	the daemon will wait before fencing any victims after a node
-	fails. fenced(8)"/>
+        the daemon will wait before fencing any victims after a node
+        fails. fenced(8)"/>
    </optional>
    <optional>
     <attribute name="override_path" rha:description="Location of a FIFO
-	used for communication between fenced and fence_ack_manual.
-	fenced(8)"/>
+        used for communication between fenced and fence_ack_manual.
+        fenced(8)"/>
    </optional>
    <optional>
     <attribute name="override_time" rha:description="Number of seconds to
-	wait for a manual override after a failed fencing attempt before
-	the next attempt. fenced(8)"/>
+        wait for a manual override after a failed fencing attempt before
+        the next attempt. fenced(8)"/>
    </optional>
    <optional>
     <attribute name="clean_start" rha:description="Set to 1 to disable
-	startup fencing. fenced(8)"/>
+        startup fencing. fenced(8)"/>
    </optional>
 
    <optional>
     <attribute name="skip_undefined" rha:description="Set to 1 to disable
-	startup fencing of nodes with no fence methods defined.
-	fenced(8)"/>
+        startup fencing of nodes with no fence methods defined.
+        fenced(8)"/>
    </optional>
   </element>
  </optional>
@@ -482,12 +482,12 @@ To validate your cluster.conf against this schema, run:
       if domU recovery is expected to be automatic.">
     <optional>
       <attribute name="debug" rha:description="" >
-	<data type="integer"/>
+        <data type="integer"/>
       </attribute>
     </optional>
     <optional>
       <attribute name="port" rha:description="" >
-	<data type="integer"/>
+        <data type="integer"/>
       </attribute>
     </optional>
     <optional>
