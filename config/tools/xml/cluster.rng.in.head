@@ -820,6 +820,7 @@ To validate your cluster.conf against this schema, run:
 
      <attribute name="name" rha:description="A name that is used to
          reference this fence device from clusternode fence section.
+         For XML validation purposes, it shall not start with a digit.
          fenced(8)">
       <data type="ID"/>
      </attribute>
