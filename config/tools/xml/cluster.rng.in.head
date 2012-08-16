@@ -72,7 +72,7 @@ To validate your cluster.conf against this schema, run:
     </optional>
     <optional>
       <attribute name="disallowed" rha:description="Set this to 1 enable
-         cman's Disallowed mode. This is usually only needed for 
+         cman's Disallowed mode. This is usually only needed for
          backwards compatibility." rha:sample="1">
        <data type="nonNegativeInteger"/>
       </attribute>
@@ -1068,7 +1068,7 @@ To validate your cluster.conf against this schema, run:
      </optional>
 
      <optional>
-      <attribute name="ttl" rha:description="The multicast TTL 
+      <attribute name="ttl" rha:description="The multicast TTL
           to use on the second interface. cman(5)"/>
      </optional>
     </element>
