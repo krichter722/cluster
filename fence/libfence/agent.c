@@ -679,3 +679,464 @@ int unfence_node(char *victim, struct fence_log *log, int log_size,
 	return error;
 }
 
+/*
+ * Returns:
+ * < 0: internal error
+ * 0: agent exited with 0
+ * 1: agent exited with 1
+ * 2: agent exited with 2
+ */
+
+static int run_agent_status(char *agent, char *args, int *agent_result)
+{
+	int pid, status, len, rv;
+	int pw_fd = -1;  /* parent write file descriptor */
+	int cr_fd = -1;  /* child read file descriptor */
+	int pfd[2];
+
+	if (args == NULL || agent == NULL) {
+		rv = -1;
+		goto fail;
+	}
+	len = strlen(args);
+
+	if (pipe(pfd)) {
+		rv = -errno;
+		goto fail;
+	}
+	cr_fd = pfd[0];
+	pw_fd = pfd[1];
+
+	pid = fork();
+	if (pid < 0) {
+		rv = -errno;
+		*agent_result = FE_AGENT_FORK;
+		goto fail;
+	}
+
+	if (pid) {
+		/* parent */
+		int ret;
+
+		do {
+			ret = write(pw_fd, args, len);
+		} while (ret < 0 && errno == EINTR);
+
+		if (ret != len) {
+			rv = -1;
+			goto fail;
+		}
+
+		close(cr_fd);
+		close(pw_fd);
+
+		rv = waitpid(pid, &status, 0);
+
+		if (rv < 0) {
+			/* shouldn't happen */
+			rv = -errno;
+			goto out;
+		}
+
+		if (rv != pid) {
+			/* shouldn't happen */
+			rv = -1;
+			goto out;
+		}
+
+		if (WIFEXITED(status)) {
+			/* pid exited properly with an exit code */
+			rv = WEXITSTATUS(status);
+
+			if (rv == 0)
+				*agent_result = FE_AGENT_STATUS_ON;
+			else if (rv == 2)
+				*agent_result = FE_AGENT_STATUS_OFF;
+			else
+				*agent_result = FE_AGENT_STATUS_ERROR;
+		} else if (WIFSIGNALED(status)) {
+			/* pid terminated due to a signal */
+			rv = -1;
+			*agent_result = FE_AGENT_STATUS_ERROR;
+		} else {
+			/* something else happened, not sure what */
+			rv = -1;
+			*agent_result = FE_AGENT_STATUS_ERROR;
+		}
+		goto out;
+
+	} else {
+		/* child */
+		int c_stdout, c_stderr;
+
+		/* redirect agent stdout/stderr to /dev/null */
+		close(1);
+		c_stdout = open("/dev/null", O_WRONLY);
+		if (c_stdout < 0) {
+			rv = -1;
+			goto fail;
+		}
+		close(2);
+		c_stderr = open("/dev/null", O_WRONLY);
+		if (c_stderr < 0) {
+			rv = -1;
+			goto fail;
+		}
+
+		/* redirect agent stdin from parent */
+		close(0);
+		if (dup(cr_fd) < 0) {
+			rv = -errno;
+			goto fail;
+		}
+
+		close(cr_fd);
+		close(pw_fd);
+
+		execlp(agent, agent, NULL);
+		exit(EXIT_FAILURE);
+	}
+ fail:
+	close(cr_fd);
+	close(pw_fd);
+ out:
+	return rv;
+}
+
+static int make_args_status(int cd, char *victim, char *method, int d,
+			    char *device, char **args_out)
+{
+	char path[PATH_MAX];
+	char *args, *str;
+	int error, ret, cnt = 0;
+	size_t len, pos;
+
+	args = malloc(FENCE_AGENT_ARGS_MAX);
+	if (!args)
+		return -ENOMEM;
+	memset(args, 0, FENCE_AGENT_ARGS_MAX);
+
+	len = FENCE_AGENT_ARGS_MAX - 1;
+	pos = 0;
+
+	/* node-specific args for victim */
+
+	memset(path, 0, PATH_MAX);
+	sprintf(path, NODE_FENCE_ARGS_PATH, victim, method, d+1);
+
+	for (;;) {
+		error = ccs_get_list(cd, path, &str);
+		if (error || !str)
+			break;
+		++cnt;
+
+		if (!strncmp(str, "name=", 5)) {
+			free(str);
+			continue;
+		}
+
+		if (!strncmp(str, "action=", 7)) {
+			free(str);
+			continue;
+		}
+
+		ret = snprintf(args + pos, len - pos, "%s\n", str);
+
+		free(str);
+
+		if (ret >= len - pos) {
+			error = -E2BIG;
+			goto out;
+		}
+		pos += ret;
+	}
+
+	/* add nodename of victim to args */
+
+	if (!strstr(args, "nodename=")) {
+		ret = snprintf(args + pos, len - pos, "nodename=%s\n", victim);
+		if (ret >= len - pos) {
+			error = -E2BIG;
+			goto out;
+		}
+		pos += ret;
+	}
+
+	/* add action=status to args */
+
+	ret = snprintf(args + pos, len - pos, "action=status\n");
+	if (ret >= len - pos) {
+		error = -E2BIG;
+		goto out;
+	}
+	pos += ret;
+
+	/* device-specific args */
+
+	memset(path, 0, PATH_MAX);
+	sprintf(path, FENCE_DEVICE_ARGS_PATH, device);
+
+	for (;;) {
+		error = ccs_get_list(cd, path, &str);
+		if (error || !str)
+			break;
+		++cnt;
+
+		if (!strncmp(str, "name=", 5)) {
+			free(str);
+			continue;
+		}
+
+		ret = snprintf(args + pos, len - pos, "%s\n", str);
+
+		free(str);
+
+		if (ret >= len - pos) {
+			error = -E2BIG;
+			goto out;
+		}
+		pos += ret;
+	}
+
+	if (cnt)
+		error = 0;
+ out:
+	if (error) {
+		free(args);
+		args = NULL;
+	}
+
+	*args_out = args;
+	return error;
+}
+
+static int use_device_status(int cd, char *victim, char *method, int d,
+			     char *device, struct fence_log *lp)
+{
+	char path[PATH_MAX], *agent, *args = NULL;
+	int error;
+
+	memset(path, 0, PATH_MAX);
+	sprintf(path, AGENT_NAME_PATH, device);
+
+	error = ccs_get(cd, path, &agent);
+	if (error) {
+		lp->error = FE_READ_AGENT;
+		goto out;
+	}
+
+	strncpy(lp->agent_name, agent, FENCE_AGENT_NAME_MAX-1);
+
+	error = make_args_status(cd, victim, method, d, device, &args);
+	if (error) {
+		lp->error = FE_READ_ARGS;
+		goto out_agent;
+	}
+
+	strncpy(lp->agent_args, args, FENCE_AGENT_ARGS_MAX-1);
+
+	error = run_agent_status(agent, args, &lp->error);
+
+	free(args);
+ out_agent:
+	free(agent);
+ out:
+	return error;
+}
+
+/* We want to run status on each device in each method, and we need all
+   to succeed in order for status as a whole to succeed.  Agent success
+   for status is being either "on" (exit 0) or "off" (exit 2).  Agent
+   failure for status is when the on/off state is unknown (exit 1),
+   i.e. the agent failed to run or ran and cannot connect, or cannot get
+   the on/off state for some reason.
+   
+   As soon as any one device in any method fails, we can quit and report
+   failure (rv < 0) for status as a whole.  If status of all devices is
+   "on", then status as a whole returns 0.  If status of all devices are
+   "off", then status as a whole returns 2.  If the status of all devices
+   are mixed on/off, then status as a whole returns 0. */
+
+int fence_node_status(char *victim, struct fence_log *log, int log_size,
+		      int *log_count, int use_method_num)
+{
+	struct fence_log stub;
+	struct fence_log *lp = log;
+	char *method = NULL, *device = NULL;
+	char *victim_nodename = NULL;
+	int num_methods, num_devices, m, d, cd, rv;
+	int on_count = 0, off_count = 0;
+	int left = log_size;
+	int error = -1;
+	int count = 0;
+
+	cd = ccs_connect();
+	if (cd < 0) {
+		if (lp && left) {
+			lp->error = FE_NO_CONFIG;
+			lp++;
+			left--;
+		}
+		count++;
+		error = -1;
+		goto ret;
+	}
+
+	if (ccs_lookup_nodename(cd, victim, &victim_nodename) == 0)
+		victim = victim_nodename;
+
+	num_methods = count_methods(cd, victim);
+	if (!num_methods) {
+		if (lp && left) {
+			lp->error = FE_NO_METHOD;
+			lp++;
+			left--;
+		}
+		count++;
+		error = -2;		/* No fencing */
+		goto out;
+	}
+
+	if (use_method_num && (use_method_num > num_methods)) {
+		if (lp && left) {
+			lp->error = FE_NUM_METHOD;
+			lp++;
+			left--;
+		}
+		count++;
+		error = -2;		/* No fencing */
+		goto out;
+	}
+
+	for (m = 0; m < num_methods; m++) {
+
+		if (use_method_num && (m + 1 != use_method_num))
+			continue;
+
+		rv = get_method(cd, victim, m, &method);
+		if (rv) {
+			if (lp && left) {
+				lp->error = FE_READ_METHOD;
+				lp->method_num = m;
+				lp++;
+				left--;
+			}
+			count++;
+			error = -1;
+			break;
+		}
+
+		num_devices = count_devices(cd, victim, method);
+		if (!num_devices) {
+			if (lp && left) {
+				lp->error = FE_NO_DEVICE;
+				lp->method_num = m;
+				lp++;
+				left--;
+			}
+			count++;
+			continue;
+		}
+
+		for (d = 0; d < num_devices; d++) {
+			rv = get_device(cd, victim, method, d, &device);
+			if (rv) {
+				if (lp && left) {
+					lp->error = FE_READ_DEVICE;
+					lp->method_num = m;
+					lp->device_num = d;
+					lp++;
+					left--;
+				}
+				count++;
+				error = -1;
+				break;
+			}
+
+			/* every call to use_device generates a log entry,
+			   whether success or fail */
+
+			error = use_device_status(cd, victim, method, d, device,
+						  (lp && left) ? lp : &stub);
+			count++;
+			if (lp && left) {
+				/* error, name, args already set */
+				lp->method_num = m;
+				lp->device_num = d;
+				lp++;
+				left--;
+			}
+
+			/*
+			 * error values:
+			 * < 0: internal error from use_device_status,
+			 *      internal error from run_agent_status,
+			 *      run_agent_status failed to fork agent
+			 * 0: agent exited with 0 (success, status is on)
+			 * 2: agent exited with 2 (success, status is off)
+			 * 1: agent exited with 1 (error, status is unknown)
+			 */
+
+			/* internal error: status fail */
+			if (error < 0)
+				break;
+
+			/* agent error: status fail */
+			if (error == 1) {
+				error = -1;
+				break;
+			}
+
+			if (!error) {
+				/* agent success "on": status success */
+				on_count++;
+			} else if (error == 2) {
+				/* agent success "off": status success */
+				error = 0;
+				off_count++;
+			} else {
+				/* some other error */
+				error = -1;
+				break;
+			}
+
+			free(device);
+			device = NULL;
+		}
+
+		if (device)
+			free(device);
+
+		free(method);
+
+		/* if any device failed in this method, return failure
+		   for the status */
+
+		if (error)
+			break;
+	}
+
+	if (error < 0)
+		goto out;
+
+	/* All devices are either on or off, none are unknown/inaccessible,
+	   so status as a whole is a success.  Decide which of the two
+	   success values to return:  2 if all devices are off, or 0 if
+	   all devices are on, 0 if mixed on/off. */
+
+	if (!on_count)
+		error = 2;
+	else
+		error = 0;
+
+ out:
+	if (victim_nodename)
+		free(victim_nodename);
+
+	ccs_disconnect(cd);
+ ret:
+	if (log_count)
+		*log_count = count;
+	return error;
+}
+

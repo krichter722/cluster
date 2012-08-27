@@ -14,13 +14,16 @@ static char *prog_name;
 static char our_name[CMAN_MAX_NODENAME_LEN+1];
 static int verbose;
 static int unfence;
+static int status;
+static int call_fenced = 1;
+static int use_method_num;
 
 #define FL_SIZE 32
 static struct fence_log flog[FL_SIZE];
 static int flog_count;
 static const char *action = "fence";
 
-#define OPTION_STRING "UvhV"
+#define OPTION_STRING "UvhVSe:m:"
 
 #define die(fmt, args...) \
 do \
@@ -39,10 +42,13 @@ static void print_usage(void)
 	printf("\n");
 	printf("Options:\n");
 	printf("\n");
-	printf("  -U    Unfence the node, default local node name\n");
-	printf("  -v    Show fence agent results, -vv for agent args\n");
-	printf("  -h    Print this help, then exit\n");
-	printf("  -V    Print program version information, then exit\n");
+	printf("  -U       Unfence the node, default local node name\n");
+	printf("  -S       Run status on node name\n");
+	printf("  -v       Show fence agent results, -vv for agent args\n");
+	printf("  -h       Print this help, then exit\n");
+	printf("  -V       Print program version information, then exit\n");
+	printf("  -e 0|1   Enable/disable fenced_external notification\n");
+	printf("  -m <num> Method number, starting from 1\n");
 	printf("\n");
 }
 
@@ -104,6 +110,14 @@ static const char *fe_str(int r)
 		return "error config method";
 	case FE_READ_DEVICE:
 		return "error config device";
+	case FE_NUM_METHOD:
+		return "error method number";
+	case FE_AGENT_STATUS_ON:
+		return "status on";
+	case FE_AGENT_STATUS_OFF:
+		return "status off";
+	case FE_AGENT_STATUS_ERROR:
+		return "status error";
 	default:
 		return "error unknown";
 	}
@@ -124,6 +138,19 @@ int main(int argc, char *argv[])
 		case 'U':
 			unfence = 1;
 			action = "unfence";
+			break;
+
+		case 'S':
+			status = 1;
+			action = "status";
+			break;
+
+		case 'e':
+			call_fenced = atoi(optarg);
+			break;
+
+		case 'm':
+			use_method_num = atoi(optarg);
 			break;
 
 		case 'v':
@@ -178,10 +205,16 @@ int main(int argc, char *argv[])
 	memset(&flog, 0, sizeof(flog));
 	flog_count = 0;
 
-	if (unfence)
+	if (status)
+		error = fence_node_status(victim, flog, FL_SIZE, &flog_count,
+					  use_method_num);
+	else if (unfence)
 		error = unfence_node(victim, flog, FL_SIZE, &flog_count);
 	else
 		error = fence_node(victim, flog, FL_SIZE, &flog_count);
+
+	if (status && !verbose && error < 0)
+		verbose = 1;
 
 	if (!verbose)
 		goto skip;
@@ -211,7 +244,28 @@ int main(int argc, char *argv[])
 	logt_init("fence_node", LOG_MODE_OUTPUT_SYSLOG, SYSLOGFACILITY,
 		  SYSLOGLEVEL, 0, NULL);
 
-	if (unfence) {
+	if (status) {
+		if (error == -2) {
+			fprintf(stderr, "status %s undefined\n", victim);
+			rv = 2;
+		} else if (error < 0) {
+			fprintf(stderr, "status %s failed %d\n", victim, error);
+			logt_print(LOG_ERR, "status %s failed %d\n", victim, error);
+			rv = EXIT_FAILURE;
+		} else if (error == 2) {
+			fprintf(stderr, "status %s success off\n", victim);
+			logt_print(LOG_ERR, "status %s success off\n", victim);
+			rv = EXIT_SUCCESS;
+		} else if (!error) {
+			fprintf(stderr, "status %s success on\n", victim);
+			logt_print(LOG_ERR, "status %s success on\n", victim);
+			rv = EXIT_SUCCESS;
+		} else {
+			fprintf(stderr, "status %s failed invalid %d\n", victim, error);
+			logt_print(LOG_ERR, "status %s failed invalid %d\n", victim, error);
+			rv = EXIT_FAILURE;
+		}
+	} else if (unfence) {
 		if (error == -2) {
 			fprintf(stderr, "unfence %s undefined\n", victim);
 			rv = 2;
@@ -241,7 +295,8 @@ int main(int argc, char *argv[])
 			/* Tell fenced what we've done so that it can avoid
 			   fencing this node again if the fence_node() rebooted
 			   it. */
-			fenced_external(victim);
+			if (call_fenced)
+				fenced_external(victim);
 		}
 	}
 
