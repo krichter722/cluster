@@ -636,7 +636,8 @@ static void register_controlled_dir(const char *path)
 static int ignore_nolock(char *sysfs_dir, char *table)
 {
 	char path[PATH_MAX];
-	int fd;
+	char buf[32];
+	int fd, rv;
 
 	memset(path, 0, PATH_MAX);
 
@@ -650,7 +651,16 @@ static int ignore_nolock(char *sysfs_dir, char *table)
 	if (fd < 0)
 		return 1;
 
+	memset(buf, 0, sizeof(buf));
+
+	rv = read(fd, buf, sizeof(buf));
 	close(fd);
+	if (rv < 0)
+		return 1;
+
+	if (!strncmp(buf, "lock_nolock", 11))
+		return 1;
+
 	return 0;
 }
 
