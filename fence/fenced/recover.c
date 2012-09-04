@@ -165,6 +165,37 @@ static int check_override(int ofd, char *nodename, int timeout)
 	return rv;
 }
 
+static int fence_check_pid(void)
+{
+	char buf[16];
+	int fd, rv, pid = 0;
+
+	fd = open(DEFAULT_FENCE_CHECK_PID_PATH, O_RDONLY);
+	if (fd < 0)
+		return 0;
+
+	rv = flock(fd, LOCK_EX | LOCK_NB);
+	if (!rv) {
+		flock(fd, LOCK_UN);
+		goto out;
+	}
+
+	/* fence_check script is running, return its pid */
+
+	memset(buf, 0, sizeof(buf));
+
+	rv = read(fd, buf, sizeof(buf));
+	if (rv <= 0)
+		goto out;
+
+	pid = atoi(buf);
+	if (pid <= 0)
+		pid = 0;
+ out:
+	close(fd);
+	return pid;
+}
+
 /* If there are victims after a node has joined, it's a good indication that
    they may be joining the cluster shortly.  If we delay a bit they might
    become members and we can avoid fencing them.  This is only really an issue
@@ -174,12 +205,36 @@ static int check_override(int ofd, char *nodename, int timeout)
 void delay_fencing(struct fd *fd, int node_join)
 {
 	struct timeval first, last, start, now;
-	int victim_count, last_count = 0, delay = 0;
+	int victim_count, last_count = 0, delay = 0, pid;
 	struct node *node;
 	const char *delay_type;
 
 	if (list_empty(&fd->victims))
 		return;
+
+	gettimeofday(&first, NULL);
+	gettimeofday(&start, NULL);
+
+	if (cfgd_fence_check_delay) {
+		for (;;) {
+			pid = fence_check_pid();
+			if (!pid)
+				break;
+
+			gettimeofday(&now, NULL);
+			if (now.tv_sec - start.tv_sec >= cfgd_fence_check_delay)
+				break;
+
+			log_debug("delay fencing for fence_check_pid %d", pid);
+			sleep(1);
+		}
+
+		if (pid) {
+			kill(pid, SIGTERM);
+			log_error("kill fence_check_pid %d delay %d",
+				  pid, cfgd_fence_check_delay);
+		}
+	}
 
 	if (node_join || cluster_quorate_from_last_update) {
 		delay = cfgd_post_join_delay;
@@ -194,9 +249,6 @@ void delay_fencing(struct fd *fd, int node_join)
 
 	if (delay == 0)
 		goto out;
-
-	gettimeofday(&first, NULL);
-	gettimeofday(&start, NULL);
 
 	for (;;) {
 		query_unlock();

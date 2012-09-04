@@ -13,6 +13,7 @@ int optd_disable_dbus;
 int optd_skip_undefined;
 int optd_post_join_delay;
 int optd_post_fail_delay;
+int optd_fence_check_delay;
 int optd_override_time;
 int optd_override_path;
 
@@ -25,6 +26,7 @@ int cfgd_disable_dbus    = DEFAULT_DISABLE_DBUS;
 int cfgd_skip_undefined  = DEFAULT_SKIP_UNDEFINED;
 int cfgd_post_join_delay = DEFAULT_POST_JOIN_DELAY;
 int cfgd_post_fail_delay = DEFAULT_POST_FAIL_DELAY;
+int cfgd_fence_check_delay = DEFAULT_FENCE_CHECK_DELAY;
 int cfgd_override_time   = DEFAULT_OVERRIDE_TIME;
 const char *cfgd_override_path = DEFAULT_OVERRIDE_PATH;
 
@@ -89,6 +91,7 @@ void read_ccs_int(const char *path, int *config_val)
 #define CLEAN_START_PATH "/cluster/fence_daemon/@clean_start"
 #define POST_JOIN_DELAY_PATH "/cluster/fence_daemon/@post_join_delay"
 #define POST_FAIL_DELAY_PATH "/cluster/fence_daemon/@post_fail_delay"
+#define FENCE_CHECK_DELAY_PATH "/cluster/fence_daemon/@fence_check_delay"
 #define OVERRIDE_PATH_PATH "/cluster/fence_daemon/@override_path"
 #define OVERRIDE_TIME_PATH "/cluster/fence_daemon/@override_time"
 #define METHOD_NAME_PATH "/cluster/clusternodes/clusternode[@name=\"%s\"]/fence/method[%d]/@name"
@@ -118,6 +121,8 @@ void reread_ccs(void)
 		read_ccs_int(POST_JOIN_DELAY_PATH, &cfgd_post_join_delay);
 	if (!optd_post_fail_delay)
 		read_ccs_int(POST_FAIL_DELAY_PATH, &cfgd_post_fail_delay);
+	if (!optd_fence_check_delay)
+		read_ccs_int(FENCE_CHECK_DELAY_PATH, &cfgd_fence_check_delay);
 	if (!optd_override_time)
 		read_ccs_int(OVERRIDE_TIME_PATH, &cfgd_override_time);
 }

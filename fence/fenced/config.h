@@ -8,8 +8,10 @@
 #define DEFAULT_SKIP_UNDEFINED 0
 #define DEFAULT_POST_JOIN_DELAY 6
 #define DEFAULT_POST_FAIL_DELAY 0
+#define DEFAULT_FENCE_CHECK_DELAY 5
 #define DEFAULT_OVERRIDE_TIME 3
 #define DEFAULT_OVERRIDE_PATH "/var/run/cluster/fenced_override"
+#define DEFAULT_FENCE_CHECK_PID_PATH "/var/run/fence_check.pid"
 
 extern int optd_groupd_compat;
 extern int optd_debug_logfile;
@@ -18,6 +20,7 @@ extern int optd_disable_dbus;
 extern int optd_skip_undefined;
 extern int optd_post_join_delay;
 extern int optd_post_fail_delay;
+extern int optd_fence_check_delay;
 extern int optd_override_time;
 extern int optd_override_path;
 
@@ -28,6 +31,7 @@ extern int cfgd_disable_dbus;
 extern int cfgd_skip_undefined;
 extern int cfgd_post_join_delay;
 extern int cfgd_post_fail_delay;
+extern int cfgd_fence_check_delay;
 extern int cfgd_override_time;
 extern const char *cfgd_override_path;
 

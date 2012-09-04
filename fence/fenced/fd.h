@@ -22,6 +22,7 @@
 #include <sys/poll.h>
 #include <sys/select.h>
 #include <sys/time.h>
+#include <sys/file.h>
 
 #include <openais/saAis.h>
 #include <corosync/cpg.h>
