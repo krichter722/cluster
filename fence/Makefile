@@ -1,4 +1,4 @@
 include ../make/defines.mk
 include $(OBJDIR)/make/passthrough.mk
 
-SUBDIRS=libfence libfenced fenced fence_node fence_tool man
+SUBDIRS=libfence libfenced fenced fence_node fence_tool fence_check man

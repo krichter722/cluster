@@ -34,6 +34,7 @@ dlm/tool/dlm_tool
 doc/cluster
 fence/fence_node/fence_node
 fence/fence_tool/fence_tool
+fence/fence_check/fence_check
 fence/fenced/fenced
 group/daemon/groupd
 group/dlm_controld/dlm_controld

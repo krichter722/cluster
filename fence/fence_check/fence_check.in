@@ -1,0 +1,241 @@
+#!/bin/bash
+
+set +e
+export LC_ALL=C
+export PATH="/bin:/usr/bin:/sbin:/usr/sbin:@SBINDIR@"
+
+logfile=@LOGDIR@/fence_check.log
+verbose=""
+vardir=/var/run
+
+print_usage() {
+	echo "Usage:"
+	echo ""
+	echo "fence_check [options]"
+	echo ""
+	echo "Options:"
+	echo "  -h               Print this help, then exit"
+	echo "  -V               Print program version information, then exit"
+	echo "  -d               Disable output to logfile ($logfile)"
+	echo "  -v               Produce verbose output"
+	echo "  -e               Produce extra verbose output"
+	echo "                   ATTENTION: IT MIGHT SHOW FENCE PASSWORDS IN LOG FILES!!!"
+	echo "  -f               Override checks and force execution"
+	echo "                   DO NOT USE ON PRODUCTION CLUSTERS!!!"
+}
+
+check_opts() {
+	while [ "$1" != "--" ]; do
+		case $1 in
+		-h)
+			print_usage
+			exit 0
+		;;
+		-V)
+			echo "fence_check version @VERSION@"
+			exit 0
+		;;
+		-v)
+			verbose=1
+		;;
+		-e)
+			fencenodeopts="-vv"
+		;;
+		-d)
+			logfile=""
+		;;
+		-f)
+			override="1"
+		;;
+		esac
+		shift
+	done
+}
+
+opts=$(getopt hdefvV $@)
+if [ "$?" != 0 ]; then
+	print_usage >&2
+	exit 1
+fi
+check_opts $opts
+
+cleanup() {
+	vecho "cleanup: $@"
+	rm -f $vardir/fence_check.pid
+	exit $1
+}
+
+trap "cleanup 1 ABRT" ABRT
+trap "cleanup 1 QUIT" QUIT
+trap "cleanup 1 TERM" TERM
+trap "cleanup 1 INT" INT
+
+lecho() {
+	[ -n "$logfile" ] && echo "$@" | tee -a $logfile
+	[ -z "$logfile" ] && echo "$@"
+	return 0
+}
+
+vecho() {
+	[ -z "$verbose" ] && return 0
+	lecho "$@"
+}
+
+error_report()
+{
+	lecho "Unable to perform fence_check: $@"
+}
+
+cman_running()
+{
+	vecho -n "Checking if cman is running: "
+	thisnodeid="$(cman_tool status 2>&1 | grep "Node ID:" | awk '{print $NF}')"
+	[ -z "$thisnodeid" ] && {
+		vecho "not running"
+		return 1
+	}
+	vecho "running"
+}
+
+cman_has_quorum()
+{
+	vecho -n "Checking if node is quorate: "
+	cman_tool -t 1 -q wait > /dev/null 2>&1 || {
+		vecho "not quorate"
+		return 1
+	}
+	vecho "quorate"
+}
+
+fence_domain()
+{
+	vecho -n "Checking if node is in fence domain: "
+	fencels="$(fence_tool ls 2>&1)" || { 
+		vecho "not part of fence domain"
+		return 1
+	}
+	vecho "yes"
+}
+
+fence_in_progress()
+{
+	vecho -n "Checking if real fencing is in progress: "
+	victim="$(echo "$fencels" | grep "victim count" | awk '{print $NF}')"
+	[ "$victim" != "0" ] && {
+		vecho "real fencing in progress"
+		return 1
+	}
+	vecho "no fencing in progress"
+}
+
+fence_master()
+{
+	vecho -n "Checking if node is fence master: "
+	master="$(echo "$fencels" | grep "master nodeid" | awk '{print $NF}')"
+	[ "$master" != "$thisnodeid" ] && {
+		vecho "node is not fence master"
+		return 1
+	}
+	vecho "this node is fence master"
+}
+
+can_check()
+{
+	cman_running || {
+		error_report "cman is not running"
+		return 2
+	}
+
+	[ "$override" = "1" ] && return 0
+
+	cman_has_quorum || {
+		error_report "node is not quorate"
+		return 3
+	}
+
+	fence_domain || {
+		error_report "node is not part of the fence domain"
+		return 3
+	}
+
+	fence_master || {
+		error_report "node is not fence master"
+		return 3
+	}
+
+	fence_in_progress || {
+		error_report "real fencing operation in progress"
+		return 3
+	}
+
+	return 0
+}
+
+execute_check()
+{
+	can_check || return $?
+
+	vecho -n "Get node list: "
+	nodelist="$(cman_tool nodes -F id,name |grep -v '^0' | awk '{print $2}')"
+	vecho $nodelist
+
+	ret=0
+
+	for node in $nodelist; do
+		vecho "Testing $node fencing"
+
+		can_check
+		canret=$?
+
+		if [ "$canret" != 0 ]; then
+			if [ "$ret" != "5" ]; then
+				return $canret
+			else
+				return $ret
+			fi
+		fi
+
+		vecho "Checking how many fencing methods are configured for node $node"
+		for i in $(seq 1 8); do
+			 ccs_tool query \
+				/cluster/clusternodes/clusternode[@name=\"$node\"]/fence/method[$i]/@name >/dev/null 2>&1 || break
+		done
+		nummethods=$((i - 1))
+		vecho "Found $nummethods method(s) to test for node $node"
+
+		for method in $(seq 1 $nummethods); do
+			vecho "Testing $node method $method status"
+			fenceres="$(fence_node $fencenodeopts -S $node -m $method 2>&1)"
+			if [ "$?" != 0 ]; then
+				ret=5
+				lecho "Testing $node method $method: FAILED"
+				if [ -z "$fencenodeopts" ]; then
+					fenceres="$(echo "$fenceres" | tail -n 2 | head -n 1)"
+				else
+					fenceargs="$(echo "$fenceres" | tail -n 2 | head -n 1)"
+					fenceres="$(echo "$fenceres" | tail -n 3 | head -n 1)"
+				fi
+				lecho "$fenceres"
+				[ -n "$fenceargs" ] && lecho "$fenceargs"
+			else
+				lecho "Testing $node method $method: success"
+			fi
+		done
+	done
+	return $ret
+}
+
+(
+	lecho "fence_check run at $(date) pid: $BASHPID"
+
+	flock --nonblock --exclusive 200 || {
+		lecho "Another process ($(cat $vardir/fence_check.pid)) is holding the lock"
+		exit 4
+	}
+
+	echo $BASHPID > $vardir/fence_check.pid
+
+	execute_check
+	cleanup $?
+
+) 200>>$vardir/fence_check.pid
