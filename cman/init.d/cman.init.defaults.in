@@ -42,12 +42,12 @@
 # DLM_CONTROLD_OPTS -- allow extra options to be passed to dlm_controld daemon.
 #DLM_CONTROLD_OPTS=""
 
-# DLM_LKBTBL_SIZE - DLM_RSBTBL_SIZE - DLM_DIRTBL_SIZE
-# Allow tuning of DLM kernel hash table sizes.
+# Allow tuning of DLM kernel config.
 # do NOT change unless instructed to do so.
 #DLM_LKBTBL_SIZE=""
 #DLM_RSBTBL_SIZE=""
 #DLM_DIRTBL_SIZE=""
+#DLM_TCP_PORT=""
 
 # FENCE_JOIN_TIMEOUT -- seconds to wait for fence domain join to
 #     complete.  If the join hasn't completed in this time, fence_tool join
