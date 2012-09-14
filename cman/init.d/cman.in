@@ -305,7 +305,7 @@ stop_daemon()
 	shift
 	retryforsec=$1
 
-	[ -z "$retryforsec" ] && retryforsec=1
+	[ -z "$retryforsec" ] && retryforsec=30
 	retries=0
 
 	if check_sleep; then
@@ -661,7 +661,7 @@ start_qdiskd()
 
 stop_qdiskd()
 {
-	stop_daemon qdiskd 5
+	stop_daemon qdiskd
 }
 
 start_groupd()
@@ -770,7 +770,7 @@ join_fence_domain()
 leave_fence_domain()
 {
 	if status fenced > /dev/null 2>&1; then
-		errmsg=$( fence_tool leave -w 10 2>&1 )
+		errmsg=$( fence_tool leave -w 30 2>&1 )
 		return $?
 	fi
 }
