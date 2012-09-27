@@ -9,6 +9,8 @@
 #include <rg_queue.h>
 #include <assert.h>
 #include <members.h>
+#include <liblogthread.h>
+
 
 /**
  * Resource thread list entry.
@@ -738,11 +740,26 @@ rt_enqueue_request(const char *resgroupname, int request,
 			ret = 0;
 			break;
 		}
-		fprintf(stderr, "Failed to queue request: Would block\n");
 		/* EWOULDBLOCK */
 		pthread_mutex_unlock(resgroup->rt_queue_mutex);
 		pthread_mutex_unlock(&reslist_mutex);
+		logt_print(LOG_DEBUG,
+			"Failed to queue %d request for %s: Would block\n",
+			request, resgroupname);
 		return ret;
+	}
+
+	if (resgroup->rt_request == RG_START &&
+	    (request == RG_START_REMOTE || request == RG_START_RECOVER)) {
+		send_ret(response_ctx, resgroup->rt_name, RG_EDEADLCK,
+			request, 0);
+		msg_free_ctx(response_ctx);
+		pthread_mutex_unlock(resgroup->rt_queue_mutex);
+		pthread_mutex_unlock(&reslist_mutex);
+		logt_print(LOG_DEBUG,
+			"Failed to queue %d request for %s: Would block\n",
+			request, resgroupname);
+		return -1;
 	}
 
 	ret = rq_queue_request(resgroup->rt_queue, resgroup->rt_name,

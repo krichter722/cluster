@@ -1979,6 +1979,7 @@ retry:
 			/* Deliberate */
 		case RG_EDEPEND:
 		case RG_EFAIL:
+		case RG_EDEADLCK:
 			/* Uh oh - we failed to relocate to this node.
 			   ensure that we tell the next node to start it from
 			   the 'recovering' state. */

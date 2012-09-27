@@ -62,6 +62,7 @@ service_op_start(char *svcName,
 			++dep;
 			continue;
 		case RG_EFAIL:
+		case RG_EDEADLCK:
 			++fail;
 			continue;
 		case RG_EABORT:
