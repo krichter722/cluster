@@ -736,8 +736,7 @@ eval_groups(int local, uint32_t nodeid, int nodeStatus)
 		    (svcStatus.rs_state == RG_STATE_STARTED ||
 		     svcStatus.rs_state == RG_STATE_RECOVER ||
 		     svcStatus.rs_state == RG_STATE_STARTING ||
-		     svcStatus.rs_state == RG_STATE_STOPPING ||
-		     svcStatus.rs_state == RG_STATE_ERROR)) {
+		     svcStatus.rs_state == RG_STATE_STOPPING )) {
 
 			logt_print(LOG_DEBUG,
 				   "Marking %s on down member %d as stopped",
@@ -779,8 +778,7 @@ eval_groups(int local, uint32_t nodeid, int nodeStatus)
 		/* Disabled/failed/in recovery?  Do nothing */
 		if ((svcStatus.rs_state == RG_STATE_DISABLED) ||
 		    (svcStatus.rs_state == RG_STATE_FAILED) ||
-		    (svcStatus.rs_state == RG_STATE_RECOVER) || 
-		    (svcStatus.rs_state == RG_STATE_ERROR)) {
+		    (svcStatus.rs_state == RG_STATE_RECOVER)) {
 			continue;
 		}
 
