@@ -13,7 +13,7 @@ static DBusConnection *bus = NULL;
 void fd_dbus_init(void)
 {
     if (!(bus = dbus_bus_get_private(DBUS_BUS_SYSTEM, NULL))) {
-	    log_error("failed to get dbus connection");
+	    log_debug("failed to get dbus connection");
     } else {
 	    log_debug("connected to dbus %s", dbus_bus_get_unique_name(bus));
     }
