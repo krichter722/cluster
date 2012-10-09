@@ -1,0 +1,104 @@
+#!/bin/bash
+# Quorum detection watchdog script
+#
+# This script will return -2 if the node had quorum at one point
+# and then subsequently lost it
+#
+# Copyright 2012 Red Hat, Inc.
+
+# defaults
+
+# Amount of time in seconds to wait after quorum is lost to fail script
+waittime=60
+
+# action to take if quorum is missing for over > waittime
+# autodetect|hardreboot|crashdump|watchdog
+action=autodetect
+
+# Location of temporary file to capture timeouts
+timerfile="/var/run/cluster/checkquorum-timer"
+
+# rpm based distros
+[ -d /etc/sysconfig ] && \
+	[ -f /etc/sysconfig/checkquorum ] && \
+	. /etc/sysconfig/checkquorum
+
+# deb based distros
+[ ! -d /etc/sysconfig ] && \
+	[ -f /etc/default/checkquorum ] && \
+	. /etc/default/checkquorum
+
+has_quorum() {
+	corosync-quorumtool -s 2>/dev/null | \
+		grep ^Quorate: | \
+		grep -q Yes$
+}
+
+had_quorum() {
+	output="$(corosync-objctl 2>/dev/null | \
+		grep runtime.totem.pg.mrp.srp.operational_entered | cut -d "=" -f 2)"
+	[ -n "$output" ] && {
+		[ "$output" -ge 1 ] && return 0
+		return 1
+	}
+}
+
+take_action() {
+	case "$action" in
+		watchdog)
+			[ -n "$wdmd_action" ] && return 1
+			;;
+		hardreboot)
+			echo 1 > /proc/sys/kernel/sysrq
+			echo b > /proc/sysrq-trigger
+			;;
+		crashdump)
+			echo 1 > /proc/sys/kernel/sysrq
+			echo c > /proc/sysrq-trigger
+			;;
+		autodetect)
+			service kdump status > /dev/null 2>&1
+			usekexec="$?"
+			[ -n "$wdmd_action" ] && [ "$usekexec" != "0" ] && return 1
+			echo 1 > /proc/sys/kernel/sysrq
+			[ "$usekexec" = "0" ] && echo c > /proc/sysrq-trigger
+			echo b > /proc/sysrq-trigger
+	esac
+}
+
+# watchdog uses $1 = test or = repair
+# with no arguments we are called by wdmd
+[ -z "$1" ] && wdmd_action=yes
+
+# we don't support watchdog repair action
+[ "$1" = "repair" ] && exit 1
+
+service corosync status > /dev/null 2>&1
+ret=$?
+
+case "$ret" in
+	3) # corosync is not running (clean)
+		rm -f "$timerfile"
+		exit 0
+		;;
+	1) # corosync crashed or did exit abonormally (dirty - take action)
+		logger -t checkquorum.wdmd "corosync crashed or exited abonarmally. Node will soon reboot"
+		take_action
+		;;
+	0) # corosync is running (clean)
+		# check quorum here
+		has_quorum && {
+			echo -e "oldtime=$(date +%s)" > "$timerfile"
+			exit 0
+		}
+		. "$timerfile"
+		newtime="$(date +%s)" 
+		delta=$((newtime - oldtime))
+		logger -t checkquorum.wdmd "Node has lost quorum. Node will soon reboot"
+		had_quorum && [ "$delta" -gt "$waittime" ] && {
+			take_action
+		}
+		;;
+esac
+
+exit $?
