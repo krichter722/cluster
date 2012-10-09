@@ -8,8 +8,8 @@
 #
 ### BEGIN INIT INFO
 # Provides:		cman
-# Required-Start:	$network $time
-# Required-Stop:	$network $time
+# Required-Start:	$network $time fence_sanlockd
+# Required-Stop:	$network $time fence_sanlockd
 # Default-Start:
 # Default-Stop:
 # Short-Description:	Starts and stops cman
@@ -740,6 +740,13 @@ stop_cmannotifyd()
 	stop_daemon cmannotifyd
 }
 
+fence_sanlock_check()
+{
+	service fence_sanlockd status > /dev/null 2>&1 &&
+		echo "   fence_sanlockd detected. Unfencing might take several minutes!"
+	return 0
+}
+
 unfence_self()
 {
 	# fence_node returns 0 on success, 1 on failure, 2 if unconfigured
@@ -880,6 +887,8 @@ start()
 		"Starting ocfs2_controld"
 
 	[ "$breakpoint" = "daemons" ] && exit 0
+
+	fence_sanlock_check
 
 	runwrap unfence_self \
 		none \
