@@ -759,7 +759,7 @@ rt_enqueue_request(const char *resgroupname, int request,
 		logt_print(LOG_DEBUG,
 			"Failed to queue %d request for %s: Would block\n",
 			request, resgroupname);
-		return -1;
+		return 0;
 	}
 
 	ret = rq_queue_request(resgroup->rt_queue, resgroup->rt_name,
