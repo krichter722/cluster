@@ -27,6 +27,7 @@ char * memb_id_to_name(cluster_member_list_t *ml, int nodeid);
 cman_node_t * memb_id_to_p(cluster_member_list_t *ml, int nodeid);
 cman_node_t * memb_name_to_p(cluster_member_list_t *ml, char *name);
 void free_member_list(cluster_member_list_t *ml);
+void member_list_shuffle(cluster_member_list_t *ml);
 cluster_member_list_t *memb_gained(cluster_member_list_t *old,
 		 		   cluster_member_list_t *new);
 cluster_member_list_t *memb_lost(cluster_member_list_t *old,

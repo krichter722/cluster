@@ -11,6 +11,7 @@
 #include <signal.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <rg_types.h>
 #include <pthread.h>
 #include <errno.h>
@@ -505,3 +506,22 @@ member_list_dup(cluster_member_list_t *orig)
 	return ret;
 }
 
+void member_list_shuffle(cluster_member_list_t *ml) {
+    int i;
+    unsigned st;
+    struct timeval tv;
+
+    gettimeofday(&tv, NULL);
+    st = (int)(tv.tv_usec);
+
+
+    for (i = 0 ; i < ml->cml_count ; i++) {
+        cman_node_t temp;
+        int newidx = rand_r(&st) % ml->cml_count;
+        if (newidx == i)
+            continue;
+        memcpy(&temp, &ml->cml_members[i], sizeof(cman_node_t));
+        memcpy(&ml->cml_members[i], &ml->cml_members[newidx], sizeof(cman_node_t));
+        memcpy(&ml->cml_members[newidx], &temp, sizeof(cman_node_t));
+    }
+}

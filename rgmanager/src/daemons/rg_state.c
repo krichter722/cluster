@@ -1938,6 +1938,7 @@ handle_relocate_req(char *svcName, int orig_request, int preferred_target,
 		allowed_nodes = member_list();
 		//count_resource_groups(allowed_nodes);
 	}
+	member_list_shuffle(allowed_nodes);
 
 	if (preferred_target > 0)
 		memb_mark_down(allowed_nodes, preferred_target);
