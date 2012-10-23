@@ -270,6 +270,7 @@ int name_to_nodeid(char *name);
 struct node *get_new_node(struct fd *fd, int nodeid);
 void kick_node_from_cluster(int nodeid);
 void set_cman_dirty(void);
+int get_member_fd(void);
 
 /* recover.c */
 

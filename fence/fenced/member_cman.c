@@ -375,6 +375,11 @@ void close_cluster(void)
 	cman_finish(ch_admin);
 }
 
+int get_member_fd()
+{
+	return cman_get_fd(ch);
+}
+
 struct node *get_new_node(struct fd *fd, int nodeid)
 {
 	cman_node_t cn;

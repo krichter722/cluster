@@ -739,6 +739,7 @@ void cluster_dead(int ci)
 static void loop(void)
 {
 	int rv, i;
+	int cluster_fd_pos;
 	void (*workfn) (int ci);
 	void (*deadfn) (int ci);
 
@@ -751,7 +752,7 @@ static void loop(void)
 		goto out;
 	client_add(rv, process_listener, NULL);
 
-	rv = setup_cluster();
+	rv = cluster_fd_pos = setup_cluster();
 	if (rv < 0)
 		goto out;
 	client_add(rv, process_cluster, cluster_dead);
@@ -804,6 +805,8 @@ static void loop(void)
 	}
 
 	for (;;) {
+		/* We need to re-get the cluster FD each time */
+		pollfd[cluster_fd_pos].fd = get_member_fd();
 		rv = poll(pollfd, client_maxi + 1, -1);
 		if (rv == -1 && errno == EINTR) {
 			if (daemon_quit && list_empty(&domains))
