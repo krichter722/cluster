@@ -300,10 +300,10 @@ static int get_data(confdb_handle_t handle, hdb_handle_t connection_handle,
 			value--;
 		}
 
-		resval = malloc(datalen + keyvallen + 2);
+		resval = malloc(datalen + 2);
 		if (!resval)
 			goto fail;
-		snprintf(resval, datalen + keyvallen + 2, "%s=%s", data, keyval);
+		snprintf(resval, datalen + 2, "%s=", data);
 		*rtn = resval;
 
 	} else if (!strncmp(curpos, "@*", strlen("@*"))) {
