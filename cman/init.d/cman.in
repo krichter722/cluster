@@ -557,7 +557,9 @@ start_configfs()
 
 stop_configfs()
 {
-	if mtab_configfs && [ -z "$(ls -1 /sys/kernel/config)" ]; then
+	if mtab_configfs && \
+	   [ -z "$(ls -1 /sys/kernel/config)" ] && \
+	   [ -z "$(lsof -l +D /sys/kernel/config 2>/dev/null)" ]; then
 		errmsg=$( umount /sys/kernel/config 2>&1 ) || return 1
 		modprobe -r configfs > /dev/null 2>&1 || true
 	fi
