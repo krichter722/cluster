@@ -1302,8 +1302,10 @@ do_status(resource_node_t *node)
 		return x;
 
 	/* Strange/failed status. Try to recover inline. */
-	if ((x = res_exec(node, RS_RECOVER, NULL, 0)) == 0)
+	if ((x = res_exec(node, RS_RECOVER, NULL, 0)) == 0) {
+	        node->rn_last_status = x;
 		return 0;
+	}
 
 	return x;
 }
