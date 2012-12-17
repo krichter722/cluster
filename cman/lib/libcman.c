@@ -204,10 +204,19 @@ static int loopy_writev(int fd, struct iovec *iovptr, size_t iovlen)
 {
 	size_t byte_cnt=0;
 	int len;
+	struct msghdr msg;
+
+	msg.msg_name = NULL;
+	msg.msg_namelen = 0;
+	msg.msg_control = NULL;
+	msg.msg_controllen = 0;
 
 	while (iovlen > 0)
 	{
-		len = writev(fd, iovptr, iovlen);
+	  msg.msg_iov = iovptr;
+	  msg.msg_iovlen = iovlen;
+
+	  len = sendmsg(fd, &msg, MSG_NOSIGNAL);
 		if (len <= 0)
 			return len;
 
