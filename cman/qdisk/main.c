@@ -1742,7 +1742,7 @@ get_static_config_data(qd_ctx *ctx, int ccsfd)
 		ctx->qc_token_timeout = atoi(val);
 		free(val);
 		if (ctx->qc_token_timeout < 10000) {
-			logt_print(LOG_DEBUG, "Token timeout %d is too fast "
+			logt_print(LOG_ERR, "Token timeout %d is too fast "
 				   "to use with qdiskd!\n",
 				   ctx->qc_token_timeout);
 			return -1;
