@@ -1,4 +1,5 @@
-SHAREDIRTEX=checkquorum checkquorum.wdmd
+SHAREDIRTEX=checkquorum
+SHAREDIRT=checkquorum.wdmd
 
 include ../../make/defines.mk
 include $(OBJDIR)/make/clean.mk
