@@ -100,7 +100,7 @@ static void create_usage(const char *name)
 	  "\n"
 	  "eg:\n"
 	  "  ccs_tool create MyCluster\n"
-	  "  ccs_tool addfence apc fence_apc ipaddr=apc.domain.net user=apc password=apc\n"
+	  "  ccs_tool addfence apc fence_apc ipaddr=apc.domain.net login=apc password=apc\n"
 	  "  ccs_tool addnode node1 -n 1 -f apc port=1\n"
 	  "  ccs_tool addnode node2 -n 2 -f apc port=2\n"
 	  "  ccs_tool addnode node3 -n 3 -f apc port=3\n"
@@ -225,7 +225,7 @@ static void addnode_usage(const char *name)
 	fprintf(stderr, "Examples:\n");
 	fprintf(stderr, "\n");
 	fprintf(stderr, "Add a new node to default configuration file:\n");
-	fprintf(stderr, "  %s %s newnode1 -n 1 -f manual ipaddr=newnode\n", prog_name, name);
+	fprintf(stderr, "  %s %s newnode1 -n 1 -f wti ipaddr=newnode\n", prog_name, name);
 	fprintf(stderr, "\n");
 	fprintf(stderr, "Add a new node and dump config file to stdout rather than save it\n");
 	fprintf(stderr, "  %s %s newnode2 -n 2 -f apc -o- newnode.temp.net port=1\n", prog_name, name);
