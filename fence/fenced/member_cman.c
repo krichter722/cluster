@@ -27,6 +27,17 @@ void kick_node_from_cluster(int nodeid)
 		log_error("telling cman to shut down cluster locally");
 		cman_shutdown(ch_admin, CMAN_SHUTDOWN_ANYWAY);
 	} else {
+
+		/* in a two_node cluster where both nodes maintain quorum
+		 * by themselves during a partition+merge, both will kick
+		 * the other, which can leave both dead and unfenced.
+		 * this delay should help */
+
+		if (two_node_mode && our_nodeid > nodeid) {
+			log_debug("kick_node_from_cluster %d delay", nodeid);
+			sleep(5);
+		}
+
 		log_error("telling cman to remove nodeid %d from cluster",
 			  nodeid);
 		cman_kill_node(ch_admin, nodeid);

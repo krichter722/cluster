@@ -2054,9 +2054,28 @@ static void do_process_transition(int nodeid, char *data)
 			/* Don't duplicate messages */
 			if (node->state != NODESTATE_AISONLY) {
 				if (cluster_is_quorate) {
-					log_printf(LOG_CRIT, "Killing node %s because it has rejoined the cluster with existing state", node->name);
 					node->state = NODESTATE_AISONLY;
-					send_kill(nodeid, CLUSTER_KILL_REJOIN);
+
+					/* Oh, this gets even more complicated. Don't send a KILL message if we are in a two_node
+					 * cluster and that node has a lower node ID than us.
+					 * This allows fencing time to startup and caters for the situation where
+					 * a node rejoins REALLY quickly, before fencing has had time to work.
+					 * I've split this up a bit partly for clarity, but mainly so allow us to
+					 * print out helpful messages as to what we are up to here.
+					 */
+					if (two_node) {
+						if (node->node_id > us->node_id) {
+							log_printf(LOG_CRIT, "Killing node %s because it has rejoined the cluster with existing state and has higher node ID", node->name);
+							send_kill(nodeid, CLUSTER_KILL_REJOIN);
+						}
+						else {
+							log_printf(LOG_CRIT, "Not killing node %s despite it rejoining the cluster with existing state, it has a lower node ID", node->name);
+						}
+					}
+					else {
+						log_printf(LOG_CRIT, "Killing node %s because it has rejoined the cluster with existing state", node->name);
+						send_kill(nodeid, CLUSTER_KILL_REJOIN);
+					}
 				}
 				else {
 					log_printf(LOG_CRIT, "Node %s not joined to cman because it has existing state", node->name);

@@ -75,6 +75,7 @@ extern char dump_buf[FENCED_DUMP_SIZE];
 extern int dump_point;
 extern int dump_wrap;
 extern int group_mode;
+extern int two_node_mode;
 
 extern void daemon_dump_save(void);
 

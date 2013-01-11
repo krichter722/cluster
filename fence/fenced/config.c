@@ -95,6 +95,7 @@ void read_ccs_int(const char *path, int *config_val)
 #define OVERRIDE_PATH_PATH "/cluster/fence_daemon/@override_path"
 #define OVERRIDE_TIME_PATH "/cluster/fence_daemon/@override_time"
 #define METHOD_NAME_PATH "/cluster/clusternodes/clusternode[@name=\"%s\"]/fence/method[%d]/@name"
+#define TWO_NODE_PATH "/cluster/cman/two_node"
 
 static int count_methods(char *victim)
 {
@@ -138,6 +139,8 @@ int read_ccs(struct fd *fd)
 
 	if (!optd_clean_start)
 		read_ccs_int(CLEAN_START_PATH, &cfgd_clean_start);
+
+	read_ccs_int(TWO_NODE_PATH, &two_node_mode);
 
 	reread_ccs();
 

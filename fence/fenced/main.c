@@ -1088,4 +1088,5 @@ char dump_buf[FENCED_DUMP_SIZE];
 int dump_point;
 int dump_wrap;
 int group_mode;
+int two_node_mode;
 
