@@ -136,7 +136,7 @@ enable/disable messages to log file (yes/no), default "yes"
 
 .TP 8
 .B syslog_facility
-facility used for syslog messages, default "daemon"
+facility used for syslog messages, default "local4"
 
 .TP 8
 .B syslog_priority
@@ -158,7 +158,7 @@ a shortcut for logfile_priority="debug"
 An explicit configuration for the default settings would be:
 .P
 .nf
-<logging to_syslog="yes" to_logfile="yes" syslog_facility="daemon"
+<logging to_syslog="yes" to_logfile="yes" syslog_facility="local4"
          syslog_priority="info" logfile_priority="info">
     <logging_daemon name="qdiskd"
              logfile="/var/log/cluster/qdiskd.log"/>
