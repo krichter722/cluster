@@ -95,7 +95,7 @@ void read_ccs_int(const char *path, int *config_val)
 #define OVERRIDE_PATH_PATH "/cluster/fence_daemon/@override_path"
 #define OVERRIDE_TIME_PATH "/cluster/fence_daemon/@override_time"
 #define METHOD_NAME_PATH "/cluster/clusternodes/clusternode[@name=\"%s\"]/fence/method[%d]/@name"
-#define TWO_NODE_PATH "/cluster/cman/two_node"
+#define TWO_NODE_PATH "/cluster/cman/@two_node"
 
 static int count_methods(char *victim)
 {
