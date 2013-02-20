@@ -292,56 +292,6 @@ define allowed_nodes(service)
 	return anodes;
 }
 
-%
-% Returns the set of online nodes in preferred/shuffled order which
-% are allowed to run this service.  Gives highest preference to current
-% owner if nofailback is specified.
-% 
-define allowed_nodes(service)
-{
-	variable anodes;
-	variable online;
-	variable nodes_domain;
-	variable ordered, restricted, nofailback;
-	variable state, owner;
-	variable depends;
-
-	(nofailback, restricted, ordered, nodes_domain) =
-			service_domain_info(service);
-	(,,, owner, state) = service_status(service);
-
-	anodes = nodes_online();
-
-	% Shuffle the array so we don't start all services on the same
-	% node.  TODO - add RR, Least-services, placement policies...
-	online = shuffle(anodes);
-
-	if (restricted == 1) {
-		anodes = intersection(nodes_domain, online);
-	} else {
-		% Ordered failover domains (nodes_domain) unioned with the
-		% online nodes basically just reorders the online node list
-		% according to failover domain priority rules.
-		anodes = union(intersection(nodes_domain, online),
-			       online);
-	}
-
-	if ((nofailback == 1) or (ordered == 0)) {
-		
-		if ((owner < 0) or (node_in_set(anodes, owner) == 0)) {
-			return anodes;
-		}
-		
-		% Because union takes left as priority, we can
-		% return the union of the current owner with the
-		% allowed node list.  This means the service will
-		% remain on the same node it's currently on.
-		return union(owner, anodes);
-	}
-
-	return anodes;
-}
-
 define string_list(thelist, delimiter)
 {
 	variable index;
