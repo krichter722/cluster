@@ -1795,7 +1795,9 @@ init_resource_groups(int reconfigure, int do_init)
 
 		do_condstops();
 
+		pthread_rwlock_rdlock(&resource_lock);
 		copy_incarnations(&_resources, &reslist);
+		pthread_rwlock_unlock(&resource_lock);
 	}
 
 	/* Swap in the new configuration */
