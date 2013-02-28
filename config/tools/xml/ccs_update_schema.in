@@ -2,6 +2,7 @@
 
 set +e
 export LC_ALL=C
+umask 022
 
 rngdir=@SHAREDIR@/relaxng
 rasdir=@SHAREDIR@
