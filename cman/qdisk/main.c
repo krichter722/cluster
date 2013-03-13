@@ -198,12 +198,14 @@ read_node_blocks(qd_ctx *ctx, node_info_t *ni, int max)
 		/* Unchanged timestamp: miss */
 		if ((sb->ps_timestamp == ni[x].ni_last_seen) &&
 		    (ni[x].ni_state != S_EXIT)) {
-			/* XXX check for average + allow grace */
-			ni[x].ni_misses++;
-			if (ni[x].ni_misses > 1) {
-				logt_print(LOG_DEBUG,
-					"Node %d missed an update (%d/%d)\n",
-					x+1, ni[x].ni_misses, ctx->qc_tko);
+			if (ni[x].ni_state != S_NONE) {
+				/* XXX check for average + allow grace */
+				ni[x].ni_misses++;
+				if (ni[x].ni_misses > 1) {
+					logt_print(LOG_DEBUG,
+						"Node %d missed an update (%d/%d)\n",
+						x+1, ni[x].ni_misses, ctx->qc_tko);
+				}
 			}
 			continue;
 		}
