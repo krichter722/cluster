@@ -288,7 +288,7 @@ static void create_daemon_path(const char *name, const char *field, char *path)
 {
 	memset(path, 0, PATH_MAX);
 	snprintf(path, PATH_MAX,
-		 "/cluster/logging/logging_daemon[@name=\"%s\"]/%s",
+		 "/cluster/logging/logging_daemon[@name=\"%s\"]/@%s",
 		 name, field);
 }
 
