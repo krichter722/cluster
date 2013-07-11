@@ -799,7 +799,6 @@ tune_dlm_config()
 
 	return 0
 }
-	
 
 start()
 {
@@ -839,19 +838,19 @@ start()
 		none \
 		"Mounting configfs"
 
-	[ "$breakpoint" = "setup" ] && exit 0
+	[ "$breakpoint" = "setup" ] && return 0
 
 	runwrap start_cman \
 		none \
 		"Starting cman"
 
-	[ "$breakpoint" = "join" ] && exit 0
+	[ "$breakpoint" = "join" ] && return 0
 
 	runwrap start_cmannotifyd \
 		cmannotifyd_enabled \
 		"Starting cmannotifyd"
 
-	[ "$breakpoint" = "notify" ] && exit 0
+	[ "$breakpoint" = "notify" ] && return 0
 
 	runwrap start_qdiskd \
 		qdiskd_enabled \
@@ -861,7 +860,7 @@ start()
 		none \
 		"Waiting for quorum"
 
-	[ "$breakpoint" = "quorum" ] && exit 0
+	[ "$breakpoint" = "quorum" ] && return 0
 
 	runwrap start_groupd \
 		groupd_enabled \
@@ -885,7 +884,7 @@ start()
 		ocfs2_enabled \
 		"Starting ocfs2_controld"
 
-	[ "$breakpoint" = "daemons" ] && exit 0
+	[ "$breakpoint" = "daemons" ] && return 0
 
 	fence_sanlock_check
 
@@ -1011,14 +1010,14 @@ stop)
 ;;
 restart|reload|force-reload)
 	cmanremove=remove
-	stop
-	start
+	stop && rm -f $LOCK_FILE
+	start && touch $LOCK_FILE
 ;;
 condrestart|try-restart)
 	if cmanstatus; then
 		cmanremove=remove
-		stop
-		start
+		stop && rm -f $LOCK_FILE
+		start && touch $LOCK_FILE
 	fi
 ;;
 status)
