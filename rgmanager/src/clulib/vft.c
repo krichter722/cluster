@@ -498,6 +498,9 @@ vf_buffer_join_msg(vf_msg_t *hdr, struct timeval *timeout)
 		      hdr->vm_msg.vf_view, 
 		      hdr->vm_msg.vf_data, hdr->vm_msg.vf_datalen);
 
+	if (!newp)
+		return 0;
+
 	if (timeout && (timeout->tv_sec || timeout->tv_usec)) {
 		if (getuptime(&newp->vn_timeout) == -1) {
 			/* XXX What do we do here? */
@@ -775,6 +778,7 @@ vf_try_commit(key_node_t *key_node)
 	 */
 	if (key_node->kn_data == NULL) {
 		fprintf (stderr, "malloc fail err=%d\n", errno);
+		key_node->kn_datalen = 0;
 		return -1;
 	}
 
