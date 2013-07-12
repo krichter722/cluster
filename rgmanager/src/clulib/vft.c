@@ -1000,7 +1000,6 @@ vf_key_init_nt(const char *keyid, int timeout, vf_vote_cb_t vote_cb,
 	newnode = kn_find_key(keyid);
 	if (newnode) {
 		printf("Key %s already initialized\n", keyid);
-		pthread_mutex_unlock(&key_list_mutex);
 		return -1;
 	}
 
@@ -1008,7 +1007,6 @@ vf_key_init_nt(const char *keyid, int timeout, vf_vote_cb_t vote_cb,
 
 	if (newnode == NULL) {
 		fprintf(stderr, "malloc fail3 err=%d\n", errno);
-		pthread_mutex_unlock(&key_list_mutex);
 		return -1;
 	}
 
@@ -1487,6 +1485,8 @@ vf_read(cluster_member_list_t *membership, const char *keyid, uint64_t *view,
 			pthread_mutex_unlock(&vf_mutex);
 			return l;
 		}
+
+		pthread_mutex_lock(&key_list_mutex);
 	}
 
 	if (key_node->kn_datalen && key_node->kn_data) {

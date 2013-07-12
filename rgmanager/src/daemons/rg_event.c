@@ -338,9 +338,8 @@ event_master(void)
 			//logt_print(LOG_DEBUG, "%d is master\n", mi->m_nodeid);
 			goto out;
 		}
-	}
-
-	pthread_mutex_unlock(&mi_mutex);
+	} else
+		pthread_mutex_unlock(&mi_mutex);
 
 	memset(&_master_lock, 0, sizeof(_master_lock));
 	if (clu_lock(LKM_EXMODE, &_master_lock, LKF_NOQUEUE,
