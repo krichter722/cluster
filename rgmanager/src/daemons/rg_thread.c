@@ -533,20 +533,12 @@ resgroup_thread_main(void *arg)
 	}
 	 */
 
+	pthread_mutex_unlock(&my_queue_mutex);
 	mystatus = pthread_mutex_destroy(&my_queue_mutex);
-	if (mystatus != 0)
-	{
-		if (mystatus == EBUSY) {
-			pthread_mutex_unlock(&my_queue_mutex);
-		}
-
-		mystatus = pthread_mutex_destroy(&my_queue_mutex);
-		if (mystatus != 0) {
-			fprintf (stderr, "mutex_destroy=%d err=%d %p\n", 
-			    mystatus, errno, &my_queue_mutex);
-
-			fflush (stderr);
-		}
+	if (mystatus != 0) {
+		fprintf(stderr, "mutex_destroy=%d err=%d %p\n", 
+		    mystatus, errno, &my_queue_mutex);
+		fflush (stderr);
 	}
 
 	list_remove(&resthread_list, myself);
