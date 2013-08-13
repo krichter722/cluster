@@ -632,6 +632,7 @@ check_cman(qd_ctx *ctx, memb_mask_t mask, memb_mask_t master_mask)
 {
 	cman_node_t nodes[MAX_NODES_DISK];
 	int retnodes, x;
+	static unsigned int check_cycle = 0;
 
 	if (cman_get_nodes(ctx->qc_cman_admin, MAX_NODES_DISK,
 			   &retnodes, nodes) <0 )
@@ -639,6 +640,18 @@ check_cman(qd_ctx *ctx, memb_mask_t mask, memb_mask_t master_mask)
 
 	memset(master_mask, 0, sizeof(memb_mask_t));
 	for (x = 0; x < retnodes; x++) {
+		/* See if the other node is running cman and not qdiskd.
+		   Just to this every 4 times (seconds) so we don't spam syslog
+                   too much. cman_is_listening() can return EBUSY which means
+		   "I don't know". We don't worry about this, and just report
+		   at the next check by which time it will.
+		*/
+		check_cycle = (check_cycle + 1) % 4;
+		if ((check_cycle == 1) &&
+		    (cman_is_listening(ctx->qc_cman_admin, nodes[x].cn_nodeid,
+		                       CLUSTER_PORT_QDISKD) == 0)) {
+			logt_print(LOG_NOTICE, "node %s is up but not running qdiskd", nodes[x].cn_name);
+		}
 		if (is_bit_set(mask, nodes[x].cn_nodeid-1, sizeof(memb_mask_t)) &&
 		    nodes[x].cn_member) {
 			set_bit(master_mask, nodes[x].cn_nodeid-1,
