@@ -19,6 +19,8 @@ my $ret = 0;
 # eg. only the first 3 digits
 my $required_kernelversion = '2.6.31';
 
+my $outoftree = '';
+
 my %options = (
 	help => \$help,
 	cc => \$cc,
@@ -356,6 +358,7 @@ if (! -d "$objdir/make") {
   symlinks("bindings","*.PL");
   symlinks("bindings","MANIFEST");
   symlinks("bindings","typemap");
+  $outoftree = 1;
 } else {
   print "nothing to do\n";
 }
@@ -614,6 +617,7 @@ while (<IFILE>) {
   $_ =~ s/\@DISABLE_FENCE\@/$without_fence/;
   $_ =~ s/\@DISABLE_RGMANAGER\@/$without_rgmanager/;
   $_ =~ s/\@DISABLE_BINDINGS\@/$without_bindings/;
+  $_ =~ s/\@OUTOFTREEBUILD\@/$outoftree/;
 
   print OFILE "$_\n";
 }

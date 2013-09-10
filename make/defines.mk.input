@@ -70,6 +70,9 @@ without_bindings ?= @DISABLE_BINDINGS@
 
 THISDIR = $(shell echo $(CURDIR) | sed -e 's|$(OBJDIR)/||g')
 S=$(SRCDIR)/$(THISDIR)
+O=$(OBJDIR)/$(THISDIR)
+
+outoftreebuild ?= @OUTOFTREEBUILD@
 
 CONFDIR=@CONFDIR@
 CONFFILE=@CONFFILE@
