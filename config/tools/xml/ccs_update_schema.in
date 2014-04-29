@@ -215,6 +215,9 @@ generate_ras() {
 		lecho " ras: processing $(basename $i)"
 		$i meta-data 2>/dev/null | xsltproc $rngdir/ra2rng.xsl - >> \
 			"$outputdir/resources.rng.cache" 2>/dev/null
+		[ "$?" != 0 ] && \
+			echo "  <!-- Problem evaluating metadata for $i" \
+				"-->" >> "$outputdir/resources.rng.cache"
 	done
 	cat $rngdir/resources.rng.mid >> "$outputdir/resources.rng.cache"
 	lecho " ras: generating ref data"
@@ -301,8 +304,8 @@ generate_fas() {
 			xsltproc $rngdir/fence2rng.xsl - >> \
 			"$outputdir/fence_agents.rng.cache" 2>/dev/null
 		[ "$?" != 0 ] && \
-			echo "      <!-- No metadata for $i -->" >> \
-				"$outputdir/fence_agents.rng.cache"
+			echo "      <!-- Problem evaluating metadata for $i" \
+				"-->" >> "$outputdir/fence_agents.rng.cache"
 	done
 	cat $rngdir/fence.rng.tail >> "$outputdir/fence_agents.rng.cache"
 }
