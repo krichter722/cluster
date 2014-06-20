@@ -97,8 +97,8 @@ ethernet bonding. Alternatively you can get corosync to run in redundant ring
 mode by specifying an 'altname' for the node. This is an alternative name by
 which the node is known, that resolves to another IP address used on the 
 other ethernet adapter(s). You can optionally specify a different port and/or 
-multicast address for each altname in use. Up to 9 altnames (10 interfaces 
-in total) can be used.
+multicast address for each altname in use. Only one altname (2 interfaces 
+in total) is valid for each node.
 
 Note that if you are using the DLM with cman/corosync then you MUST tell it 
 to use SCTP as it's communications protocol as TCP does not support multihoming.
@@ -192,7 +192,7 @@ default values:
     join="60"
     consensus="4800"
     rrp_mode="none"
-    <!-- or rrp_mode="active" if altnames are present >
+    <!-- or rrp_mode="active" if altname is present >
   />
   <aisexec user="root" group="root" />
 
