@@ -38,6 +38,7 @@ static int logt_logfile_priority;
 static char logt_name[PATH_MAX];
 static char logt_logfile[PATH_MAX];
 static FILE *logt_logfile_fp;
+static FILE *new_logt_logfile_fp;
 
 static char *_time(time_t *t)
 {
@@ -100,6 +101,13 @@ static void *thread_fn(void *arg)
 
 		prev_dropped = dropped;
 		dropped = 0;
+
+		if (new_logt_logfile_fp) {
+		       fclose(logt_logfile_fp);
+		       logt_logfile_fp = new_logt_logfile_fp;
+		       new_logt_logfile_fp = NULL;
+		}
+
 		pthread_mutex_unlock(&mutex);
 
 		if (prev_dropped) {
@@ -176,19 +184,29 @@ static void _conf(const char *name, int mode, int syslog_facility,
 		strncpy(logt_logfile, logfile, PATH_MAX - 1);
 
 	if (logt_mode & LOG_MODE_OUTPUT_FILE && logt_logfile[0]) {
-		if (logt_logfile_fp) {
-			fclose(logt_logfile_fp);
-			logt_logfile_fp = NULL;
-		}
-		logt_logfile_fp = fopen(logt_logfile, "a+");
-		if (logt_logfile_fp != NULL) {
-			fd = fileno(logt_logfile_fp);
-			fcntl(fd, F_SETFD, fcntl(fd, F_GETFD, 0) | FD_CLOEXEC);
-		}
+	       /* Don't close the existing fp in this thread, let the main logthread do it later */
+	       if (!logt_logfile_fp) {
+		      logt_logfile_fp = fopen(logt_logfile, "a+");
+		      if (logt_logfile_fp != NULL) {
+			     fd = fileno(logt_logfile_fp);
+			     fcntl(fd, F_SETFD, fcntl(fd, F_GETFD, 0) | FD_CLOEXEC);
+		      }
+	       }
+	       else {
+		      new_logt_logfile_fp = fopen(logt_logfile, "a+");
+		      if (new_logt_logfile_fp != NULL) {
+			     fd = fileno(new_logt_logfile_fp);
+			     fcntl(fd, F_SETFD, fcntl(fd, F_GETFD, 0) | FD_CLOEXEC);
+		      }
+	       }
 	} else {
 		if (logt_logfile_fp) {
 			fclose(logt_logfile_fp);
 			logt_logfile_fp = NULL;
+		}
+		if (new_logt_logfile_fp) {
+			fclose(new_logt_logfile_fp);
+			new_logt_logfile_fp = NULL;
 		}
 	}
 
