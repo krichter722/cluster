@@ -270,7 +270,7 @@ static int get_cman_join_info(struct corosync_api_v1 *corosync)
 				   "nodes with one vote each and expected "
 				   "votes of 1 (node_count=%d vote_sum=%d)",
 				   node_count, vote_sum);
-			write_cman_pipe("two_node set but there are more than 2 nodes");
+			write_cman_pipe("two_node is set but there are not 2 nodes in cluster.conf");
 			error = -EINVAL;
 			goto out;
 		}
