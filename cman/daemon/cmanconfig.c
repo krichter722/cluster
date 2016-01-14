@@ -229,7 +229,7 @@ static int get_cman_join_info(struct corosync_api_v1 *corosync)
 	}
 
 	node_object = nodelist_byname(corosync, cluster_parent_handle, our_nodename);
-	if (!node_object) {
+	if (!votes && !node_object) {
 		log_printf(LOG_ERR, "unable to find votes for %s", our_nodename);
 		write_cman_pipe("Unable to find votes for node in CCS");
 		return -E2BIG;
