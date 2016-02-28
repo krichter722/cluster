@@ -1,0 +1,12 @@
+language: c
+sudo: required
+before_script:
+- sudo apt-get update
+- sudo apt-get install linux-headers-generic
+- sudo apt-get build-dep clvm
+script:
+# unclear how to handle the following more flexible:
+- ./configure --kernel_src=/usr/src/linux-headers-3.2.0-99-generic
+- make -j16
+- make -j16 check
+- sudo make -j16 install
